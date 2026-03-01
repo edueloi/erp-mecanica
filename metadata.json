@@ -1,0 +1,7 @@
+{
+  "name": "MecaERP - SaaS para Oficinas",
+  "description": "Sistema ERP completo para gestão de oficinas mecânicas com multi-tenant, ordens de serviço, financeiro e estoque.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
