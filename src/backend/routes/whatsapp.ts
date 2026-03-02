@@ -3,6 +3,7 @@ import { authenticateToken } from "../middleware/auth";
 import db from "../db";
 import wppConnectService from "../whatsapp/wppconnect-service";
 import { v4 as uuidv4 } from "uuid";
+import { normalizePhoneE164, getPhoneVariations } from "../utils/phoneNormalizer";
 
 const router = Router();
 router.use(authenticateToken);
@@ -725,6 +726,326 @@ router.post("/send-template", async (req: any, res: any) => {
     }
   } catch (error: any) {
     console.error("Error sending template:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ========================================
+// CLIENT/VEHICLE LINKING (CRM Integration)
+// ========================================
+
+/**
+ * POST /api/whatsapp/conversations/:id/link-client
+ * Vincula cliente a uma conversa
+ */
+router.post("/conversations/:id/link-client", (req: any, res: any) => {
+  try {
+    const { clientId, updateClientPhone } = req.body;
+    const conversationId = req.params.id;
+
+    if (!clientId) {
+      return res.status(400).json({ error: "clientId é obrigatório" });
+    }
+
+    // Buscar conversa
+    const conversation = db
+      .prepare("SELECT * FROM whatsapp_conversations WHERE id = ? AND tenant_id = ?")
+      .get(conversationId, req.user.tenant_id) as any;
+
+    if (!conversation) {
+      return res.status(404).json({ error: "Conversa não encontrada" });
+    }
+
+    // Buscar cliente
+    const client = db
+      .prepare("SELECT * FROM clients WHERE id = ? AND tenant_id = ?")
+      .get(clientId, req.user.tenant_id) as any;
+
+    if (!client) {
+      return res.status(404).json({ error: "Cliente não encontrado" });
+    }
+
+    // Vincular
+    db.prepare(
+      `UPDATE whatsapp_conversations 
+       SET client_id = ?, updated_at = CURRENT_TIMESTAMP 
+       WHERE id = ?`
+    ).run(clientId, conversationId);
+
+    // Opcionalmente atualizar telefone do cliente
+    if (updateClientPhone && conversation.phone_e164) {
+      db.prepare(
+        `UPDATE clients 
+         SET phone_e164 = ?, phone = ?, updated_at = CURRENT_TIMESTAMP 
+         WHERE id = ?`
+      ).run(conversation.phone_e164, conversation.phone, clientId);
+    }
+
+    res.json({ 
+      success: true, 
+      message: "Cliente vinculado com sucesso",
+      clientId,
+      conversationId 
+    });
+  } catch (error: any) {
+    console.error("Error linking client:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * DELETE /api/whatsapp/conversations/:id/unlink-client
+ * Remove vinculação de cliente
+ */
+router.delete("/conversations/:id/unlink-client", (req: any, res: any) => {
+  try {
+    const conversationId = req.params.id;
+
+    db.prepare(
+      `UPDATE whatsapp_conversations 
+       SET client_id = NULL, vehicle_id = NULL, updated_at = CURRENT_TIMESTAMP 
+       WHERE id = ? AND tenant_id = ?`
+    ).run(conversationId, req.user.tenant_id);
+
+    res.json({ success: true, message: "Cliente desvinculado" });
+  } catch (error: any) {
+    console.error("Error unlinking client:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * POST /api/whatsapp/conversations/:id/link-vehicle
+ * Vincula veículo a uma conversa (requer cliente vinculado)
+ */
+router.post("/conversations/:id/link-vehicle", (req: any, res: any) => {
+  try {
+    const { vehicleId } = req.body;
+    const conversationId = req.params.id;
+
+    if (!vehicleId) {
+      return res.status(400).json({ error: "vehicleId é obrigatório" });
+    }
+
+    // Buscar conversa
+    const conversation = db
+      .prepare("SELECT * FROM whatsapp_conversations WHERE id = ? AND tenant_id = ?")
+      .get(conversationId, req.user.tenant_id) as any;
+
+    if (!conversation) {
+      return res.status(404).json({ error: "Conversa não encontrada" });
+    }
+
+    if (!conversation.client_id) {
+      return res.status(400).json({ error: "Conversa precisa ter cliente vinculado primeiro" });
+    }
+
+    // Verificar se veículo pertence ao cliente
+    const vehicle = db
+      .prepare("SELECT * FROM vehicles WHERE id = ? AND client_id = ?")
+      .get(vehicleId, conversation.client_id) as any;
+
+    if (!vehicle) {
+      return res.status(404).json({ error: "Veículo não encontrado ou não pertence ao cliente" });
+    }
+
+    // Vincular
+    db.prepare(
+      `UPDATE whatsapp_conversations 
+       SET vehicle_id = ?, vehicle_plate = ?, updated_at = CURRENT_TIMESTAMP 
+       WHERE id = ?`
+    ).run(vehicleId, vehicle.plate, conversationId);
+
+    res.json({ 
+      success: true, 
+      message: "Veículo vinculado",
+      vehicleId 
+    });
+  } catch (error: any) {
+    console.error("Error linking vehicle:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * POST /api/whatsapp/conversations/:id/create-and-link-client
+ * Cria cliente rápido e vincula à conversa
+ */
+router.post("/conversations/:id/create-and-link-client", (req: any, res: any) => {
+  try {
+    const conversationId = req.params.id;
+    const { name, cpfCnpj, email, city } = req.body;
+
+    if (!name || !name.trim()) {
+      return res.status(400).json({ error: "Nome é obrigatório" });
+    }
+
+    // Buscar conversa
+    const conversation = db
+      .prepare("SELECT * FROM whatsapp_conversations WHERE id = ? AND tenant_id = ?")
+      .get(conversationId, req.user.tenant_id) as any;
+
+    if (!conversation) {
+      return res.status(404).json({ error: "Conversa não encontrada" });
+    }
+
+    // Criar cliente
+    const clientId = uuidv4();
+    const phoneE164 = conversation.phone_e164 || normalizePhoneE164(conversation.phone);
+
+    db.prepare(
+      `INSERT INTO clients 
+       (id, tenant_id, name, phone, phone_e164, cpf_cnpj, email, city, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
+    ).run(
+      clientId,
+      req.user.tenant_id,
+      name.trim(),
+      conversation.phone,
+      phoneE164,
+      cpfCnpj || null,
+      email || null,
+      city || null
+    );
+
+    // Vincular à conversa
+    db.prepare(
+      `UPDATE whatsapp_conversations 
+       SET client_id = ?, updated_at = CURRENT_TIMESTAMP 
+       WHERE id = ?`
+    ).run(clientId, conversationId);
+
+    res.json({
+      success: true,
+      message: "Cliente criado e vinculado",
+      clientId,
+      client: { id: clientId, name, phone: conversation.phone, phoneE164 }
+    });
+  } catch (error: any) {
+    console.error("Error creating and linking client:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * GET /api/whatsapp/search-clients
+ * Busca clientes por nome/telefone/CPF para vincular
+ */
+router.get("/search-clients", (req: any, res: any) => {
+  try {
+    const { query } = req.query;
+
+    if (!query || query.length < 2) {
+      return res.json([]);
+    }
+
+    const searchTerm = `%${query}%`;
+
+    const clients = db.prepare(`
+      SELECT 
+        id, name, phone, phone_e164, cpf_cnpj, email, city,
+        (SELECT COUNT(*) FROM vehicles WHERE client_id = clients.id) as vehicle_count,
+        (SELECT COUNT(*) FROM work_orders WHERE client_id = clients.id) as work_order_count
+      FROM clients
+      WHERE tenant_id = ?
+        AND (
+          name LIKE ? 
+          OR phone LIKE ? 
+          OR phone_e164 LIKE ?
+          OR cpf_cnpj LIKE ?
+          OR email LIKE ?
+        )
+      ORDER BY name
+      LIMIT 20
+    `).all(req.user.tenant_id, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm);
+
+    res.json(clients);
+  } catch (error: any) {
+    console.error("Error searching clients:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * GET /api/whatsapp/conversations/:id/client-context
+ * Retorna contexto completo do cliente (veículos, OS, financeiro)
+ */
+router.get("/conversations/:id/client-context", (req: any, res: any) => {
+  try {
+    const conversationId = req.params.id;
+
+    // Buscar conversa com cliente
+    const conversation = db
+      .prepare(`
+        SELECT c.*, cl.id as client_id, cl.name as client_name, cl.phone, cl.email, cl.document
+        FROM whatsapp_conversations c
+        LEFT JOIN clients cl ON c.client_id = cl.id
+        WHERE c.id = ? AND c.tenant_id = ?
+      `)
+      .get(conversationId, req.user.tenant_id) as any;
+
+    if (!conversation || !conversation.client_id) {
+      return res.json({ hasClient: false });
+    }
+
+    // Buscar veículos do cliente
+    const vehicles = db.prepare(`
+      SELECT * FROM vehicles 
+      WHERE client_id = ? 
+      ORDER BY created_at DESC
+    `).all(conversation.client_id);
+
+    // Buscar últimas 5 OS
+    const workOrders = db.prepare(`
+      SELECT 
+        wo.*,
+        v.plate as vehicle_plate,
+        v.model as vehicle_model
+      FROM work_orders wo
+      LEFT JOIN vehicles v ON wo.vehicle_id = v.id
+      WHERE wo.client_id = ?
+      ORDER BY wo.created_at DESC
+      LIMIT 5
+    `).all(conversation.client_id);
+
+    // Buscar financeiro (a receber)
+    const receivables = db.prepare(`
+      SELECT 
+        SUM(CASE WHEN status = 'open' THEN amount ELSE 0 END) as total_open,
+        SUM(CASE WHEN status = 'overdue' THEN amount ELSE 0 END) as total_overdue,
+        COUNT(CASE WHEN status = 'open' OR status = 'overdue' THEN 1 END) as count_pending
+      FROM accounts_receivable
+      WHERE client_id = ? AND tenant_id = ?
+    `).get(conversation.client_id, req.user.tenant_id) as any;
+
+    // Buscar agendamentos futuros
+    const appointments = db.prepare(`
+      SELECT * FROM appointments 
+      WHERE client_id = ? AND date >= date('now')
+      ORDER BY date ASC
+      LIMIT 3
+    `).all(conversation.client_id);
+
+    res.json({
+      hasClient: true,
+      client: {
+        id: conversation.client_id,
+        name: conversation.client_name,
+        phone: conversation.phone,
+        email: conversation.email,
+        cpfCnpj: conversation.cpf_cnpj,
+      },
+      vehicles,
+      workOrders,
+      receivables: {
+        totalOpen: receivables?.total_open || 0,
+        totalOverdue: receivables?.total_overdue || 0,
+        countPending: receivables?.count_pending || 0,
+      },
+      appointments,
+    });
+  } catch (error: any) {
+    console.error("Error fetching client context:", error);
     res.status(500).json({ error: error.message });
   }
 });

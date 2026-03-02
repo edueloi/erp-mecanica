@@ -82,12 +82,33 @@ interface SessionStatus {
   phoneNumber: string | null;
   qrCode: string | null;
   isActive: boolean;
+  qrGeneratedAt?: string;
+}
+
+interface ClientContext {
+  hasClient: boolean;
+  client?: {
+    id: string;
+    name: string;
+    phone: string;
+    email?: string;
+    cpfCnpj?: string;
+  };
+  vehicles?: any[];
+  workOrders?: any[];
+  receivables?: {
+    totalOpen: number;
+    totalOverdue: number;
+    countPending: number;
+  };
+  appointments?: any[];
 }
 
 export default function WhatsApp() {
   // Session
   const [sessionStatus, setSessionStatus] = useState<SessionStatus | null>(null);
   const [showQRModal, setShowQRModal] = useState(false);
+  const [qrTimeRemaining, setQrTimeRemaining] = useState<number>(300); // 5 minutos em segundos
 
   // Conversations
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -108,6 +129,17 @@ export default function WhatsApp() {
   // Context Panel
   const [showContext, setShowContext] = useState(true);
   const [contextTab, setContextTab] = useState<"summary" | "actions" | "automation">("summary");
+  const [clientContext, setClientContext] = useState<ClientContext | null>(null);
+  const [loadingContext, setLoadingContext] = useState(false);
+
+  // Linking Modals
+  const [showLinkClientModal, setShowLinkClientModal] = useState(false);
+  const [showCreateClientModal, setShowCreateClientModal] = useState(false);
+  const [searchClientsQuery, setSearchClientsQuery] = useState("");
+  const [searchClientsResults, setSearchClientsResults] = useState<any[]>([]);
+  const [newClientName, setNewClientName] = useState("");
+  const [newClientCpf, setNewClientCpf] = useState("");
+  const [newClientEmail, setNewClientEmail] = useState("");
 
   // Refs
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -119,6 +151,40 @@ export default function WhatsApp() {
     const interval = setInterval(loadSessionStatus, 10000); // Poll cada 10s
     return () => clearInterval(interval);
   }, []);
+
+  // Contagem regressiva do QR Code
+  useEffect(() => {
+    if (sessionStatus?.status === "qr_ready" && sessionStatus.qrCode) {
+      // Calcular tempo restante baseado no timestamp de geração
+      const calculateTimeRemaining = () => {
+        if (!sessionStatus.qrGeneratedAt) {
+          return 300; // Fallback: 5 minutos
+        }
+        
+        const generatedAt = new Date(sessionStatus.qrGeneratedAt).getTime();
+        const now = Date.now();
+        const elapsedSeconds = Math.floor((now - generatedAt) / 1000);
+        const remaining = Math.max(0, 300 - elapsedSeconds); // 300s = 5 minutos
+        
+        return remaining;
+      };
+
+      // Atualizar imediatamente
+      setQrTimeRemaining(calculateTimeRemaining());
+
+      // Atualizar a cada segundo
+      const interval = setInterval(() => {
+        const remaining = calculateTimeRemaining();
+        setQrTimeRemaining(remaining);
+        
+        if (remaining === 0) {
+          clearInterval(interval);
+        }
+      }, 1000);
+
+      return () => clearInterval(interval);
+    }
+  }, [sessionStatus?.qrCode, sessionStatus?.status, sessionStatus?.qrGeneratedAt]);
 
   // Load conversations
   useEffect(() => {
@@ -252,6 +318,110 @@ export default function WhatsApp() {
   };
 
   // ========================================
+  // CLIENT LINKING (CRM Integration)
+  // ========================================
+
+  const loadClientContext = async (conversationId: string) => {
+    if (!conversationId) return;
+    
+    setLoadingContext(true);
+    try {
+      const response = await api.get(`/whatsapp/conversations/${conversationId}/client-context`);
+      setClientContext(response.data);
+    } catch (error) {
+      console.error("Error loading client context:", error);
+    } finally {
+      setLoadingContext(false);
+    }
+  };
+
+  const searchClients = async (query: string) => {
+    if (query.length < 2) {
+      setSearchClientsResults([]);
+      return;
+    }
+
+    try {
+      const response = await api.get("/whatsapp/search-clients", { params: { query } });
+      setSearchClientsResults(response.data);
+    } catch (error) {
+      console.error("Error searching clients:", error);
+    }
+  };
+
+  const linkClient = async (clientId: string) => {
+    if (!selectedConversation) return;
+
+    try {
+      await api.post(`/whatsapp/conversations/${selectedConversation.id}/link-client`, {
+        clientId,
+        updateClientPhone: true,
+      });
+
+      alert("Cliente vinculado com sucesso!");
+      setShowLinkClientModal(false);
+      loadConversations();
+      loadClientContext(selectedConversation.id);
+    } catch (error: any) {
+      alert(error.response?.data?.error || "Erro ao vincular cliente");
+    }
+  };
+
+  const createAndLinkClient = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!selectedConversation || !newClientName.trim()) {
+      alert("Nome é obrigatório");
+      return;
+    }
+
+    try {
+      const response = await api.post(
+        `/whatsapp/conversations/${selectedConversation.id}/create-and-link-client`,
+        {
+          name: newClientName,
+          cpfCnpj: newClientCpf,
+          email: newClientEmail,
+        }
+      );
+
+      alert("Cliente criado e vinculado com sucesso!");
+      setShowCreateClientModal(false);
+      setNewClientName("");
+      setNewClientCpf("");
+      setNewClientEmail("");
+      loadConversations();
+      loadClientContext(selectedConversation.id);
+    } catch (error: any) {
+      alert(error.response?.data?.error || "Erro ao criar cliente");
+    }
+  };
+
+  const unlinkClient = async () => {
+    if (!selectedConversation) return;
+
+    if (!confirm("Deseja realmente desvincular este cliente?")) return;
+
+    try {
+      await api.delete(`/whatsapp/conversations/${selectedConversation.id}/unlink-client`);
+      alert("Cliente desvinculado");
+      loadConversations();
+      loadClientContext(selectedConversation.id);
+    } catch (error: any) {
+      alert(error.response?.data?.error || "Erro ao desvincular");
+    }
+  };
+
+  // Carregar contexto quando conversa mudar
+  useEffect(() => {
+    if (selectedConversation) {
+      loadClientContext(selectedConversation.id);
+    } else {
+      setClientContext(null);
+    }
+  }, [selectedConversation?.id]);
+
+  // ========================================
   // RENDER
   // ========================================
 
@@ -272,20 +442,65 @@ export default function WhatsApp() {
             <>
               <QrCode className="w-16 h-16 mx-auto text-green-600 mb-4" />
               <h2 className="text-2xl font-bold text-slate-900 mb-2">Escaneie o QR Code</h2>
-              <p className="text-slate-500 mb-6">
+              <p className="text-slate-500 mb-4">
                 Abra o WhatsApp no seu celular e escaneie o código abaixo
               </p>
-              {sessionStatus.qrCode && (
-                <div className="bg-white p-4 rounded-xl border-2 border-slate-200 mb-6">
+              
+              {/* Contagem regressiva */}
+              <div className="mb-4">
+                <div className="flex items-center justify-between text-sm mb-2">
+                  <span className="text-slate-600">Tempo restante</span>
+                  <span className={`font-mono font-bold ${
+                    qrTimeRemaining <= 30 ? "text-red-600" : "text-green-600"
+                  }`}>
+                    {Math.floor(qrTimeRemaining / 60)}:{String(qrTimeRemaining % 60).padStart(2, '0')}
+                  </span>
+                </div>
+                {/* Barra de progresso */}
+                <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
+                  <div
+                    className={`h-full transition-all duration-1000 ${
+                      qrTimeRemaining <= 30 ? "bg-red-600" : "bg-green-600"
+                    }`}
+                    style={{ width: `${(qrTimeRemaining / 300) * 100}%` }}
+                  />
+                </div>
+                {qrTimeRemaining <= 30 && qrTimeRemaining > 0 && (
+                  <p className="text-xs text-red-600 mt-2 flex items-center justify-center gap-1">
+                    <AlertCircle className="w-3 h-3" />
+                    Código expirando em breve!
+                  </p>
+                )}
+                {qrTimeRemaining === 0 && (
+                  <p className="text-xs text-red-600 mt-2 flex items-center justify-center gap-1">
+                    <AlertCircle className="w-3 h-3" />
+                    Código expirado. Clique em "Gerar novo código".
+                  </p>
+                )}
+              </div>
+
+              {sessionStatus.qrCode && qrTimeRemaining > 0 && (
+                <div className="bg-white p-4 rounded-xl border-2 border-slate-200 mb-4">
                   <img src={sessionStatus.qrCode} alt="QR Code" className="mx-auto" />
                 </div>
               )}
-              <button
-                onClick={() => window.location.reload()}
-                className="text-sm text-primary hover:underline"
-              >
-                Atualizar status
-              </button>
+              
+              {qrTimeRemaining === 0 ? (
+                <button
+                  onClick={startSession}
+                  className="w-full bg-green-600 hover:bg-green-700 text-white font-medium py-3 px-6 rounded-xl transition-colors flex items-center justify-center gap-2"
+                >
+                  <QrCode className="w-5 h-5" />
+                  Gerar novo código
+                </button>
+              ) : (
+                <button
+                  onClick={() => window.location.reload()}
+                  className="text-sm text-primary hover:underline"
+                >
+                  Atualizar status
+                </button>
+              )}
             </>
           ) : (
             <>
@@ -694,36 +909,169 @@ export default function WhatsApp() {
           <div className="flex-1 overflow-y-auto p-4">
             {contextTab === "summary" && (
               <div className="space-y-4">
-                <div className="p-3 bg-slate-50 rounded-xl">
-                  <h4 className="text-xs font-semibold text-slate-600 uppercase mb-2">Cliente</h4>
-                  <p className="text-sm text-slate-900 font-medium">
-                    {selectedConversation.client_name || "Não identificado"}
-                  </p>
-                </div>
-
-                {selectedConversation.vehicle_plate && (
-                  <div className="p-3 bg-slate-50 rounded-xl">
-                    <h4 className="text-xs font-semibold text-slate-600 uppercase mb-2">
-                      Veículo
-                    </h4>
-                    <p className="text-sm text-slate-900 font-medium">
-                      {selectedConversation.vehicle_plate}
-                    </p>
+                {loadingContext ? (
+                  <div className="flex items-center justify-center py-8">
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
                   </div>
-                )}
+                ) : clientContext?.hasClient ? (
+                  <>
+                    {/* Cliente Vinculado */}
+                    <div className="p-4 bg-green-50 border border-green-200 rounded-xl">
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex items-center gap-2">
+                          <User className="w-5 h-5 text-green-600" />
+                          <span className="text-xs font-semibold text-green-600 uppercase">
+                            Cliente Cadastrado
+                          </span>
+                        </div>
+                        <button
+                          onClick={unlinkClient}
+                          className="text-xs text-red-600 hover:underline"
+                        >
+                          Desvincular
+                        </button>
+                      </div>
+                      <h3 className="text-sm font-bold text-slate-900 mb-1">
+                        {clientContext.client?.name}
+                      </h3>
+                      <p className="text-xs text-slate-600">{clientContext.client?.phone}</p>
+                      {clientContext.client?.cpfCnpj && (
+                        <p className="text-xs text-slate-600">CPF/CNPJ: {clientContext.client.cpfCnpj}</p>
+                      )}
+                    </div>
 
-                {selectedConversation.work_order_id && (
-                  <div className="p-3 bg-slate-50 rounded-xl">
-                    <h4 className="text-xs font-semibold text-slate-600 uppercase mb-2">
-                      Ordem de Serviço
-                    </h4>
-                    <p className="text-sm text-slate-900 font-medium">
-                      #{selectedConversation.work_order_id}
-                    </p>
-                    <p className="text-xs text-slate-600 mt-1">
-                      Status: {selectedConversation.work_order_status}
-                    </p>
-                  </div>
+                    {/* Veículos */}
+                    {clientContext.vehicles && clientContext.vehicles.length > 0 && (
+                      <div className="p-3 bg-slate-50 rounded-xl">
+                        <h4 className="text-xs font-semibold text-slate-600 uppercase mb-2 flex items-center gap-2">
+                          <Car className="w-4 h-4" />
+                          Veículos ({clientContext.vehicles.length})
+                        </h4>
+                        <div className="space-y-2">
+                          {clientContext.vehicles.map((vehicle: any) => (
+                            <div
+                              key={vehicle.id}
+                              className="p-2 bg-white rounded-lg border border-slate-200"
+                            >
+                              <p className="text-sm font-medium text-slate-900">
+                                {vehicle.plate}
+                              </p>
+                              <p className="text-xs text-slate-600">
+                                {vehicle.model} - {vehicle.year}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Últimas OS */}
+                    {clientContext.workOrders && clientContext.workOrders.length > 0 && (
+                      <div className="p-3 bg-slate-50 rounded-xl">
+                        <h4 className="text-xs font-semibold text-slate-600 uppercase mb-2 flex items-center gap-2">
+                          <Wrench className="w-4 h-4" />
+                          Últimas OS ({clientContext.workOrders.length})
+                        </h4>
+                        <div className="space-y-2">
+                          {clientContext.workOrders.slice(0, 3).map((wo: any) => (
+                            <div
+                              key={wo.id}
+                              className="p-2 bg-white rounded-lg border border-slate-200"
+                            >
+                              <div className="flex items-center justify-between">
+                                <p className="text-sm font-medium text-slate-900">#{wo.id.substring(0, 8)}</p>
+                                <span className={`text-xs px-2 py-0.5 rounded-full ${
+                                  wo.status === 'completed' ? 'bg-green-100 text-green-700' :
+                                  wo.status === 'in_progress' ? 'bg-blue-100 text-blue-700' :
+                                  'bg-yellow-100 text-yellow-700'
+                                }`}>
+                                  {wo.status}
+                                </span>
+                              </div>
+                              {wo.vehicle_plate && (
+                                <p className="text-xs text-slate-600">Veículo: {wo.vehicle_plate}</p>
+                              )}
+                              {wo.total_amount && (
+                                <p className="text-xs text-slate-900 mt-1">
+                                  R$ {parseFloat(wo.total_amount).toFixed(2)}
+                                </p>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Financeiro */}
+                    {clientContext.receivables && clientContext.receivables.countPending > 0 && (
+                      <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl">
+                        <h4 className="text-xs font-semibold text-amber-700 uppercase mb-2 flex items-center gap-2">
+                          <DollarSign className="w-h h-4" />
+                          Pendências Financeiras
+                        </h4>
+                        <div className="space-y-1">
+                          <p className="text-sm text-slate-900">
+                            Em aberto: <span className="font-bold">
+                              R$ {clientContext.receivables.totalOpen.toFixed(2)}
+                            </span>
+                          </p>
+                          {clientContext.receivables.totalOverdue > 0 && (
+                            <p className="text-sm text-red-600">
+                              Atrasado: <span className="font-bold">
+                                R$ {clientContext.receivables.totalOverdue.toFixed(2)}
+                              </span>
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    {/* Cliente NÃO Vinculado */}
+                    <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl">
+                      <div className="flex items-center gap-2 mb-3">
+                        <AlertCircle className="w-5 h-5 text-amber-600" />
+                        <span className="text-xs font-semibold text-amber-700 uppercase">
+                          Não Vinculado
+                        </span>
+                      </div>
+                      <p className="text-sm text-slate-700 mb-4">
+                        Este número ainda não está cadastrado no sistema.
+                      </p>
+                      
+                      <div className="space-y-2">
+                        <button
+                          onClick={() => setShowCreateClientModal(true)}
+                          className="w-full p-3 bg-green-600 hover:bg-green-700 text-white rounded-xl text-sm font-medium flex items-center justify-center gap-2 transition-colors"
+                        >
+                          <User className="w-4 h-4" />
+                          Criar Cliente
+                        </button>
+                        
+                        <button
+                          onClick={() => setShowLinkClientModal(true)}
+                          className="w-full p-3 bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 rounded-xl text-sm font-medium flex items-center justify-center gap-2 transition-colors"
+                        >
+                          <Search className="w-4 h-4" />
+                          Vincular Existente
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="p-3 bg-slate-50 rounded-xl">
+                      <h4 className="text-xs font-semibold text-slate-600 uppercase mb-2">
+                        Informações da Conversa
+                      </h4>
+                      <p className="text-xs text-slate-600 mb-1">
+                        <span className="font-medium">Telefone:</span> {selectedConversation.phone}
+                      </p>
+                      <p className="text-xs text-slate-600">
+                        <span className="font-medium">Nome (WhatsApp):</span>{" "}
+                        {selectedConversation.contact_name || "Não disponível"}
+                      </p>
+                    </div>
+                  </>
                 )}
               </div>
             )}
@@ -789,6 +1137,196 @@ export default function WhatsApp() {
           <UserCircle className="w-5 h-5 text-slate-600" />
         </button>
       )}
+
+      {/* Modal: Criar Cliente */}
+      <AnimatePresence>
+        {showCreateClientModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+            onClick={() => setShowCreateClientModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.95 }}
+              animate={{ scale: 1 }}
+              exit={{ scale: 0.95 }}
+              className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-bold text-slate-900">Criar Cliente</h2>
+                <button
+                  onClick={() => setShowCreateClientModal(false)}
+                  className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+                >
+                  <X className="w-5 h-5 text-slate-600" />
+                </button>
+              </div>
+
+              <form onSubmit={createAndLinkClient} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    Nome *
+                  </label>
+                  <input
+                    type="text"
+                    value={newClientName}
+                    onChange={(e) => setNewClientName(e.target.value)}
+                    placeholder="Nome completo"
+                    required
+                    className="w-full px-4 py-2 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    Telefone
+                  </label>
+                  <input
+                    type="text"
+                    value={selectedConversation?.phone || ""}
+                    disabled
+                    className="w-full px-4 py-2 border border-slate-300 rounded-xl bg-slate-100 text-slate-600"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    CPF/CNPJ
+                  </label>
+                  <input
+                    type="text"
+                    value={newClientCpf}
+                    onChange={(e) => setNewClientCpf(e.target.value)}
+                    placeholder="000.000.000-00"
+                    className="w-full px-4 py-2 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    Email
+                  </label>
+                  <input
+                    type="email"
+                    value={newClientEmail}
+                    onChange={(e) => setNewClientEmail(e.target.value)}
+                    placeholder="cliente@email.com"
+                    className="w-full px-4 py-2 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary"
+                  />
+                </div>
+
+                <div className="flex gap-3 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => setShowCreateClientModal(false)}
+                    className="flex-1 px-4 py-2 border border-slate-300 text-slate-700 rounded-xl hover:bg-slate-50 transition-colors"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="submit"
+                    className="flex-1 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-xl transition-colors"
+                  >
+                    Criar e Vincular
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Modal: Vincular Cliente Existente */}
+      <AnimatePresence>
+        {showLinkClientModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+            onClick={() => setShowLinkClientModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.95 }}
+              animate={{ scale: 1 }}
+              exit={{ scale: 0.95 }}
+              className="bg-white rounded-2xl shadow-xl max-w-2xl w-full p-6 max-h-[80vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-bold text-slate-900">Vincular Cliente</h2>
+                <button
+                  onClick={() => setShowLinkClientModal(false)}
+                  className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+                >
+                  <X className="w-5 h-5 text-slate-600" />
+                </button>
+              </div>
+
+              <div className="mb-4">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                  <input
+                    type="text"
+                    value={searchClientsQuery}
+                    onChange={(e) => {
+                      setSearchClientsQuery(e.target.value);
+                      searchClients(e.target.value);
+                    }}
+                    placeholder="Buscar por nome, telefone ou CPF..."
+                    className="w-full pl-10 pr-4 py-3 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                {searchClientsResults.length === 0 && searchClientsQuery.length >= 2 && (
+                  <p className="text-center text-slate-500 py-8">
+                    Nenhum cliente encontrado
+                  </p>
+                )}
+
+                {searchClientsResults.map((client) => (
+                  <div
+                    key={client.id}
+                    className="p-4 border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors"
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <h3 className="text-sm font-bold text-slate-900">{client.name}</h3>
+                        <p className="text-xs text-slate-600">{client.phone || client.phone_e164}</p>
+                        {client.cpf_cnpj && (
+                          <p className="text-xs text-slate-600">CPF/CNPJ: {client.cpf_cnpj}</p>
+                        )}
+                        {client.email && (
+                          <p className="text-xs text-slate-600">{client.email}</p>
+                        )}
+                        <div className="flex gap-3 mt-2">
+                          <span className="text-xs text-slate-500">
+                            {client.vehicle_count} veículos
+                          </span>
+                          <span className="text-xs text-slate-500">
+                            {client.work_order_count} OS
+                          </span>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => linkClient(client.id)}
+                        className="px-4 py-2 bg-primary hover:bg-primary/90 text-white rounded-xl text-sm font-medium transition-colors"
+                      >
+                        Vincular
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

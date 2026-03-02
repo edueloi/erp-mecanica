@@ -771,6 +771,80 @@ export function initDb() {
     console.error("⚠️  Error creating default cash accounts:", e.message);
   }
 
+  // ========================================
+  // MIGRATIONS - WhatsApp CRM Integration
+  // ========================================
+  
+  // Migration: Add phone_e164 to whatsapp_conversations
+  try {
+    const checkPhoneE164 = db.prepare(`
+      SELECT COUNT(*) as count 
+      FROM pragma_table_info('whatsapp_conversations') 
+      WHERE name='phone_e164'
+    `).get() as any;
+
+    if (checkPhoneE164.count === 0) {
+      db.exec(`ALTER TABLE whatsapp_conversations ADD COLUMN phone_e164 TEXT`);
+      console.log("✅ Added phone_e164 column to whatsapp_conversations");
+      
+      // Criar índice para melhor performance
+      db.exec(`CREATE INDEX IF NOT EXISTS idx_conversations_phone_e164 ON whatsapp_conversations(phone_e164)`);
+    }
+  } catch (e: any) {
+    console.error("⚠️  Error adding phone_e164:", e.message);
+  }
+
+  // Migration: Add vehicle_id to whatsapp_conversations  
+  try {
+    const checkVehicleId = db.prepare(`
+      SELECT COUNT(*) as count 
+      FROM pragma_table_info('whatsapp_conversations') 
+      WHERE name='vehicle_id'
+    `).get() as any;
+
+    if (checkVehicleId.count === 0) {
+      db.exec(`ALTER TABLE whatsapp_conversations ADD COLUMN vehicle_id TEXT REFERENCES vehicles(id)`);
+      console.log("✅ Added vehicle_id column to whatsapp_conversations");
+    }
+  } catch (e: any) {
+    console.error("⚠️  Error adding vehicle_id:", e.message);
+  }
+
+  // Migration: Add display_name to whatsapp_conversations (nome do WhatsApp original)
+  try {
+    const checkDisplayName = db.prepare(`
+      SELECT COUNT(*) as count 
+      FROM pragma_table_info('whatsapp_conversations') 
+      WHERE name='display_name'
+    `).get() as any;
+
+    if (checkDisplayName.count === 0) {
+      db.exec(`ALTER TABLE whatsapp_conversations ADD COLUMN display_name TEXT`);
+      console.log("✅ Added display_name column to whatsapp_conversations");
+    }
+  } catch (e: any) {
+    console.error("⚠️  Error adding display_name:", e.message);
+  }
+
+  // Migration: Add phone_e164 to clients
+  try {
+    const checkClientPhoneE164 = db.prepare(`
+      SELECT COUNT(*) as count 
+      FROM pragma_table_info('clients') 
+      WHERE name='phone_e164'
+    `).get() as any;
+
+    if (checkClientPhoneE164.count === 0) {
+      db.exec(`ALTER TABLE clients ADD COLUMN phone_e164 TEXT`);
+      console.log("✅ Added phone_e164 column to clients");
+      
+      // Criar índice único para garantir um telefone por cliente
+      db.exec(`CREATE INDEX IF NOT EXISTS idx_clients_phone_e164 ON clients(phone_e164)`);
+    }
+  } catch (e: any) {
+    console.error("⚠️  Error adding phone_e164 to clients:", e.message);
+  }
+
   console.log("Database initialized successfully.");
 }
 
