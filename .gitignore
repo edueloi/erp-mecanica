@@ -6,3 +6,10 @@ coverage/
 *.log
 .env*
 !.env.example
+
+# WhatsApp session tokens
+tokens/
+
+# Database
+mecaerp.db
+mecaerp.db-*
