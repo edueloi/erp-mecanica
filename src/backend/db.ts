@@ -1,5 +1,6 @@
 import Database from "better-sqlite3";
 import path from "path";
+import { v4 as uuidv4 } from "uuid";
 
 const db = new Database("mecaerp.db");
 
@@ -530,6 +531,215 @@ export function initDb() {
     )
   `);
 
+  // ========================================
+  // WHATSAPP MODULE
+  // ========================================
+
+  // WhatsApp Sessions (QR Code / Connection Status)
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS whatsapp_sessions (
+      id TEXT PRIMARY KEY,
+      tenant_id TEXT NOT NULL,
+      session_name TEXT NOT NULL,
+      status TEXT CHECK(status IN ('disconnected', 'connecting', 'connected', 'qr_ready')) DEFAULT 'disconnected',
+      qr_code TEXT,
+      phone_number TEXT,
+      is_active INTEGER DEFAULT 1,
+      last_connected_at DATETIME,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (tenant_id) REFERENCES tenants(id),
+      UNIQUE(tenant_id, session_name)
+    )
+  `);
+
+  // WhatsApp Conversations (Inbox)
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS whatsapp_conversations (
+      id TEXT PRIMARY KEY,
+      tenant_id TEXT NOT NULL,
+      client_id TEXT,
+      phone TEXT NOT NULL,
+      contact_name TEXT,
+      last_message_at DATETIME,
+      last_message_preview TEXT,
+      unread_count INTEGER DEFAULT 0,
+      assigned_to_user_id TEXT,
+      bot_enabled INTEGER DEFAULT 1,
+      bot_topic TEXT CHECK(bot_topic IN ('agendamento', 'orcamento', 'status_os', 'cobranca', 'localizacao', 'garantia', 'duvidas')) DEFAULT NULL,
+      bot_state TEXT, -- JSON state machine
+      status TEXT CHECK(status IN ('open', 'waiting_approval', 'in_progress', 'resolved', 'closed')) DEFAULT 'open',
+      tags TEXT, -- JSON array: ["os", "cobranca", "urgente"]
+      vehicle_plate TEXT,
+      work_order_id TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (tenant_id) REFERENCES tenants(id),
+      FOREIGN KEY (client_id) REFERENCES clients(id),
+      FOREIGN KEY (assigned_to_user_id) REFERENCES users(id),
+      FOREIGN KEY (work_order_id) REFERENCES work_orders(id)
+    )
+  `);
+
+  // WhatsApp Messages
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS whatsapp_messages (
+      id TEXT PRIMARY KEY,
+      tenant_id TEXT NOT NULL,
+      conversation_id TEXT NOT NULL,
+      direction TEXT CHECK(direction IN ('in', 'out')) NOT NULL,
+      type TEXT CHECK(type IN ('text', 'image', 'pdf', 'audio', 'video', 'document')) DEFAULT 'text',
+      body TEXT,
+      media_url TEXT,
+      media_filename TEXT,
+      sent_status TEXT CHECK(sent_status IN ('sending', 'sent', 'delivered', 'read', 'error')) DEFAULT 'sent',
+      origin TEXT CHECK(origin IN ('human', 'bot', 'system', 'automation')) DEFAULT 'human',
+      related_type TEXT, -- 'work_order', 'receivable', 'appointment', 'quote'
+      related_id TEXT,
+      template_id TEXT,
+      wpp_message_id TEXT, -- ID retornado pelo WhatsApp
+      error_message TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      read_at DATETIME,
+      FOREIGN KEY (tenant_id) REFERENCES tenants(id),
+      FOREIGN KEY (conversation_id) REFERENCES whatsapp_conversations(id),
+      FOREIGN KEY (template_id) REFERENCES whatsapp_templates(id)
+    )
+  `);
+
+  // WhatsApp Templates (Mensagens Reutilizáveis)
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS whatsapp_templates (
+      id TEXT PRIMARY KEY,
+      tenant_id TEXT NOT NULL,
+      name TEXT NOT NULL,
+      category TEXT CHECK(category IN ('agendamento', 'os', 'orcamento', 'cobranca', 'geral')) NOT NULL,
+      body TEXT NOT NULL,
+      variables_json TEXT, -- ["nome", "data", "hora", "placa", "valor", "os"]
+      enabled INTEGER DEFAULT 1,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (tenant_id) REFERENCES tenants(id),
+      UNIQUE(tenant_id, name)
+    )
+  `);
+
+  // WhatsApp Automation Rules
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS whatsapp_automation_rules (
+      id TEXT PRIMARY KEY,
+      tenant_id TEXT NOT NULL,
+      name TEXT NOT NULL,
+      trigger_event TEXT CHECK(trigger_event IN (
+        'os_created', 
+        'os_status_changed', 
+        'os_finished', 
+        'appointment_created',
+        'appointment_reminder',
+        'receivable_overdue',
+        'quote_created'
+      )) NOT NULL,
+      template_id TEXT NOT NULL,
+      conditions_json TEXT, -- Condições adicionais (ex: status='aguardando_aprovacao')
+      delay_minutes INTEGER DEFAULT 0, -- Delay antes de enviar (ex: 30 min antes do agendamento)
+      enabled INTEGER DEFAULT 1,
+      business_hours_only INTEGER DEFAULT 1, -- Enviar apenas em horário comercial
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (tenant_id) REFERENCES tenants(id),
+      FOREIGN KEY (template_id) REFERENCES whatsapp_templates(id)
+    )
+  `);
+
+  // WhatsApp Automation Logs (Auditoria)
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS whatsapp_automation_logs (
+      id TEXT PRIMARY KEY,
+      tenant_id TEXT NOT NULL,
+      rule_id TEXT NOT NULL,
+      message_id TEXT,
+      trigger_event TEXT NOT NULL,
+      related_type TEXT,
+      related_id TEXT,
+      status TEXT CHECK(status IN ('sent', 'failed', 'skipped')) NOT NULL,
+      error_message TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (tenant_id) REFERENCES tenants(id),
+      FOREIGN KEY (rule_id) REFERENCES whatsapp_automation_rules(id),
+      FOREIGN KEY (message_id) REFERENCES whatsapp_messages(id)
+    )
+  `);
+
+  // Create default WhatsApp templates for each tenant
+  try {
+    const tenants = db.prepare("SELECT id FROM tenants").all() as any[];
+
+    for (const tenant of tenants) {
+      const templateCount = db
+        .prepare("SELECT COUNT(*) as count FROM whatsapp_templates WHERE tenant_id = ?")
+        .get(tenant.id) as any;
+
+      if (templateCount.count === 0) {
+        const defaultTemplates = [
+          {
+            name: "Confirmação de Agendamento",
+            category: "agendamento",
+            body: "Olá {{nome}}! ✅ Seu agendamento está confirmado para *{{data}}* às *{{hora}}*.\n\n📍 Endereço: {{endereco}}\n\nQualquer dúvida, estou à disposição!",
+            variables: ["nome", "data", "hora", "endereco"],
+          },
+          {
+            name: "OS Aberta",
+            category: "os",
+            body: "Olá {{nome}}! 🔧\n\nRecebemos seu veículo *{{placa}}* e abrimos a OS *#{{os}}*.\n\nVamos iniciar o diagnóstico e retorno em breve com o orçamento.",
+            variables: ["nome", "placa", "os"],
+          },
+          {
+            name: "Aguardando Aprovação",
+            category: "orcamento",
+            body: "Olá {{nome}}! 📋\n\nFinalizamos o diagnóstico da OS *#{{os}}*.\n\n💰 Orçamento: *R$ {{valor}}*\n📝 Serviços: {{servicos}}\n\nPosso seguir com o serviço? Por favor, confirme.",
+            variables: ["nome", "os", "valor", "servicos"],
+          },
+          {
+            name: "Veículo Pronto",
+            category: "os",
+            body: "✅ Boa notícia, {{nome}}!\n\nSeu veículo *{{placa}}* está pronto!\n\n💰 Valor total: *R$ {{valor}}*\n🕒 Pode retirar em nosso horário: {{horario}}\n\nAguardo você!",
+            variables: ["nome", "placa", "valor", "horario"],
+          },
+          {
+            name: "Lembrete de Pagamento",
+            category: "cobranca",
+            body: "Olá {{nome}}! 😊\n\nPassando para lembrar que a parcela *#{{parcela}}* venceu em *{{vencimento}}*.\n\n💰 Valor: R$ {{valor}}\n\nPosso te ajudar com o pagamento? Temos PIX disponível!",
+            variables: ["nome", "parcela", "vencimento", "valor"],
+          },
+          {
+            name: "Lembrete de Agendamento",
+            category: "agendamento",
+            body: "🔔 Lembrete, {{nome}}!\n\nSeu agendamento é *amanhã* às *{{hora}}*.\n\n📍 {{endereco}}\n\nNos vemos lá! 👋",
+            variables: ["nome", "hora", "endereco"],
+          },
+        ];
+
+        for (const template of defaultTemplates) {
+          db.prepare(
+            `INSERT INTO whatsapp_templates (id, tenant_id, name, category, body, variables_json, enabled)
+             VALUES (?, ?, ?, ?, ?, ?, 1)`
+          ).run(
+            uuidv4(),
+            tenant.id,
+            template.name,
+            template.category,
+            template.body,
+            JSON.stringify(template.variables)
+          );
+        }
+
+        console.log(`✅ Created default WhatsApp templates for tenant ${tenant.id}`);
+      }
+    }
+  } catch (e: any) {
+    console.error("⚠️  Error creating default WhatsApp templates:", e.message);
+  }
+
   // Create default cash accounts for tenants without accounts
   try {
     const tenants = db.prepare("SELECT id FROM tenants").all() as any[];
@@ -540,8 +750,6 @@ export function initDb() {
         .get(tenant.id) as any;
 
       if (accountCount.count === 0) {
-        const { v4: uuidv4 } = require("uuid");
-        
         // Create default accounts: Caixa, Banco, PIX
         const defaultAccounts = [
           { name: "Caixa", type: "cash" },

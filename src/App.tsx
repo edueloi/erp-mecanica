@@ -17,6 +17,7 @@ import Parts from './pages/Parts';
 import Suppliers from './pages/Suppliers';
 import AccountsReceivable from './pages/AccountsReceivable';
 import CashFlow from './pages/CashFlow';
+import WhatsApp from './pages/WhatsApp';
 import Settings from './pages/Settings';
 
 const Placeholder = ({ title }: { title: string }) => (
@@ -53,7 +54,7 @@ export default function App() {
         <Route path="/suppliers" element={<PrivateRoute><Suppliers /></PrivateRoute>} />
         <Route path="/finance/receivables" element={<PrivateRoute><AccountsReceivable /></PrivateRoute>} />
         <Route path="/finance/cashflow" element={<PrivateRoute><CashFlow /></PrivateRoute>} />
-        <Route path="/communication/whatsapp" element={<PrivateRoute><Placeholder title="WhatsApp" /></PrivateRoute>} />
+        <Route path="/communication/whatsapp" element={<PrivateRoute><WhatsApp /></PrivateRoute>} />
         <Route path="/communication/history" element={<PrivateRoute><Placeholder title="Histórico de Mensagens" /></PrivateRoute>} />
         <Route path="/settings/shop" element={<PrivateRoute><Placeholder title="Minha Oficina" /></PrivateRoute>} />
         <Route path="/settings" element={<PrivateRoute><Settings /></PrivateRoute>} />

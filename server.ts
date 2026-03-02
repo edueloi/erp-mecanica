@@ -17,6 +17,7 @@ import purchaseOrderRoutes from "./src/backend/routes/purchaseOrders";
 import accountsReceivableRoutes from "./src/backend/routes/accountsReceivable";
 import settingsRoutes from "./src/backend/routes/settings";
 import cashflowRoutes from "./src/backend/routes/cashflow";
+import whatsappRoutes from "./src/backend/routes/whatsapp";
 
 dotenv.config();
 
@@ -51,6 +52,7 @@ async function startServer() {
   app.use("/api/accounts-receivable", accountsReceivableRoutes);
   app.use("/api/settings", settingsRoutes);
   app.use("/api/cashflow", cashflowRoutes);
+  app.use("/api/whatsapp", whatsappRoutes);
 
   // Error handling middleware
   app.use((err: any, req: any, res: any, next: any) => {
