@@ -141,7 +141,7 @@ export default function WorkOrders() {
       </header>
 
       {/* Stats Bar - Compact */}
-      <div className="bg-white border-b border-slate-200 px-6 py-2 flex items-center gap-2 overflow-x-auto no-scrollbar shrink-0">
+      <div className="bg-white border-b border-slate-200 px-6 py-2 flex items-center gap-2 overflow-x-auto no-scrollbar shrink-0 mt-[25px]">
         {[
           { label: 'Abertas', value: stats.open || 0, status: 'OPEN', color: 'bg-amber-500' },
           { label: 'Diagnóstico', value: stats.diagnosis || 0, status: 'DIAGNOSIS', color: 'bg-blue-500' },

@@ -11,6 +11,9 @@ import workOrderRoutes from "./src/backend/routes/workOrders";
 import dashboardRoutes from "./src/backend/routes/dashboard";
 import userRoutes from "./src/backend/routes/users";
 import appointmentRoutes from "./src/backend/routes/appointments";
+import partsRoutes from "./src/backend/routes/parts";
+import supplierRoutes from "./src/backend/routes/suppliers";
+import purchaseOrderRoutes from "./src/backend/routes/purchaseOrders";
 
 dotenv.config();
 
@@ -19,7 +22,14 @@ async function startServer() {
   const PORT = 3000;
 
   // Initialize Database
-  initDb();
+  console.log("🗄️  Initializing database...");
+  try {
+    initDb();
+    console.log("✅ Database initialized successfully");
+  } catch (error: any) {
+    console.error("❌ Error initializing database:", error);
+    process.exit(1);
+  }
 
   app.use(cors());
   app.use(express.json({ limit: '50mb' }));
@@ -32,6 +42,19 @@ async function startServer() {
   app.use("/api/dashboard", dashboardRoutes);
   app.use("/api/users", userRoutes);
   app.use("/api/appointments", appointmentRoutes);
+  app.use("/api/parts", partsRoutes);
+  app.use("/api/suppliers", supplierRoutes);
+  app.use("/api/purchase-orders", purchaseOrderRoutes);
+
+  // Error handling middleware
+  app.use((err: any, req: any, res: any, next: any) => {
+    console.error("❌ Unhandled error:", err);
+    console.error("Stack:", err.stack);
+    res.status(500).json({ 
+      error: err.message || "Internal server error", 
+      stack: process.env.NODE_ENV !== "production" ? err.stack : undefined 
+    });
+  });
 
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {

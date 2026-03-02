@@ -261,7 +261,7 @@ export default function ClientDetail() {
       </header>
 
       {/* Tab Navigation */}
-      <div className="bg-white border-b border-slate-200 px-6 flex items-center gap-1 overflow-x-auto no-scrollbar shrink-0">
+      <div className="bg-white border-b border-slate-200 px-6 flex items-center gap-1 overflow-x-auto no-scrollbar shrink-0 mt-[25px]">
         {tabs.map(tab => (
           <button
             key={tab.id}

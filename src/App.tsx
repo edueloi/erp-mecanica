@@ -13,6 +13,8 @@ import WorkOrders from './pages/WorkOrders';
 import WorkOrderDetail from './pages/WorkOrderDetail';
 import Appointments from './pages/Appointments';
 import Services from './pages/Services';
+import Parts from './pages/Parts';
+import Suppliers from './pages/Suppliers';
 
 const Placeholder = ({ title }: { title: string }) => (
   <div className="flex flex-col items-center justify-center h-full text-slate-400 space-y-4">
@@ -44,8 +46,8 @@ export default function App() {
         <Route path="/work-orders/:id" element={<PrivateRoute><WorkOrderDetail /></PrivateRoute>} />
         <Route path="/appointments" element={<PrivateRoute><Appointments /></PrivateRoute>} />
         <Route path="/services" element={<PrivateRoute><Services /></PrivateRoute>} />
-        <Route path="/parts" element={<PrivateRoute><Placeholder title="Peças" /></PrivateRoute>} />
-        <Route path="/suppliers" element={<PrivateRoute><Placeholder title="Fornecedores" /></PrivateRoute>} />
+        <Route path="/parts" element={<PrivateRoute><Parts /></PrivateRoute>} />
+        <Route path="/suppliers" element={<PrivateRoute><Suppliers /></PrivateRoute>} />
         <Route path="/finance/receivables" element={<PrivateRoute><Placeholder title="Contas a Receber" /></PrivateRoute>} />
         <Route path="/finance/cashflow" element={<PrivateRoute><Placeholder title="Fluxo de Caixa" /></PrivateRoute>} />
         <Route path="/communication/whatsapp" element={<PrivateRoute><Placeholder title="WhatsApp" /></PrivateRoute>} />
