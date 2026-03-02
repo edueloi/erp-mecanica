@@ -411,6 +411,158 @@ export function initDb() {
     console.error("⚠️  Error adding part_id column:", e.message);
   }
 
+  // User Preferences (Configurações e Personalização)
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS user_preferences (
+      id TEXT PRIMARY KEY,
+      tenant_id TEXT NOT NULL,
+      user_id TEXT NOT NULL,
+      theme_mode TEXT CHECK(theme_mode IN ('light', 'dark', 'auto')) DEFAULT 'light',
+      primary_color TEXT DEFAULT '#1e293b',
+      sidebar_collapsed BOOLEAN DEFAULT 0,
+      show_dashboard_cards BOOLEAN DEFAULT 1,
+      default_rows_per_page INTEGER DEFAULT 20,
+      filters_json TEXT DEFAULT '{}',
+      table_preferences_json TEXT DEFAULT '{}',
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (tenant_id) REFERENCES tenants(id),
+      FOREIGN KEY (user_id) REFERENCES users(id),
+      UNIQUE(user_id)
+    )
+  `);
+
+  // Tenant Settings (Configurações da Oficina)
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS tenant_settings (
+      id TEXT PRIMARY KEY,
+      tenant_id TEXT NOT NULL,
+      company_name TEXT,
+      trade_name TEXT,
+      cnpj TEXT,
+      phone TEXT,
+      whatsapp TEXT,
+      email TEXT,
+      address TEXT,
+      city TEXT,
+      state TEXT,
+      zip_code TEXT,
+      logo_url TEXT,
+      signature TEXT,
+      default_quote_text TEXT,
+      default_payment_terms TEXT,
+      default_warranty_days INTEGER DEFAULT 90,
+      late_fee_percentage REAL DEFAULT 0,
+      fixed_penalty REAL DEFAULT 0,
+      default_due_days INTEGER DEFAULT 30,
+      max_installments INTEGER DEFAULT 12,
+      card_fee_percentage REAL DEFAULT 0,
+      pix_key TEXT,
+      alert_stock_low BOOLEAN DEFAULT 1,
+      alert_os_stopped_days INTEGER DEFAULT 7,
+      alert_overdue_clients BOOLEAN DEFAULT 1,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (tenant_id) REFERENCES tenants(id),
+      UNIQUE(tenant_id)
+    )
+  `);
+
+  // Cash Accounts (Contas: Caixa, Banco, Pix, Cartão)
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS cash_accounts (
+      id TEXT PRIMARY KEY,
+      tenant_id TEXT NOT NULL,
+      name TEXT NOT NULL,
+      type TEXT CHECK(type IN ('cash', 'bank', 'digital', 'card')) DEFAULT 'cash',
+      active BOOLEAN DEFAULT 1,
+      initial_balance REAL DEFAULT 0,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (tenant_id) REFERENCES tenants(id)
+    )
+  `);
+
+  // Cash Flow Transactions (Lançamentos: Entradas/Saídas/Transferências)
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS cashflow_transactions (
+      id TEXT PRIMARY KEY,
+      tenant_id TEXT NOT NULL,
+      date DATETIME NOT NULL,
+      type TEXT CHECK(type IN ('in', 'out', 'transfer')) NOT NULL,
+      amount REAL NOT NULL,
+      category TEXT,
+      description TEXT,
+      account_id TEXT NOT NULL,
+      related_account_id TEXT,
+      payment_method TEXT,
+      status TEXT CHECK(status IN ('confirmed', 'pending')) DEFAULT 'confirmed',
+      source_type TEXT,
+      source_id TEXT,
+      created_by TEXT NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (tenant_id) REFERENCES tenants(id),
+      FOREIGN KEY (account_id) REFERENCES cash_accounts(id),
+      FOREIGN KEY (related_account_id) REFERENCES cash_accounts(id),
+      FOREIGN KEY (created_by) REFERENCES users(id)
+    )
+  `);
+
+  // Cash Close (Fechamento de Caixa Diário)
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS cash_closes (
+      id TEXT PRIMARY KEY,
+      tenant_id TEXT NOT NULL,
+      account_id TEXT NOT NULL,
+      date DATE NOT NULL,
+      opening_balance REAL NOT NULL,
+      expected_balance REAL NOT NULL,
+      counted_balance REAL,
+      difference REAL,
+      notes TEXT,
+      created_by TEXT NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (tenant_id) REFERENCES tenants(id),
+      FOREIGN KEY (account_id) REFERENCES cash_accounts(id),
+      FOREIGN KEY (created_by) REFERENCES users(id),
+      UNIQUE(tenant_id, account_id, date)
+    )
+  `);
+
+  // Create default cash accounts for tenants without accounts
+  try {
+    const tenants = db.prepare("SELECT id FROM tenants").all() as any[];
+    
+    for (const tenant of tenants) {
+      const accountCount = db
+        .prepare("SELECT COUNT(*) as count FROM cash_accounts WHERE tenant_id = ?")
+        .get(tenant.id) as any;
+
+      if (accountCount.count === 0) {
+        const { v4: uuidv4 } = require("uuid");
+        
+        // Create default accounts: Caixa, Banco, PIX
+        const defaultAccounts = [
+          { name: "Caixa", type: "cash" },
+          { name: "Banco", type: "bank" },
+          { name: "PIX", type: "digital" },
+        ];
+
+        for (const account of defaultAccounts) {
+          db.prepare(
+            `INSERT INTO cash_accounts (id, tenant_id, name, type, initial_balance) 
+             VALUES (?, ?, ?, ?, 0)`
+          ).run(uuidv4(), tenant.id, account.name, account.type);
+        }
+
+        console.log(`✅ Created default cash accounts for tenant ${tenant.id}`);
+      }
+    }
+  } catch (e: any) {
+    console.error("⚠️  Error creating default cash accounts:", e.message);
+  }
+
   console.log("Database initialized successfully.");
 }
 

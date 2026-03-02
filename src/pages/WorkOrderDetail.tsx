@@ -151,10 +151,36 @@ export default function WorkOrderDetail() {
       updatedWo.history = [...(wo.history || []), historyEntry];
       setWo(updatedWo);
       await api.patch(`/work-orders/${id}`, updatedWo);
+
+      // Se não for pago à vista, criar contas a receber
+      if (paymentData.status !== 'PAID') {
+        const firstDueDate = new Date();
+        firstDueDate.setDate(firstDueDate.getDate() + 30); // 30 dias para primeira parcela
+
+        const methodMap: { [key: string]: string } = {
+          CASH: 'DINHEIRO',
+          DEBIT: 'CARTAO_DEBITO',
+          CREDIT: 'CARTAO_CREDITO',
+          PIX: 'PIX',
+          TRANSFER: 'TRANSFERENCIA'
+        };
+
+        await api.post('/accounts-receivable/from-work-order', {
+          work_order_id: wo.id,
+          client_id: wo.client_id,
+          total_amount: paymentData.amount,
+          payment_method: methodMap[paymentData.method] || paymentData.method,
+          installments: paymentData.installments || 1,
+          first_due_date: firstDueDate.toISOString().split('T')[0],
+          description: `OS ${wo.number} - ${wo.client_name}`
+        });
+      }
+
       setPaymentModalOpen(false);
       alert('Pagamento registrado com sucesso!');
       fetchWO();
     } catch (err) {
+      console.error('Error registering payment:', err);
       alert('Erro ao registrar pagamento');
     }
   };

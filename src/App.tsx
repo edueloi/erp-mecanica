@@ -1,6 +1,6 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { Settings } from 'lucide-react';
+import { Settings as SettingsIcon } from 'lucide-react';
 import { useAuthStore } from './services/authStore';
 import Layout from './components/Layout';
 import Login from './pages/Login';
@@ -15,11 +15,14 @@ import Appointments from './pages/Appointments';
 import Services from './pages/Services';
 import Parts from './pages/Parts';
 import Suppliers from './pages/Suppliers';
+import AccountsReceivable from './pages/AccountsReceivable';
+import CashFlow from './pages/CashFlow';
+import Settings from './pages/Settings';
 
 const Placeholder = ({ title }: { title: string }) => (
   <div className="flex flex-col items-center justify-center h-full text-slate-400 space-y-4">
     <div className="w-16 h-16 bg-slate-100 rounded-2xl flex items-center justify-center">
-      <Settings size={32} />
+      <SettingsIcon size={32} />
     </div>
     <h2 className="text-xl font-bold text-slate-900">{title}</h2>
     <p>Esta funcionalidade está em desenvolvimento.</p>
@@ -48,12 +51,12 @@ export default function App() {
         <Route path="/services" element={<PrivateRoute><Services /></PrivateRoute>} />
         <Route path="/parts" element={<PrivateRoute><Parts /></PrivateRoute>} />
         <Route path="/suppliers" element={<PrivateRoute><Suppliers /></PrivateRoute>} />
-        <Route path="/finance/receivables" element={<PrivateRoute><Placeholder title="Contas a Receber" /></PrivateRoute>} />
-        <Route path="/finance/cashflow" element={<PrivateRoute><Placeholder title="Fluxo de Caixa" /></PrivateRoute>} />
+        <Route path="/finance/receivables" element={<PrivateRoute><AccountsReceivable /></PrivateRoute>} />
+        <Route path="/finance/cashflow" element={<PrivateRoute><CashFlow /></PrivateRoute>} />
         <Route path="/communication/whatsapp" element={<PrivateRoute><Placeholder title="WhatsApp" /></PrivateRoute>} />
         <Route path="/communication/history" element={<PrivateRoute><Placeholder title="Histórico de Mensagens" /></PrivateRoute>} />
         <Route path="/settings/shop" element={<PrivateRoute><Placeholder title="Minha Oficina" /></PrivateRoute>} />
-        <Route path="/settings" element={<PrivateRoute><Placeholder title="Configurações" /></PrivateRoute>} />
+        <Route path="/settings" element={<PrivateRoute><Settings /></PrivateRoute>} />
 
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
