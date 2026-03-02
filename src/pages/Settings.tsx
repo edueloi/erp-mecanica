@@ -17,12 +17,33 @@ import {
   Eye,
   EyeOff,
   X,
+  Clock,
+  Users,
+  FileText,
+  MessageSquare,
+  Wrench,
+  Upload,
+  Image as ImageIcon,
+  FileCheck,
+  TestTube,
 } from "lucide-react";
 import { useSettings } from "../contexts/SettingsContext";
 import * as ibgeService from "../services/ibgeService";
 import api from "../services/api";
 
-type Tab = "appearance" | "user" | "company" | "financial" | "operational" | "notifications" | "security" | "advanced";
+type Tab = 
+  | "appearance" 
+  | "user" 
+  | "workshop" 
+  | "hours" 
+  | "team" 
+  | "documents" 
+  | "communication" 
+  | "financial" 
+  | "operational" 
+  | "notifications" 
+  | "security" 
+  | "advanced";
 
 const PREDEFINED_COLORS = [
   { name: "Slate", value: "#1e293b", class: "bg-slate-800" },
@@ -41,7 +62,7 @@ const PREDEFINED_COLORS = [
 
 export default function Settings() {
   const { preferences, tenantSettings, updatePreferences, updateTenantSettings } = useSettings();
-  const [activeTab, setActiveTab] = useState<Tab>("appearance");
+  const [activeTab, setActiveTab] = useState<Tab>("workshop");
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
@@ -49,6 +70,7 @@ export default function Settings() {
     setToast({ message, type });
     setTimeout(() => setToast(null), 3000);
   };
+
   const [estados, setEstados] = useState<ibgeService.Estado[]>([]);
   const [cidades, setCidades] = useState<ibgeService.Cidade[]>([]);
   
@@ -119,8 +141,8 @@ export default function Settings() {
     }
   };
 
-  const handleSaveTenantSettings = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSaveTenantSettings = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     setSaving(true);
     try {
       await updateTenantSettings(tenantForm);
@@ -165,12 +187,15 @@ export default function Settings() {
   };
 
   const tabs = [
-    { id: "appearance", label: "Aparência", icon: Palette },
-    { id: "user", label: "Usuário", icon: User },
-    { id: "company", label: "Minha Oficina", icon: Building2 },
+    { id: "workshop", label: "Dados da Oficina", icon: Building2 },
+    { id: "hours", label: "Horários", icon: Clock },
+    { id: "team", label: "Equipe", icon: Users },
+    { id: "documents", label: "Documentos/PDF", icon: FileText },
+    { id: "communication", label: "WhatsApp", icon: MessageSquare },
     { id: "financial", label: "Financeiro", icon: DollarSign },
-    { id: "operational", label: "Operacional", icon: SettingsIcon },
+    { id: "operational", label: "Regras Operacionais", icon: Wrench },
     { id: "notifications", label: "Notificações", icon: Bell },
+    { id: "appearance", label: "Aparência", icon: Palette },
     { id: "security", label: "Segurança", icon: Shield },
     { id: "advanced", label: "Avançado", icon: Database },
   ];
@@ -201,9 +226,9 @@ export default function Settings() {
       {/* Header */}
       <div className="bg-gradient-to-r from-slate-800 to-slate-700 px-6 py-6 border-b border-slate-200">
         <div>
-          <h1 className="text-2xl font-bold text-white mb-1">Configurações</h1>
+          <h1 className="text-2xl font-bold text-white mb-1">⚙️ Minha Oficina</h1>
           <p className="text-slate-300 text-sm">
-            Personalize o sistema de acordo com suas preferências
+            Configure todos os detalhes da sua oficina em um só lugar
           </p>
         </div>
       </div>
@@ -234,15 +259,1182 @@ export default function Settings() {
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex-1 overflow-y-auto p-6 bg-slate-50">
+          {/* 1) DADOS DA OFICINA */}
+          {activeTab === "workshop" && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="max-w-4xl mx-auto space-y-6"
+            >
+              <div className="mb-6">
+                <h2 className="text-2xl font-bold text-slate-900 mb-2">📋 Dados da Oficina</h2>
+                <p className="text-sm text-slate-600">
+                  Informações que aparecem em OS, orçamentos, PDFs e mensagens
+                </p>
+              </div>
+
+              {/* Identidade / Marca */}
+              <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+                <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+                  <ImageIcon className="w-5 h-5 text-slate-600" />
+                  Identidade / Marca
+                </h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="col-span-2">
+                    <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">
+                      Logo da Oficina
+                    </label>
+                    <div className="flex items-center gap-4">
+                      {tenantForm.logo_url && (
+                        <img 
+                          src={tenantForm.logo_url} 
+                          alt="Logo" 
+                          className="w-20 h-20 object-contain rounded-xl border border-slate-200"
+                        />
+                      )}
+                      <div className="flex-1">
+                        <input
+                          type="text"
+                          value={tenantForm.logo_url || ""}
+                          onChange={(e) => setTenantForm({ ...tenantForm, logo_url: e.target.value })}
+                          placeholder="URL da logo (ex: https://...)"
+                          className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
+                        />
+                        <p className="text-xs text-slate-500 mt-1">
+                          Cole a URL da imagem ou use o botão abaixo para fazer upload
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => showToast("Upload de imagem será implementado em breve", "success")}
+                        className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-sm font-medium transition-colors flex items-center gap-2"
+                      >
+                        <Upload className="w-4 h-4" />
+                        Upload
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">
+                      Nome Curto (Header PDF)
+                    </label>
+                    <input
+                      type="text"
+                      value={tenantForm.short_name || ""}
+                      onChange={(e) => setTenantForm({ ...tenantForm, short_name: e.target.value })}
+                      placeholder="Ex: OficinaX"
+                      className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">
+                      Cor Primária
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        type="color"
+                        value={tenantForm.primary_color || "#1e293b"}
+                        onChange={(e) => setTenantForm({ ...tenantForm, primary_color: e.target.value })}
+                        className="w-16 h-10 rounded-xl border border-slate-200 cursor-pointer"
+                      />
+                      <input
+                        type="text"
+                        value={tenantForm.primary_color || "#1e293b"}
+                        onChange={(e) => setTenantForm({ ...tenantForm, primary_color: e.target.value })}
+                        className="flex-1 px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="col-span-2">
+                    <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">
+                      Slogan / Frase
+                    </label>
+                    <input
+                      type="text"
+                      value={tenantForm.slogan || ""}
+                      onChange={(e) => setTenantForm({ ...tenantForm, slogan: e.target.value })}
+                      placeholder="Ex: Qualidade e confiança desde 1990"
+                      className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Dados Básicos */}
+              <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+                <h3 className="text-lg font-bold text-slate-800 mb-4">Dados Básicos</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="col-span-2">
+                    <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">
+                      Razão Social
+                    </label>
+                    <input
+                      type="text"
+                      value={tenantForm.company_name || ""}
+                      onChange={(e) => setTenantForm({ ...tenantForm, company_name: e.target.value })}
+                      placeholder="Razão Social"
+                      className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
+                    />
+                  </div>
+
+                  <div className="col-span-2">
+                    <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">
+                      Nome Fantasia
+                    </label>
+                    <input
+                      type="text"
+                      value={tenantForm.trade_name || ""}
+                      onChange={(e) => setTenantForm({ ...tenantForm, trade_name: e.target.value })}
+                      placeholder="Nome Fantasia"
+                      className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">
+                      CNPJ
+                    </label>
+                    <input
+                      type="text"
+                      value={tenantForm.cnpj || ""}
+                      onChange={(e) => setTenantForm({ ...tenantForm, cnpj: e.target.value })}
+                      placeholder="00.000.000/0000-00"
+                      className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">
+                      IE (Opcional)
+                    </label>
+                    <input
+                      type="text"
+                      value={tenantForm.ie || ""}
+                      onChange={(e) => setTenantForm({ ...tenantForm, ie: e.target.value })}
+                      placeholder="Inscrição Estadual"
+                      className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">
+                      Telefone
+                    </label>
+                    <input
+                      type="text"
+                      value={tenantForm.phone || ""}
+                      onChange={(e) => setTenantForm({ ...tenantForm, phone: e.target.value })}
+                      placeholder="(00) 0000-0000"
+                      className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">
+                      WhatsApp Oficial
+                    </label>
+                    <input
+                      type="text"
+                      value={tenantForm.whatsapp || ""}
+                      onChange={(e) => setTenantForm({ ...tenantForm, whatsapp: e.target.value })}
+                      placeholder="(00) 00000-0000"
+                      className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">
+                      E-mail
+                    </label>
+                    <input
+                      type="email"
+                      value={tenantForm.email || ""}
+                      onChange={(e) => setTenantForm({ ...tenantForm, email: e.target.value })}
+                      placeholder="contato@oficina.com"
+                      className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">
+                      Site (Opcional)
+                    </label>
+                    <input
+                      type="text"
+                      value={tenantForm.website || ""}
+                      onChange={(e) => setTenantForm({ ...tenantForm, website: e.target.value })}
+                      placeholder="https://oficina.com"
+                      className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">
+                      Instagram (Opcional)
+                    </label>
+                    <input
+                      type="text"
+                      value={tenantForm.instagram || ""}
+                      onChange={(e) => setTenantForm({ ...tenantForm, instagram: e.target.value })}
+                      placeholder="@oficina"
+                      className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Endereço */}
+              <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+                <h3 className="text-lg font-bold text-slate-800 mb-4">Endereço</h3>
+                <div className="grid grid-cols-4 gap-4">
+                  <div className="col-span-4">
+                    <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">
+                      Endereço Completo
+                    </label>
+                    <input
+                      type="text"
+                      value={tenantForm.address || ""}
+                      onChange={(e) => setTenantForm({ ...tenantForm, address: e.target.value })}
+                      placeholder="Rua, Número, Bairro"
+                      className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">
+                      Estado (UF)
+                    </label>
+                    <select
+                      value={tenantForm.state || ""}
+                      onChange={(e) => setTenantForm({ ...tenantForm, state: e.target.value })}
+                      className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
+                    >
+                      <option value="">Selecione</option>
+                      {estados.map((estado) => (
+                        <option key={estado.id} value={estado.sigla}>
+                          {estado.sigla}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="col-span-2">
+                    <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">
+                      Cidade
+                    </label>
+                    <select
+                      value={tenantForm.city || ""}
+                      onChange={(e) => setTenantForm({ ...tenantForm, city: e.target.value })}
+                      disabled={!tenantForm.state}
+                      className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-400 disabled:bg-slate-50"
+                    >
+                      <option value="">Selecione</option>
+                      {cidades.map((cidade) => (
+                        <option key={cidade.id} value={cidade.nome}>
+                          {cidade.nome}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">
+                      CEP
+                    </label>
+                    <input
+                      type="text"
+                      value={tenantForm.zip_code || ""}
+                      onChange={(e) => setTenantForm({ ...tenantForm, zip_code: e.target.value })}
+                      placeholder="00000-000"
+                      className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex justify-end sticky bottom-0 bg-slate-50 py-4 border-t border-slate-200">
+                <button
+                  type="button"
+                  onClick={() => handleSaveTenantSettings()}
+                  disabled={saving}
+                  className="flex items-center gap-2 px-6 py-3 bg-slate-700 text-white rounded-xl hover:bg-slate-800 transition-colors text-sm font-semibold shadow-lg disabled:opacity-50"
+                >
+                  <Save className="w-4 h-4" />
+                  {saving ? "Salvando..." : "Salvar Alterações"}
+                </button>
+              </div>
+            </motion.div>
+          )}
+
+          {/* 2) HORÁRIOS - Continue com as demais abas... */}
+          {activeTab === "hours" && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="max-w-3xl mx-auto space-y-6"
+            >
+              <div className="mb-6">
+                <h2 className="text-2xl font-bold text-slate-900 mb-2">🕒 Horários e Atendimento</h2>
+                <p className="text-sm text-slate-600">
+                  Defina quando sua oficina funciona
+                </p>
+              </div>
+
+              <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+                <h3 className="text-lg font-bold text-slate-800 mb-4">Horário de Funcionamento</h3>
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">
+                        Segunda a Sexta - Abertura
+                      </label>
+                      <input
+                        type="time"
+                        value={tenantForm.weekday_open || "08:00"}
+                        onChange={(e) => setTenantForm({ ...tenantForm, weekday_open: e.target.value })}
+                        className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">
+                        Segunda a Sexta - Fechamento
+                      </label>
+                      <input
+                        type="time"
+                        value={tenantForm.weekday_close || "18:00"}
+                        onChange={(e) => setTenantForm({ ...tenantForm, weekday_close: e.target.value })}
+                        className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">
+                        Sábado - Abertura
+                      </label>
+                      <input
+                        type="time"
+                        value={tenantForm.saturday_open || "08:00"}
+                        onChange={(e) => setTenantForm({ ...tenantForm, saturday_open: e.target.value })}
+                        className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">
+                        Sábado - Fechamento
+                      </label>
+                      <input
+                        type="time"
+                        value={tenantForm.saturday_close || "12:00"}
+                        onChange={(e) => setTenantForm({ ...tenantForm, saturday_close: e.target.value })}
+                        className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">
+                        Domingo - Abertura (Opcional)
+                      </label>
+                      <input
+                        type="time"
+                        value={tenantForm.sunday_open || ""}
+                        onChange={(e) => setTenantForm({ ...tenantForm, sunday_open: e.target.value })}
+                        placeholder="Fechado"
+                        className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">
+                        Domingo - Fechamento (Opcional)
+                      </label>
+                      <input
+                        type="time"
+                        value={tenantForm.sunday_close || ""}
+                        onChange={(e) => setTenantForm({ ...tenantForm, sunday_close: e.target.value })}
+                        placeholder="Fechado"
+                        className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">
+                        Intervalo de Almoço - Início
+                      </label>
+                      <input
+                        type="time"
+                        value={tenantForm.lunch_start || "12:00"}
+                        onChange={(e) => setTenantForm({ ...tenantForm, lunch_start: e.target.value })}
+                        className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">
+                        Intervalo de Almoço - Fim
+                      </label>
+                      <input
+                        type="time"
+                        value={tenantForm.lunch_end || "13:00"}
+                        onChange={(e) => setTenantForm({ ...tenantForm, lunch_end: e.target.value })}
+                        className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+                <h3 className="text-lg font-bold text-slate-800 mb-4">Agendamentos</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">
+                      Duração Padrão (minutos)
+                    </label>
+                    <select
+                      value={tenantForm.default_appointment_duration || 60}
+                      onChange={(e) => setTenantForm({ ...tenantForm, default_appointment_duration: parseInt(e.target.value) })}
+                      className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
+                    >
+                      <option value="30">30 minutos</option>
+                      <option value="60">60 minutos (1h)</option>
+                      <option value="90">90 minutos (1h30)</option>
+                      <option value="120">120 minutos (2h)</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">
+                      Tolerância para Atraso (min)
+                    </label>
+                    <input
+                      type="number"
+                      value={tenantForm.tolerance_minutes || 15}
+                      onChange={(e) => setTenantForm({ ...tenantForm, tolerance_minutes: parseInt(e.target.value) })}
+                      className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex justify-end sticky bottom-0 bg-slate-50 py-4 border-t border-slate-200">
+                <button
+                  type="button"
+                  onClick={() => handleSaveTenantSettings()}
+                  disabled={saving}
+                  className="flex items-center gap-2 px-6 py-3 bg-slate-700 text-white rounded-xl hover:bg-slate-800 transition-colors text-sm font-semibold shadow-lg disabled:opacity-50"
+                >
+                  <Save className="w-4 h-4" />
+                  {saving ? "Salvando..." : "Salvar Alterações"}
+                </button>
+              </div>
+            </motion.div>
+          )}
+
+          {/* 3) EQUIPE E PERMISSÕES */}
+          {activeTab === "team" && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="max-w-4xl mx-auto space-y-6"
+            >
+              <div className="mb-6">
+                <h2 className="text-2xl font-bold text-slate-900 mb-2">👥 Equipe e Permissões</h2>
+                <p className="text-sm text-slate-600">
+                  Gerencie os usuários da sua oficina
+                </p>
+              </div>
+
+              <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-lg font-bold text-slate-800">Usuários</h3>
+                  <button
+                    type="button"
+                    onClick={() => showToast("Funcionalidade de gestão de equipe em desenvolvimento", "success")}
+                    className="px-4 py-2 bg-slate-700 text-white rounded-xl text-sm font-medium hover:bg-slate-800 transition-colors"
+                  >
+                    + Convidar Usuário
+                  </button>
+                </div>
+                
+                <div className="text-center py-12 text-slate-500">
+                  <Users className="w-16 h-16 mx-auto mb-4 opacity-30" />
+                  <p className="text-sm">Funcionalidade de gestão de equipe em desenvolvimento</p>
+                  <p className="text-xs mt-2">Em breve você poderá gerenciar usuários, cargos e permissões</p>
+                </div>
+              </div>
+            </motion.div>
+          )}
+
+          {/* 4) DOCUMENTOS / PDF */}
+          {activeTab === "documents" && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="max-w-3xl mx-auto space-y-6"
+            >
+              <div className="mb-6">
+                <h2 className="text-2xl font-bold text-slate-900 mb-2">📄 Documentos e PDF</h2>
+                <p className="text-sm text-slate-600">
+                  Configure como ficam seus documentos impressos
+                </p>
+              </div>
+
+              {/* Configurações de PDF */}
+              <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+                <h3 className="text-lg font-bold text-slate-800 mb-4">Configurações de PDF</h3>
+                <div className="space-y-4">
+                  <label className="flex items-center justify-between">
+                    <div>
+                      <div className="font-medium text-slate-900">Mostrar Logo no PDF</div>
+                      <div className="text-sm text-slate-500">Exibir logo no cabeçalho dos documentos</div>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={tenantForm.show_logo_pdf || false}
+                      onChange={(e) => setTenantForm({ ...tenantForm, show_logo_pdf: e.target.checked })}
+                      className="w-5 h-5 text-slate-600 rounded focus:ring-slate-500"
+                    />
+                  </label>
+
+                  <label className="flex items-center justify-between">
+                    <div>
+                      <div className="font-medium text-slate-900">Mostrar Dados da Oficina</div>
+                      <div className="text-sm text-slate-500">Incluir endereço e contatos no PDF</div>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={tenantForm.show_company_data_pdf || false}
+                      onChange={(e) => setTenantForm({ ...tenantForm, show_company_data_pdf: e.target.checked })}
+                      className="w-5 h-5 text-slate-600 rounded focus:ring-slate-500"
+                    />
+                  </label>
+
+                  <div className="border-t border-slate-200 pt-4 mt-4">
+                    <p className="text-sm font-semibold text-slate-700 mb-3">Rodapé do PDF</p>
+                    <div className="grid grid-cols-2 gap-3">
+                      <label className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={tenantForm.pdf_footer_address || false}
+                          onChange={(e) => setTenantForm({ ...tenantForm, pdf_footer_address: e.target.checked })}
+                          className="w-4 h-4 text-slate-600 rounded focus:ring-slate-500"
+                        />
+                        <span className="text-sm text-slate-700">Endereço</span>
+                      </label>
+                      <label className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={tenantForm.pdf_footer_phone || false}
+                          onChange={(e) => setTenantForm({ ...tenantForm, pdf_footer_phone: e.target.checked })}
+                          className="w-4 h-4 text-slate-600 rounded focus:ring-slate-500"
+                        />
+                        <span className="text-sm text-slate-700">Telefone</span>
+                      </label>
+                      <label className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={tenantForm.pdf_footer_whatsapp || false}
+                          onChange={(e) => setTenantForm({ ...tenantForm, pdf_footer_whatsapp: e.target.checked })}
+                          className="w-4 h-4 text-slate-600 rounded focus:ring-slate-500"
+                        />
+                        <span className="text-sm text-slate-700">WhatsApp</span>
+                      </label>
+                      <label className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={tenantForm.pdf_footer_website || false}
+                          onChange={(e) => setTenantForm({ ...tenantForm, pdf_footer_website: e.target.checked })}
+                          className="w-4 h-4 text-slate-600 rounded focus:ring-slate-500"
+                        />
+                        <span className="text-sm text-slate-700">Site</span>
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Textos Padrão */}
+              <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+                <h3 className="text-lg font-bold text-slate-800 mb-4">Textos Padrão</h3>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">
+                      Termos e Condições
+                    </label>
+                    <textarea
+                      rows={3}
+                      value={tenantForm.terms_and_conditions || ""}
+                      onChange={(e) => setTenantForm({ ...tenantForm, terms_and_conditions: e.target.value })}
+                      placeholder="Texto que aparece em contratos e OS..."
+                      className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">
+                      Texto de Garantia Padrão
+                    </label>
+                    <textarea
+                      rows={2}
+                      value={tenantForm.default_warranty_text || ""}
+                      onChange={(e) => setTenantForm({ ...tenantForm, default_warranty_text: e.target.value })}
+                      placeholder="Ex: Garantia de 90 dias para peças e serviços..."
+                      className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">
+                      Texto Padrão para Orçamentos
+                    </label>
+                    <textarea
+                      rows={3}
+                      value={tenantForm.default_quote_text || ""}
+                      onChange={(e) => setTenantForm({ ...tenantForm, default_quote_text: e.target.value })}
+                      placeholder="Ex: Orçamento válido por 7 dias..."
+                      className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">
+                      Texto do Recibo
+                    </label>
+                    <textarea
+                      rows={2}
+                      value={tenantForm.receipt_text || ""}
+                      onChange={(e) => setTenantForm({ ...tenantForm, receipt_text: e.target.value })}
+                      placeholder="Recebi(emos) de..."
+                      className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">
+                      Assinatura Digital
+                    </label>
+                    <textarea
+                      rows={2}
+                      value={tenantForm.signature || ""}
+                      onChange={(e) => setTenantForm({ ...tenantForm, signature: e.target.value })}
+                      placeholder="Ex: Atenciosamente, Equipe OficinaX"
+                      className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Numeração de OS */}
+              <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+                <h3 className="text-lg font-bold text-slate-800 mb-4">Numeração de Ordem de Serviço</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">
+                      Prefixo
+                    </label>
+                    <input
+                      type="text"
+                      value={tenantForm.os_prefix || "OFC"}
+                      onChange={(e) => setTenantForm({ ...tenantForm, os_prefix: e.target.value })}
+                      placeholder="OFC"
+                      className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">
+                      Formato
+                    </label>
+                    <input
+                      type="text"
+                      value={tenantForm.os_format || "OFC-{YEAR}-{NUMBER}"}
+                      onChange={(e) => setTenantForm({ ...tenantForm, os_format: e.target.value })}
+                      placeholder="OFC-{YEAR}-{NUMBER}"
+                      className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
+                    />
+                  </div>
+                  <div className="col-span-2">
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={tenantForm.os_reset_yearly || false}
+                        onChange={(e) => setTenantForm({ ...tenantForm, os_reset_yearly: e.target.checked })}
+                        className="w-4 h-4 text-slate-600 rounded focus:ring-slate-500"
+                      />
+                      <span className="text-sm text-slate-700">Reiniciar numeração a cada ano</span>
+                    </label>
+                    <p className="text-xs text-slate-500 mt-2 ml-6">
+                      Exemplo: OFC-2026-00001, OFC-2027-00001...
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Botão Testar PDF */}
+              <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+                <h3 className="text-lg font-bold text-slate-800 mb-4">Testar Configurações</h3>
+                <button
+                  type="button"
+                  onClick={() => showToast("Gerando PDF de exemplo...", "success")}
+                  className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors text-sm font-medium"
+                >
+                  <FileCheck className="w-5 h-5" />
+                  Gerar PDF de Exemplo
+                </button>
+              </div>
+
+              <div className="flex justify-end sticky bottom-0 bg-slate-50 py-4 border-t border-slate-200">
+                <button
+                  type="button"
+                  onClick={() => handleSaveTenantSettings()}
+                  disabled={saving}
+                  className="flex items-center gap-2 px-6 py-3 bg-slate-700 text-white rounded-xl hover:bg-slate-800 transition-colors text-sm font-semibold shadow-lg disabled:opacity-50"
+                >
+                  <Save className="w-4 h-4" />
+                  {saving ? "Salvando..." : "Salvar Alterações"}
+                </button>
+              </div>
+            </motion.div>
+          )}
+
+          {/* 5) COMUNICAÇÃO / WHATSAPP */}
+          {activeTab === "communication" && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="max-w-3xl mx-auto space-y-6"
+            >
+              <div className="mb-6">
+                <h2 className="text-2xl font-bold text-slate-900 mb-2">💬 WhatsApp e Comunicação</h2>
+                <p className="text-sm text-slate-600">
+                  Configure mensagens automáticas e integração WhatsApp
+                </p>
+              </div>
+
+              <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+                <h3 className="text-lg font-bold text-slate-800 mb-4">Status da Integração</h3>
+                <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-3 h-3 rounded-full ${tenantForm.whatsapp_connected ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                    <div>
+                      <p className="font-medium text-slate-900">
+                        {tenantForm.whatsapp_connected ? 'Conectado' : 'Desconectado'}
+                      </p>
+                      <p className="text-sm text-slate-600">
+                        {tenantForm.whatsapp ? tenantForm.whatsapp : 'Nenhum número configurado'}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => showToast("Abra a página WhatsApp para gerenciar conexão", "success")}
+                    className="px-4 py-2 bg-slate-700 text-white rounded-xl text-sm font-medium hover:bg-slate-800 transition-colors"
+                  >
+                    Gerenciar
+                  </button>
+                </div>
+              </div>
+
+              <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+                <h3 className="text-lg font-bold text-slate-800 mb-4">Bot Automático</h3>
+                <label className="flex items-center justify-between">
+                  <div>
+                    <div className="font-medium text-slate-900">Ativar Bot por Padrão</div>
+                    <div className="text-sm text-slate-500">Responder automaticamente novas conversas</div>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={tenantForm.whatsapp_bot_enabled || false}
+                    onChange={(e) => setTenantForm({ ...tenantForm, whatsapp_bot_enabled: e.target.checked })}
+                    className="w-5 h-5 text-slate-600 rounded focus:ring-slate-500"
+                  />
+                </label>
+              </div>
+
+              <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+                <h3 className="text-lg font-bold text-slate-800 mb-4">Templates de Mensagens</h3>
+                <p className="text-sm text-slate-500 mb-4">
+                  Configure mensagens automáticas na página WhatsApp
+                </p>
+                <button
+                  type="button"
+                  onClick={() => showToast("Navegue para WhatsApp > Templates", "success")}
+                  className="w-full px-4 py-2.5 bg-slate-100 hover:bg-slate-200 rounded-xl text-sm font-medium text-slate-700 transition-colors"
+                >
+                  Editar Templates
+                </button>
+              </div>
+
+              <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+                <h3 className="text-lg font-bold text-slate-800 mb-4">Testar Mensagem</h3>
+                <button
+                  type="button"
+                  onClick={() => showToast("Enviando mensagem de teste...", "success")}
+                  className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-colors text-sm font-medium"
+                >
+                  <TestTube className="w-5 h-5" />
+                  Enviar Mensagem de Teste
+                </button>
+              </div>
+
+              <div className="flex justify-end sticky bottom-0 bg-slate-50 py-4 border-t border-slate-200">
+                <button
+                  type="button"
+                  onClick={() => handleSaveTenantSettings()}
+                  disabled={saving}
+                  className="flex items-center gap-2 px-6 py-3 bg-slate-700 text-white rounded-xl hover:bg-slate-800 transition-colors text-sm font-semibold shadow-lg disabled:opacity-50"
+                >
+                  <Save className="w-4 h-4" />
+                  {saving ? "Salvando..." : "Salvar Alterações"}
+                </button>
+              </div>
+            </motion.div>
+          )}
+
+          {/* 6) FINANCEIRO */}
+          {activeTab === "financial" && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="max-w-3xl mx-auto space-y-6"
+            >
+              <div className="mb-6">
+                <h2 className="text-2xl font-bold text-slate-900 mb-2">💰 Configurações Financeiras</h2>
+                <p className="text-sm text-slate-600">
+                  Defina padrões financeiros da oficina
+                </p>
+              </div>
+
+              <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+                <h3 className="text-lg font-bold text-slate-800 mb-4">Pagamentos</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">
+                      Dias Padrão de Vencimento
+                    </label>
+                    <input
+                      type="number"
+                      value={tenantForm.default_due_days || 30}
+                      onChange={(e) => setTenantForm({ ...tenantForm, default_due_days: parseInt(e.target.value) })}
+                      className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">
+                      Parcelamento Máximo
+                    </label>
+                    <input
+                      type="number"
+                      value={tenantForm.max_installments || 12}
+                      onChange={(e) => setTenantForm({ ...tenantForm, max_installments: parseInt(e.target.value) })}
+                      className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
+                    />
+                  </div>
+
+                  <div className="col-span-2">
+                    <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">
+                      Condições de Pagamento Padrão
+                    </label>
+                    <input
+                      type="text"
+                      value={tenantForm.default_payment_terms || ""}
+                      onChange={(e) => setTenantForm({ ...tenantForm, default_payment_terms: e.target.value })}
+                      placeholder="Ex: 30/60 dias, À vista, etc"
+                      className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">
+                      Taxa Cartão (%)
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={tenantForm.card_fee_percentage || 0}
+                      onChange={(e) => setTenantForm({ ...tenantForm, card_fee_percentage: parseFloat(e.target.value) })}
+                      className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">
+                      Chave PIX
+                    </label>
+                    <input
+                      type="text"
+                      value={tenantForm.pix_key || ""}
+                      onChange={(e) => setTenantForm({ ...tenantForm, pix_key: e.target.value })}
+                      placeholder="CPF, CNPJ, E-mail ou Telefone"
+                      className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
+                    />
+                  </div>
+
+                  <div className="col-span-2">
+                    <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">
+                      Formas de Pagamento Aceitas
+                    </label>
+                    <input
+                      type="text"
+                      value={tenantForm.payment_methods || "pix,card,cash"}
+                      onChange={(e) => setTenantForm({ ...tenantForm, payment_methods: e.target.value })}
+                      placeholder="pix,card,cash (separado por vírgula)"
+                      className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
+                    />
+                    <p className="text-xs text-slate-500 mt-1">
+                      Exemplo: pix,card,cash,transfer
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+                <h3 className="text-lg font-bold text-slate-800 mb-4">Multas e Juros</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">
+                      Juros por Atraso (% ao mês)
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={tenantForm.late_fee_percentage || 0}
+                      onChange={(e) => setTenantForm({ ...tenantForm, late_fee_percentage: parseFloat(e.target.value) })}
+                      className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">
+                      Multa Fixa (R$)
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={tenantForm.fixed_penalty || 0}
+                      onChange={(e) => setTenantForm({ ...tenantForm, fixed_penalty: parseFloat(e.target.value) })}
+                      className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex justify-end sticky bottom-0 bg-slate-50 py-4 border-t border-slate-200">
+                <button
+                  type="button"
+                  onClick={() => handleSaveTenantSettings()}
+                  disabled={saving}
+                  className="flex items-center gap-2 px-6 py-3 bg-slate-700 text-white rounded-xl hover:bg-slate-800 transition-colors text-sm font-semibold shadow-lg disabled:opacity-50"
+                >
+                  <Save className="w-4 h-4" />
+                  {saving ? "Salvando..." : "Salvar Alterações"}
+                </button>
+              </div>
+            </motion.div>
+          )}
+
+          {/* 7) REGRAS OPERACIONAIS */}
+          {activeTab === "operational" && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="max-w-3xl mx-auto space-y-6"
+            >
+              <div className="mb-6">
+                <h2 className="text-2xl font-bold text-slate-900 mb-2">⚙️ Regras Operacionais</h2>
+                <p className="text-sm text-slate-600">
+                  Defina comportamentos do sistema
+                </p>
+              </div>
+
+              <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+                <h3 className="text-lg font-bold text-slate-800 mb-4">Ordens de Serviço</h3>
+                <div className="space-y-4">
+                  <label className="flex items-center justify-between">
+                    <div>
+                      <div className="font-medium text-slate-900">Permitir finalizar OS sem pagamento</div>
+                      <div className="text-sm text-slate-500">Permite finalizar mesmo sem receber</div>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={tenantForm.allow_finish_os_without_payment || false}
+                      onChange={(e) => setTenantForm({ ...tenantForm, allow_finish_os_without_payment: e.target.checked })}
+                      className="w-5 h-5 text-slate-600 rounded focus:ring-slate-500"
+                    />
+                  </label>
+
+                  <label className="flex items-center justify-between">
+                    <div>
+                      <div className="font-medium text-slate-900">Permitir entregar veículo sem pagamento</div>
+                      <div className="text-sm text-slate-500">Cliente pode retirar carro sem pagar</div>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={tenantForm.allow_deliver_without_payment || false}
+                      onChange={(e) => setTenantForm({ ...tenantForm, allow_deliver_without_payment: e.target.checked })}
+                      className="w-5 h-5 text-slate-600 rounded focus:ring-slate-500"
+                    />
+                  </label>
+
+                  <label className="flex items-center justify-between">
+                    <div>
+                      <div className="font-medium text-slate-900">Exigir aprovação do cliente</div>
+                      <div className="text-sm text-slate-500">Cliente deve aprovar orçamento antes de executar</div>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={tenantForm.require_client_approval || false}
+                      onChange={(e) => setTenantForm({ ...tenantForm, require_client_approval: e.target.checked })}
+                      className="w-5 h-5 text-slate-600 rounded focus:ring-slate-500"
+                    />
+                  </label>
+
+                  <label className="flex items-center justify-between">
+                    <div>
+                      <div className="font-medium text-slate-900">Checklist obrigatório</div>
+                      <div className="text-sm text-slate-500">Obriga preenchimento do checklist de vistoria</div>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={tenantForm.require_checklist || false}
+                      onChange={(e) => setTenantForm({ ...tenantForm, require_checklist: e.target.checked })}
+                      className="w-5 h-5 text-slate-600 rounded focus:ring-slate-500"
+                    />
+                  </label>
+
+                  <div className="pt-2">
+                    <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">
+                      Dias de Garantia Padrão
+                    </label>
+                    <input
+                      type="number"
+                      value={tenantForm.default_warranty_days || 90}
+                      onChange={(e) => setTenantForm({ ...tenantForm, default_warranty_days: parseInt(e.target.value) })}
+                      className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+                <h3 className="text-lg font-bold text-slate-800 mb-4">Estoque</h3>
+                <div className="space-y-4">
+                  <label className="flex items-center justify-between">
+                    <div>
+                      <div className="font-medium text-slate-900">Baixar estoque automático</div>
+                      <div className="text-sm text-slate-500">Descontar peças ao finalizar OS</div>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={tenantForm.auto_decrease_stock || false}
+                      onChange={(e) => setTenantForm({ ...tenantForm, auto_decrease_stock: e.target.checked })}
+                      className="w-5 h-5 text-slate-600 rounded focus:ring-slate-500"
+                    />
+                  </label>
+
+                  <label className="flex items-center justify-between">
+                    <div>
+                      <div className="font-medium text-slate-900">Alertar estoque baixo</div>
+                      <div className="text-sm text-slate-500">Notificar quando atingir estoque mínimo</div>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={tenantForm.alert_stock_low || false}
+                      onChange={(e) => setTenantForm({ ...tenantForm, alert_stock_low: e.target.checked })}
+                      className="w-5 h-5 text-slate-600 rounded focus:ring-slate-500"
+                    />
+                  </label>
+                </div>
+              </div>
+
+              <div className="flex justify-end sticky bottom-0 bg-slate-50 py-4 border-t border-slate-200">
+                <button
+                  type="button"
+                  onClick={() => handleSaveTenantSettings()}
+                  disabled={saving}
+                  className="flex items-center gap-2 px-6 py-3 bg-slate-700 text-white rounded-xl hover:bg-slate-800 transition-colors text-sm font-semibold shadow-lg disabled:opacity-50"
+                >
+                  <Save className="w-4 h-4" />
+                  {saving ? "Salvando..." : "Salvar Alterações"}
+                </button>
+              </div>
+            </motion.div>
+          )}
+
+          {/* 8) NOTIFICAÇÕES */}
+          {activeTab === "notifications" && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="max-w-3xl mx-auto space-y-6"
+            >
+              <div className="mb-6">
+                <h2 className="text-2xl font-bold text-slate-900 mb-2">🔔 Notificações</h2>
+                <p className="text-sm text-slate-600">
+                  Configure alertas e lembretes automáticos
+                </p>
+              </div>
+
+              <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+                <h3 className="text-lg font-bold text-slate-800 mb-4">Alertas</h3>
+                <div className="space-y-4">
+                  <label className="flex items-center justify-between">
+                    <div>
+                      <div className="font-medium text-slate-900">Alertar Clientes Inadimplentes</div>
+                      <div className="text-sm text-slate-500">Exibir avisos sobre clientes com contas em atraso</div>
+                    </div>
+                    <input
+                      type="checkbox"
+                      checked={tenantForm.alert_overdue_clients || false}
+                      onChange={(e) => setTenantForm({ ...tenantForm, alert_overdue_clients: e.target.checked })}
+                      className="w-5 h-5 text-slate-600 rounded focus:ring-slate-500"
+                    />
+                  </label>
+
+                  <div>
+                    <label className="block font-medium text-slate-900 mb-2">
+                      Alertar OS Parada há (dias)
+                    </label>
+                    <input
+                      type="number"
+                      value={tenantForm.alert_os_stopped_days || 7}
+                      onChange={(e) => setTenantForm({ ...tenantForm, alert_os_stopped_days: parseInt(e.target.value) })}
+                      className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex justify-end sticky bottom-0 bg-slate-50 py-4 border-t border-slate-200">
+                <button
+                  type="button"
+                  onClick={() => handleSaveTenantSettings()}
+                  disabled={saving}
+                  className="flex items-center gap-2 px-6 py-3 bg-slate-700 text-white rounded-xl hover:bg-slate-800 transition-colors text-sm font-semibold shadow-lg disabled:opacity-50"
+                >
+                  <Save className="w-4 h-4" />
+                  {saving ? "Salvando..." : "Salvar Alterações"}
+                </button>
+              </div>
+            </motion.div>
+          )}
+
+          {/* 9) APARÊNCIA */}
           {activeTab === "appearance" && (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              className="max-w-2xl space-y-8"
+              className="max-w-2xl mx-auto space-y-8"
             >
               <div>
-                <h2 className="text-xl font-bold text-slate-900 mb-1">Aparência</h2>
+                <h2 className="text-xl font-bold text-slate-900 mb-1">🎨 Aparência</h2>
                 <p className="text-sm text-slate-500">
                   Personalize o visual do sistema
                 </p>
@@ -424,607 +1616,26 @@ export default function Settings() {
             </motion.div>
           )}
 
-          {activeTab === "user" && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="max-w-2xl space-y-8"
-            >
-              <div>
-                <h2 className="text-xl font-bold text-slate-900 mb-1">
-                  Preferências do Usuário
-                </h2>
-                <p className="text-sm text-slate-500">
-                  Configure suas preferências pessoais
-                </p>
-              </div>
-
-              <div className="bg-white rounded-2xl border border-slate-200 p-6">
-                <h3 className="text-sm font-semibold text-slate-700 uppercase tracking-wide mb-4">
-                  Filtros Salvos
-                </h3>
-                <p className="text-sm text-slate-500">
-                  O sistema salva automaticamente seus filtros preferidos em cada tela
-                </p>
-              </div>
-            </motion.div>
-          )}
-
-          {activeTab === "company" && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="max-w-3xl"
-            >
-              <div className="mb-8">
-                <h2 className="text-xl font-bold text-slate-900 mb-1">
-                  Minha Oficina
-                </h2>
-                <p className="text-sm text-slate-500">
-                  Dados da sua empresa (aparecem em OS, PDF, etc)
-                </p>
-              </div>
-
-              <form onSubmit={handleSaveTenantSettings} className="space-y-6">
-                {/* Basic Info */}
-                <div className="bg-white rounded-2xl border border-slate-200 p-6">
-                  <h3 className="text-sm font-semibold text-slate-700 uppercase tracking-wide mb-4">
-                    Dados Básicos
-                  </h3>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="col-span-2">
-                      <label className="block text-[10px] font-medium text-slate-600 uppercase tracking-wide mb-1.5">
-                        Razão Social
-                      </label>
-                      <input
-                        type="text"
-                        value={tenantForm.company_name || ""}
-                        onChange={(e) =>
-                          setTenantForm({ ...tenantForm, company_name: e.target.value })
-                        }
-                        className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
-                      />
-                    </div>
-
-                    <div className="col-span-2">
-                      <label className="block text-[10px] font-medium text-slate-600 uppercase tracking-wide mb-1.5">
-                        Nome Fantasia
-                      </label>
-                      <input
-                        type="text"
-                        value={tenantForm.trade_name || ""}
-                        onChange={(e) =>
-                          setTenantForm({ ...tenantForm, trade_name: e.target.value })
-                        }
-                        className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-[10px] font-medium text-slate-600 uppercase tracking-wide mb-1.5">
-                        CNPJ
-                      </label>
-                      <input
-                        type="text"
-                        value={tenantForm.cnpj || ""}
-                        onChange={(e) =>
-                          setTenantForm({ ...tenantForm, cnpj: e.target.value })
-                        }
-                        className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-[10px] font-medium text-slate-600 uppercase tracking-wide mb-1.5">
-                        Telefone
-                      </label>
-                      <input
-                        type="text"
-                        value={tenantForm.phone || ""}
-                        onChange={(e) =>
-                          setTenantForm({ ...tenantForm, phone: e.target.value })
-                        }
-                        className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-[10px] font-medium text-slate-600 uppercase tracking-wide mb-1.5">
-                        WhatsApp
-                      </label>
-                      <input
-                        type="text"
-                        value={tenantForm.whatsapp || ""}
-                        onChange={(e) =>
-                          setTenantForm({ ...tenantForm, whatsapp: e.target.value })
-                        }
-                        className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-[10px] font-medium text-slate-600 uppercase tracking-wide mb-1.5">
-                        E-mail
-                      </label>
-                      <input
-                        type="email"
-                        value={tenantForm.email || ""}
-                        onChange={(e) =>
-                          setTenantForm({ ...tenantForm, email: e.target.value })
-                        }
-                        className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Address */}
-                <div className="bg-white rounded-2xl border border-slate-200 p-6">
-                  <h3 className="text-sm font-semibold text-slate-700 uppercase tracking-wide mb-4">
-                    Endereço
-                  </h3>
-                  <div className="grid grid-cols-4 gap-4">
-                    <div className="col-span-4">
-                      <label className="block text-[10px] font-medium text-slate-600 uppercase tracking-wide mb-1.5">
-                        Endereço Completo
-                      </label>
-                      <input
-                        type="text"
-                        value={tenantForm.address || ""}
-                        onChange={(e) =>
-                          setTenantForm({ ...tenantForm, address: e.target.value })
-                        }
-                        className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-[10px] font-medium text-slate-600 uppercase tracking-wide mb-1.5">
-                        Estado (UF)
-                      </label>
-                      <select
-                        value={tenantForm.state || ""}
-                        onChange={(e) =>
-                          setTenantForm({ ...tenantForm, state: e.target.value })
-                        }
-                        className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
-                      >
-                        <option value="">Selecione</option>
-                        {estados.map((estado) => (
-                          <option key={estado.id} value={estado.sigla}>
-                            {estado.sigla}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div className="col-span-2">
-                      <label className="block text-[10px] font-medium text-slate-600 uppercase tracking-wide mb-1.5">
-                        Cidade
-                      </label>
-                      <select
-                        value={tenantForm.city || ""}
-                        onChange={(e) =>
-                          setTenantForm({ ...tenantForm, city: e.target.value })
-                        }
-                        disabled={!tenantForm.state}
-                        className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-400 disabled:bg-slate-50"
-                      >
-                        <option value="">Selecione</option>
-                        {cidades.map((cidade) => (
-                          <option key={cidade.id} value={cidade.nome}>
-                            {cidade.nome}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="block text-[10px] font-medium text-slate-600 uppercase tracking-wide mb-1.5">
-                        CEP
-                      </label>
-                      <input
-                        type="text"
-                        value={tenantForm.zip_code || ""}
-                        onChange={(e) =>
-                          setTenantForm({ ...tenantForm, zip_code: e.target.value })
-                        }
-                        className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Texts */}
-                <div className="bg-white rounded-2xl border border-slate-200 p-6">
-                  <h3 className="text-sm font-semibold text-slate-700 uppercase tracking-wide mb-4">
-                    Textos Padrão
-                  </h3>
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-[10px] font-medium text-slate-600 uppercase tracking-wide mb-1.5">
-                        Frase Padrão para Orçamentos
-                      </label>
-                      <textarea
-                        rows={3}
-                        value={tenantForm.default_quote_text || ""}
-                        onChange={(e) =>
-                          setTenantForm({
-                            ...tenantForm,
-                            default_quote_text: e.target.value,
-                          })
-                        }
-                        placeholder="Ex: Orçamento válido por 7 dias..."
-                        className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-[10px] font-medium text-slate-600 uppercase tracking-wide mb-1.5">
-                        Assinatura Digital
-                      </label>
-                      <textarea
-                        rows={2}
-                        value={tenantForm.signature || ""}
-                        onChange={(e) =>
-                          setTenantForm({ ...tenantForm, signature: e.target.value })
-                        }
-                        placeholder="Ex: Atenciosamente, Equipe..."
-                        className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex justify-end">
-                  <button
-                    type="submit"
-                    disabled={saving}
-                    className="flex items-center gap-2 px-6 py-2.5 bg-slate-700 text-white rounded-xl hover:bg-slate-800 transition-colors text-sm font-medium shadow-lg disabled:opacity-50"
-                  >
-                    <Save className="w-4 h-4" />
-                    {saving ? "Salvando..." : "Salvar Configurações"}
-                  </button>
-                </div>
-              </form>
-            </motion.div>
-          )}
-
-          {activeTab === "financial" && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="max-w-2xl"
-            >
-              <div className="mb-8">
-                <h2 className="text-xl font-bold text-slate-900 mb-1">
-                  Configurações Financeiras
-                </h2>
-                <p className="text-sm text-slate-500">
-                  Defina valores padrão e regras financeiras
-                </p>
-              </div>
-
-              <form onSubmit={handleSaveTenantSettings} className="space-y-6">
-                <div className="bg-white rounded-2xl border border-slate-200 p-6">
-                  <h3 className="text-sm font-semibold text-slate-700 uppercase tracking-wide mb-4">
-                    Pagamentos
-                  </h3>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-[10px] font-medium text-slate-600 uppercase tracking-wide mb-1.5">
-                        Dias Padrão de Vencimento
-                      </label>
-                      <input
-                        type="number"
-                        value={tenantForm.default_due_days || 30}
-                        onChange={(e) =>
-                          setTenantForm({
-                            ...tenantForm,
-                            default_due_days: parseInt(e.target.value),
-                          })
-                        }
-                        className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-[10px] font-medium text-slate-600 uppercase tracking-wide mb-1.5">
-                        Parcelamento Máximo
-                      </label>
-                      <input
-                        type="number"
-                        value={tenantForm.max_installments || 12}
-                        onChange={(e) =>
-                          setTenantForm({
-                            ...tenantForm,
-                            max_installments: parseInt(e.target.value),
-                          })
-                        }
-                        className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
-                      />
-                    </div>
-
-                    <div className="col-span-2">
-                      <label className="block text-[10px] font-medium text-slate-600 uppercase tracking-wide mb-1.5">
-                        Condições de Pagamento Padrão
-                      </label>
-                      <input
-                        type="text"
-                        value={tenantForm.default_payment_terms || ""}
-                        onChange={(e) =>
-                          setTenantForm({
-                            ...tenantForm,
-                            default_payment_terms: e.target.value,
-                          })
-                        }
-                        placeholder="Ex: 30/60 dias, À vista, etc"
-                        className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-[10px] font-medium text-slate-600 uppercase tracking-wide mb-1.5">
-                        Taxa Cartão (%)
-                      </label>
-                      <input
-                        type="number"
-                        step="0.01"
-                        value={tenantForm.card_fee_percentage || 0}
-                        onChange={(e) =>
-                          setTenantForm({
-                            ...tenantForm,
-                            card_fee_percentage: parseFloat(e.target.value),
-                          })
-                        }
-                        className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-[10px] font-medium text-slate-600 uppercase tracking-wide mb-1.5">
-                        Chave PIX
-                      </label>
-                      <input
-                        type="text"
-                        value={tenantForm.pix_key || ""}
-                        onChange={(e) =>
-                          setTenantForm({ ...tenantForm, pix_key: e.target.value })
-                        }
-                        className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-white rounded-2xl border border-slate-200 p-6">
-                  <h3 className="text-sm font-semibold text-slate-700 uppercase tracking-wide mb-4">
-                    Multas e Juros
-                  </h3>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-[10px] font-medium text-slate-600 uppercase tracking-wide mb-1.5">
-                        Juros por Atraso (% ao mês)
-                      </label>
-                      <input
-                        type="number"
-                        step="0.01"
-                        value={tenantForm.late_fee_percentage || 0}
-                        onChange={(e) =>
-                          setTenantForm({
-                            ...tenantForm,
-                            late_fee_percentage: parseFloat(e.target.value),
-                          })
-                        }
-                        className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-[10px] font-medium text-slate-600 uppercase tracking-wide mb-1.5">
-                        Multa Fixa (R$)
-                      </label>
-                      <input
-                        type="number"
-                        step="0.01"
-                        value={tenantForm.fixed_penalty || 0}
-                        onChange={(e) =>
-                          setTenantForm({
-                            ...tenantForm,
-                            fixed_penalty: parseFloat(e.target.value),
-                          })
-                        }
-                        className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex justify-end">
-                  <button
-                    type="submit"
-                    disabled={saving}
-                    className="flex items-center gap-2 px-6 py-2.5 bg-slate-700 text-white rounded-xl hover:bg-slate-800 transition-colors text-sm font-medium shadow-lg disabled:opacity-50"
-                  >
-                    <Save className="w-4 h-4" />
-                    {saving ? "Salvando..." : "Salvar Configurações"}
-                  </button>
-                </div>
-              </form>
-            </motion.div>
-          )}
-
-          {activeTab === "operational" && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="max-w-2xl"
-            >
-              <div className="mb-8">
-                <h2 className="text-xl font-bold text-slate-900 mb-1">
-                  Configurações Operacionais
-                </h2>
-                <p className="text-sm text-slate-500">
-                  Defina regras de operação da oficina
-                </p>
-              </div>
-
-              <form onSubmit={handleSaveTenantSettings} className="space-y-6">
-                <div className="bg-white rounded-2xl border border-slate-200 p-6">
-                  <h3 className="text-sm font-semibold text-slate-700 uppercase tracking-wide mb-4">
-                    Ordens de Serviço
-                  </h3>
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-[10px] font-medium text-slate-600 uppercase tracking-wide mb-1.5">
-                        Dias de Garantia Padrão
-                      </label>
-                      <input
-                        type="number"
-                        value={tenantForm.default_warranty_days || 90}
-                        onChange={(e) =>
-                          setTenantForm({
-                            ...tenantForm,
-                            default_warranty_days: parseInt(e.target.value),
-                          })
-                        }
-                        className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex justify-end">
-                  <button
-                    type="submit"
-                    disabled={saving}
-                    className="flex items-center gap-2 px-6 py-2.5 bg-slate-700 text-white rounded-xl hover:bg-slate-800 transition-colors text-sm font-medium shadow-lg disabled:opacity-50"
-                  >
-                    <Save className="w-4 h-4" />
-                    {saving ? "Salvando..." : "Salvar Configurações"}
-                  </button>
-                </div>
-              </form>
-            </motion.div>
-          )}
-
-          {activeTab === "notifications" && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="max-w-2xl"
-            >
-              <div className="mb-8">
-                <h2 className="text-xl font-bold text-slate-900 mb-1">Notificações</h2>
-                <p className="text-sm text-slate-500">
-                  Configure alertas e lembretes automáticos
-                </p>
-              </div>
-
-              <form onSubmit={handleSaveTenantSettings} className="space-y-6">
-                <div className="bg-white rounded-2xl border border-slate-200 p-6">
-                  <h3 className="text-sm font-semibold text-slate-700 uppercase tracking-wide mb-4">
-                    Alertas
-                  </h3>
-                  <div className="space-y-4">
-                    <label className="flex items-center justify-between">
-                      <div>
-                        <div className="font-medium text-slate-900">
-                          Alertar Estoque Baixo
-                        </div>
-                        <div className="text-sm text-slate-500">
-                          Notificar quando peças atingirem estoque mínimo
-                        </div>
-                      </div>
-                      <input
-                        type="checkbox"
-                        checked={tenantForm.alert_stock_low || false}
-                        onChange={(e) =>
-                          setTenantForm({
-                            ...tenantForm,
-                            alert_stock_low: e.target.checked,
-                          })
-                        }
-                        className="w-5 h-5 text-slate-600 rounded focus:ring-slate-500"
-                      />
-                    </label>
-
-                    <label className="flex items-center justify-between">
-                      <div>
-                        <div className="font-medium text-slate-900">
-                          Alertar Clientes Inadimplentes
-                        </div>
-                        <div className="text-sm text-slate-500">
-                          Exibir avisos sobre clientes com contas em atraso
-                        </div>
-                      </div>
-                      <input
-                        type="checkbox"
-                        checked={tenantForm.alert_overdue_clients || false}
-                        onChange={(e) =>
-                          setTenantForm({
-                            ...tenantForm,
-                            alert_overdue_clients: e.target.checked,
-                          })
-                        }
-                        className="w-5 h-5 text-slate-600 rounded focus:ring-slate-500"
-                      />
-                    </label>
-
-                    <div>
-                      <label className="block font-medium text-slate-900 mb-2">
-                        Alertar OS Parada há (dias)
-                      </label>
-                      <input
-                        type="number"
-                        value={tenantForm.alert_os_stopped_days || 7}
-                        onChange={(e) =>
-                          setTenantForm({
-                            ...tenantForm,
-                            alert_os_stopped_days: parseInt(e.target.value),
-                          })
-                        }
-                        className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex justify-end">
-                  <button
-                    type="submit"
-                    disabled={saving}
-                    className="flex items-center gap-2 px-6 py-2.5 bg-slate-700 text-white rounded-xl hover:bg-slate-800 transition-colors text-sm font-medium shadow-lg disabled:opacity-50"
-                  >
-                    <Save className="w-4 h-4" />
-                    {saving ? "Salvando..." : "Salvar Configurações"}
-                  </button>
-                </div>
-              </form>
-            </motion.div>
-          )}
-
+          {/* 10) SEGURANÇA */}
           {activeTab === "security" && (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              className="max-w-2xl"
+              className="max-w-2xl mx-auto space-y-6"
             >
-              <div className="mb-8">
-                <h2 className="text-xl font-bold text-slate-900 mb-1">Segurança</h2>
-                <p className="text-sm text-slate-500">
+              <div className="mb-6">
+                <h2 className="text-2xl font-bold text-slate-900 mb-2">🔒 Segurança</h2>
+                <p className="text-sm text-slate-600">
                   Gerencie senha e configurações de segurança
                 </p>
               </div>
 
               <form onSubmit={handleChangePassword} className="space-y-6">
-                <div className="bg-white rounded-2xl border border-slate-200 p-6">
-                  <h3 className="text-sm font-semibold text-slate-700 uppercase tracking-wide mb-4">
-                    Alterar Senha
-                  </h3>
+                <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+                  <h3 className="text-lg font-bold text-slate-800 mb-4">Alterar Senha</h3>
                   <div className="space-y-4">
                     <div>
-                      <label className="block text-[10px] font-medium text-slate-600 uppercase tracking-wide mb-1.5">
+                      <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">
                         Senha Atual
                       </label>
                       <div className="relative">
@@ -1055,7 +1666,7 @@ export default function Settings() {
                     </div>
 
                     <div>
-                      <label className="block text-[10px] font-medium text-slate-600 uppercase tracking-wide mb-1.5">
+                      <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">
                         Nova Senha
                       </label>
                       <input
@@ -1074,7 +1685,7 @@ export default function Settings() {
                     </div>
 
                     <div>
-                      <label className="block text-[10px] font-medium text-slate-600 uppercase tracking-wide mb-1.5">
+                      <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">
                         Confirmar Nova Senha
                       </label>
                       <input
@@ -1098,7 +1709,7 @@ export default function Settings() {
                   <button
                     type="submit"
                     disabled={saving}
-                    className="flex items-center gap-2 px-6 py-2.5 bg-slate-700 text-white rounded-xl hover:bg-slate-800 transition-colors text-sm font-medium shadow-lg disabled:opacity-50"
+                    className="flex items-center gap-2 px-6 py-3 bg-slate-700 text-white rounded-xl hover:bg-slate-800 transition-colors text-sm font-semibold shadow-lg disabled:opacity-50"
                   >
                     <Save className="w-4 h-4" />
                     {saving ? "Salvando..." : "Alterar Senha"}
@@ -1108,59 +1719,107 @@ export default function Settings() {
             </motion.div>
           )}
 
+          {/* 11) AVANÇADO */}
           {activeTab === "advanced" && (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              className="max-w-2xl"
+              className="max-w-2xl mx-auto space-y-6"
             >
-              <div className="mb-8">
-                <h2 className="text-xl font-bold text-slate-900 mb-1">Avançado</h2>
-                <p className="text-sm text-slate-500">
+              <div className="mb-6">
+                <h2 className="text-2xl font-bold text-slate-900 mb-2">🔧 Avançado</h2>
+                <p className="text-sm text-slate-600">
                   Ferramentas administrativas e manutenção
                 </p>
               </div>
 
-              <div className="space-y-6">
-                <div className="bg-white rounded-2xl border border-slate-200 p-6">
-                  <h3 className="text-sm font-semibold text-slate-700 uppercase tracking-wide mb-4">
-                    Ferramentas
-                  </h3>
-                  <div className="space-y-3">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (
-                          confirm(
-                            "Isso irá resetar todos os filtros salvos. Continuar?"
-                          )
-                        ) {
-                          updatePreferences({ filters_json: "{}" });
-                          alert("Filtros resetados!");
-                        }
-                      }}
-                      className="w-full px-4 py-3 bg-slate-100 hover:bg-slate-200 rounded-xl text-left text-sm font-medium text-slate-700 transition-colors"
-                    >
-                      Resetar Filtros Salvos
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => alert("Funcionalidade em desenvolvimento")}
-                      className="w-full px-4 py-3 bg-slate-100 hover:bg-slate-200 rounded-xl text-left text-sm font-medium text-slate-700 transition-colors"
-                    >
-                      Limpar Cache
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => alert("Funcionalidade em desenvolvimento")}
-                      className="w-full px-4 py-3 bg-slate-100 hover:bg-slate-200 rounded-xl text-left text-sm font-medium text-slate-700 transition-colors"
-                    >
-                      Ver Logs do Sistema
-                    </button>
+              <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+                <h3 className="text-lg font-bold text-slate-800 mb-4">Integrações</h3>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl">
+                    <div className="flex items-center gap-3">
+                      <Check className="w-5 h-5 text-green-600" />
+                      <span className="text-sm font-medium text-slate-700">ViaCEP</span>
+                    </div>
+                    <span className="text-xs text-green-600 font-medium">Ativo</span>
+                  </div>
+                  <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl">
+                    <div className="flex items-center gap-3">
+                      <Check className="w-5 h-5 text-green-600" />
+                      <span className="text-sm font-medium text-slate-700">FIPE API</span>
+                    </div>
+                    <span className="text-xs text-green-600 font-medium">Ativo</span>
+                  </div>
+                  <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl">
+                    <div className="flex items-center gap-3">
+                      <div className={`w-3 h-3 rounded-full ${tenantForm.whatsapp_connected ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                      <span className="text-sm font-medium text-slate-700">WPPConnect</span>
+                    </div>
+                    <span className={`text-xs font-medium ${tenantForm.whatsapp_connected ? 'text-green-600' : 'text-red-600'}`}>
+                      {tenantForm.whatsapp_connected ? 'Ativo' : 'Inativo'}
+                    </span>
                   </div>
                 </div>
+              </div>
+
+              <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+                <h3 className="text-lg font-bold text-slate-800 mb-4">Ferramentas</h3>
+                <div className="space-y-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (
+                        confirm(
+                          "Isso irá resetar todos os filtros salvos. Continuar?"
+                        )
+                      ) {
+                        updatePreferences({ filters_json: "{}" });
+                        showToast("Filtros resetados!", "success");
+                      }
+                    }}
+                    className="w-full px-4 py-3 bg-slate-100 hover:bg-slate-200 rounded-xl text-left text-sm font-medium text-slate-700 transition-colors"
+                  >
+                    Resetar Filtros Salvos
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => showToast("Funcionalidade em desenvolvimento", "success")}
+                    className="w-full px-4 py-3 bg-slate-100 hover:bg-slate-200 rounded-xl text-left text-sm font-medium text-slate-700 transition-colors"
+                  >
+                    Limpar Cache
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => showToast("Funcionalidade em desenvolvimento", "success")}
+                    className="w-full px-4 py-3 bg-slate-100 hover:bg-slate-200 rounded-xl text-left text-sm font-medium text-slate-700 transition-colors"
+                  >
+                    Ver Logs do Sistema
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => showToast("Funcionalidade em desenvolvimento", "success")}
+                    className="w-full px-4 py-3 bg-slate-100 hover:bg-slate-200 rounded-xl text-left text-sm font-medium text-slate-700 transition-colors"
+                  >
+                    Exportar Dados (Backup)
+                  </button>
+                </div>
+              </div>
+
+              <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+                <h3 className="text-lg font-bold text-slate-800 mb-4">Auditoria</h3>
+                <p className="text-sm text-slate-500 mb-4">
+                  Logs de ações importantes (cancelamentos, estornos, alterações de valor)
+                </p>
+                <button
+                  type="button"
+                  onClick={() => showToast("Funcionalidade em desenvolvimento", "success")}
+                  className="w-full px-4 py-3 bg-slate-700 text-white hover:bg-slate-800 rounded-xl text-sm font-medium transition-colors"
+                >
+                  Ver Logs de Auditoria
+                </button>
               </div>
             </motion.div>
           )}

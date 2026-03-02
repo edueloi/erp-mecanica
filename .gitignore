@@ -9,7 +9,14 @@ coverage/
 
 # WhatsApp session tokens
 tokens/
+**/tokens/
 
 # Database
 mecaerp.db
 mecaerp.db-*
+
+
+# Bancos locais / artefatos
+*.db
+*.sqlite
+*.sqlite3

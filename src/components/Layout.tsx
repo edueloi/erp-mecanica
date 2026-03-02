@@ -83,7 +83,6 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       title: 'Sistema',
       items: [
         { icon: Store, label: 'Minha Oficina', path: '/settings/shop' },
-        { icon: Settings, label: 'Configurações', path: '/settings' },
       ]
     }
   ];

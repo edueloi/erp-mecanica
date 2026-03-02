@@ -56,8 +56,7 @@ export default function App() {
         <Route path="/finance/cashflow" element={<PrivateRoute><CashFlow /></PrivateRoute>} />
         <Route path="/communication/whatsapp" element={<PrivateRoute><WhatsApp /></PrivateRoute>} />
         <Route path="/communication/history" element={<PrivateRoute><Placeholder title="Histórico de Mensagens" /></PrivateRoute>} />
-        <Route path="/settings/shop" element={<PrivateRoute><Placeholder title="Minha Oficina" /></PrivateRoute>} />
-        <Route path="/settings" element={<PrivateRoute><Settings /></PrivateRoute>} />
+        <Route path="/settings/shop" element={<PrivateRoute><Settings /></PrivateRoute>} />
 
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>

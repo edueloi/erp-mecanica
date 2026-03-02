@@ -44,10 +44,12 @@ export default function Appointments() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [selectedAppointment, setSelectedAppointment] = useState<any>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [clients, setClients] = useState<any[]>([]);
   const [vehicles, setVehicles] = useState<any[]>([]);
+  const [editVehicles, setEditVehicles] = useState<any[]>([]);
   
   const [newAppointment, setNewAppointment] = useState<any>({
     client_id: '',
@@ -61,6 +63,8 @@ export default function Appointments() {
     origin: '',
     send_confirmation: true
   });
+
+  const [editAppointment, setEditAppointment] = useState<any>(null);
 
   const fetchAppointments = async () => {
     try {
@@ -100,23 +104,74 @@ export default function Appointments() {
     }
   };
 
+  const fetchVehicles = async (clientId: string) => {
+    try {
+      const res = await api.get(`/clients/${clientId}`);
+      setVehicles(res.data.vehicles || []);
+    } catch (err) {
+      console.error(err);
+      setVehicles([]);
+    }
+  };
+
+  const fetchEditVehicles = async (clientId: string) => {
+    try {
+      const res = await api.get(`/clients/${clientId}`);
+      setEditVehicles(res.data.vehicles || []);
+    } catch (err) {
+      console.error(err);
+      setEditVehicles([]);
+    }
+  };
+
   useEffect(() => {
     fetchAppointments();
     fetchClients();
   }, [search, currentDate]);
 
-  useEffect(() => {
-    if (newAppointment.client_id) {
-      api.get(`/clients/${newAppointment.client_id}`).then(res => {
-        setVehicles(res.data.vehicles || []);
-      });
+  const openEditModal = (appointment: any) => {
+    setEditAppointment({ ...appointment });
+    setIsEditModalOpen(true);
+    if (appointment.client_id) {
+      fetchEditVehicles(appointment.client_id);
     }
-  }, [newAppointment.client_id]);
+  };
+
+  const handleEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await api.put(`/appointments/${editAppointment.id}`, editAppointment);
+      setIsEditModalOpen(false);
+      setIsDrawerOpen(false);
+      fetchAppointments();
+    } catch (err) {
+      alert('Erro ao atualizar agendamento');
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Tem certeza que deseja excluir este agendamento?')) return;
+    
+    try {
+      await api.delete(`/appointments/${id}`);
+      setIsDrawerOpen(false);
+      fetchAppointments();
+    } catch (err) {
+      alert('Erro ao excluir agendamento');
+    }
+  };
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await api.post('/appointments', newAppointment);
+      const res = await api.post('/appointments', newAppointment);
+      const createdAppointment = res.data;
+      
+      // Enviar confirmação via WhatsApp se marcado
+      if (newAppointment.send_confirmation && createdAppointment.client_phone) {
+        await sendWhatsAppConfirmation(createdAppointment);
+      }
+      
       setIsModalOpen(false);
       setNewAppointment({
         client_id: '',
@@ -168,23 +223,91 @@ export default function Appointments() {
     return appointments.filter(a => isSameDay(parseISO(a.date), day) && a.time.startsWith(time.split(':')[0]));
   };
 
-  const sendWhatsApp = (appointment: any, type: 'CONFIRM' | 'REMIND' | 'DELAY') => {
-    const name = appointment.client_name;
-    const date = format(parseISO(appointment.date), 'dd/MM');
-    const time = appointment.time;
-    const shopName = "MecaERP Oficina";
-    
-    let message = '';
-    if (type === 'CONFIRM') {
-      message = `Olá, ${name}! Seu agendamento na ${shopName} está confirmado para ${date} às ${time}. Qualquer dúvida, me chama aqui.`;
-    } else if (type === 'REMIND') {
-      message = `Oi, ${name}! Só lembrando do seu agendamento hoje às ${time}. Te aguardamos 🙂`;
-    } else if (type === 'DELAY') {
-      message = `Oi, ${name}! Você ainda consegue vir hoje? Se preferir, posso reagendar pra você.`;
-    }
+  const sendWhatsApp = async (appointment: any, type: 'CONFIRM' | 'REMIND' | 'DELAY') => {
+    try {
+      // Verificar se WhatsApp está conectado
+      const statusRes = await api.get('/whatsapp/status');
+      if (statusRes.data.status !== 'connected') {
+        // Se não está conectado, abrir WhatsApp Web como fallback
+        const name = appointment.client_name;
+        const date = format(parseISO(appointment.date), 'dd/MM');
+        const time = appointment.time;
+        const shopName = "MecaERP Oficina";
+        
+        let message = '';
+        if (type === 'CONFIRM') {
+          message = `Olá, ${name}! Seu agendamento na ${shopName} está confirmado para ${date} às ${time}. Qualquer dúvida, me chama aqui.`;
+        } else if (type === 'REMIND') {
+          message = `Oi, ${name}! Só lembrando do seu agendamento hoje às ${time}. Te aguardamos 🙂`;
+        } else if (type === 'DELAY') {
+          message = `Oi, ${name}! Você ainda consegue vir hoje? Se preferir, posso reagendar pra você.`;
+        }
 
-    const phone = appointment.client_phone.replace(/\D/g, '');
-    window.open(`https://wa.me/55${phone}?text=${encodeURIComponent(message)}`, '_blank');
+        const phone = appointment.client_phone.replace(/\D/g, '');
+        window.open(`https://wa.me/55${phone}?text=${encodeURIComponent(message)}`, '_blank');
+        return;
+      }
+
+      // Enviar via API
+      const name = appointment.client_name;
+      const date = format(parseISO(appointment.date), 'dd/MM/yyyy');
+      const time = appointment.time;
+      
+      let message = '';
+      if (type === 'CONFIRM') {
+        message = `✅ *Agendamento Confirmado*\n\nOlá, ${name}!\n\nSeu agendamento foi confirmado:\n📅 *Data:* ${date}\n🕐 *Horário:* ${time}\n\nQualquer dúvida, estamos à disposição! 😊`;
+      } else if (type === 'REMIND') {
+        message = `⏰ *Lembrete de Agendamento*\n\nOi, ${name}!\n\nSó lembrando do seu agendamento hoje às ${time}.\n\nTe aguardamos! 🙂`;
+      } else if (type === 'DELAY') {
+        message = `⚠️ *Sobre seu Agendamento*\n\nOi, ${name}!\n\nVocê ainda consegue vir hoje às ${time}?\n\nSe preferir, posso reagendar para você. 😊`;
+      }
+      
+      const phone = appointment.client_phone.replace(/\D/g, '');
+      
+      await api.post('/whatsapp/send', {
+        phone: phone,
+        message: message,
+        relatedType: 'appointment',
+        relatedId: appointment.id
+      });
+      
+      alert('Mensagem enviada com sucesso!');
+    } catch (err: any) {
+      console.error('❌ Erro ao enviar WhatsApp:', err);
+      alert('Erro ao enviar mensagem. Tente novamente.');
+    }
+  };
+
+  const sendWhatsAppConfirmation = async (appointment: any) => {
+    try {
+      // Verificar se WhatsApp está conectado
+      const statusRes = await api.get('/whatsapp/status');
+      if (statusRes.data.status !== 'connected') {
+        console.warn('WhatsApp não está conectado');
+        return;
+      }
+
+      const name = appointment.client_name;
+      const date = format(parseISO(appointment.date), 'dd/MM/yyyy');
+      const time = appointment.time;
+      const vehicle = `${appointment.plate} - ${appointment.model}`;
+      
+      const message = `✅ *Agendamento Confirmado*\n\nOlá, ${name}!\n\nSeu agendamento foi confirmado:\n📅 *Data:* ${date}\n🕐 *Horário:* ${time}\n🚗 *Veículo:* ${vehicle}\n📋 *Serviço:* ${appointment.service_description}\n\nQualquer dúvida, estamos à disposição! 😊`;
+      
+      const phone = appointment.client_phone.replace(/\D/g, '');
+      
+      await api.post('/whatsapp/send', {
+        phone: phone,
+        message: message,
+        relatedType: 'appointment',
+        relatedId: appointment.id
+      });
+      
+      console.log('✅ Confirmação enviada via WhatsApp');
+    } catch (err: any) {
+      console.error('❌ Erro ao enviar confirmação WhatsApp:', err);
+      // Não mostra erro ao usuário para não interromper o fluxo
+    }
   };
 
   const handleCreateOS = async (appointment: any) => {
@@ -400,12 +523,22 @@ export default function Appointments() {
                           </span>
                         </td>
                         <td className="py-4 text-right">
-                          <button 
-                            onClick={() => openDetails(app)}
-                            className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all"
-                          >
-                            <ChevronRight size={18} />
-                          </button>
+                          <div className="flex items-center justify-end gap-1">
+                            <button 
+                              onClick={() => openEditModal(app)}
+                              className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
+                              title="Editar"
+                            >
+                              <Edit size={16} />
+                            </button>
+                            <button 
+                              onClick={() => openDetails(app)}
+                              className="p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all"
+                              title="Ver Detalhes"
+                            >
+                              <ChevronRight size={18} />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -645,10 +778,17 @@ export default function Appointments() {
               </div>
 
               <div className="p-6 border-t border-slate-100 bg-slate-50 flex gap-3">
-                <button className="flex-1 flex items-center justify-center gap-2 p-3 border border-slate-200 bg-white text-slate-700 rounded-xl text-sm font-bold hover:bg-slate-50 transition-all">
+                <button 
+                  onClick={() => openEditModal(selectedAppointment)}
+                  className="flex-1 flex items-center justify-center gap-2 p-3 border border-slate-200 bg-white text-slate-700 rounded-xl text-sm font-bold hover:bg-slate-50 transition-all"
+                >
                   <Edit size={18} /> Editar
                 </button>
-                <button className="p-3 border border-red-100 bg-white text-red-600 rounded-xl hover:bg-red-50 transition-all">
+                <button 
+                  onClick={() => handleDelete(selectedAppointment.id)}
+                  className="p-3 border border-red-100 bg-white text-red-600 rounded-xl hover:bg-red-50 transition-all"
+                  title="Excluir Agendamento"
+                >
                   <Trash2 size={18} />
                 </button>
               </div>
@@ -657,161 +797,323 @@ export default function Appointments() {
         )}
       </AnimatePresence>
 
-      {/* New Appointment Modal */}
+      {/* New Appointment Modal - Compact */}
       <AnimatePresence>
         {isModalOpen && (
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
             <motion.div 
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white rounded-3xl w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white w-full max-w-lg rounded-xl shadow-2xl flex flex-col max-h-[90vh]"
             >
-              <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-emerald-500 rounded-xl flex items-center justify-center text-white">
-                    <Calendar size={20} />
-                  </div>
-                  <div>
-                    <h2 className="text-xl font-bold text-slate-900">Novo Agendamento</h2>
-                    <p className="text-xs text-slate-500">Preencha os dados para reservar o horário</p>
-                  </div>
-                </div>
-                <button onClick={() => setIsModalOpen(false)} className="p-2 hover:bg-slate-200 rounded-full text-slate-500 transition-colors">
-                  <X size={24} />
+              <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between bg-slate-50 shrink-0">
+                <h2 className="text-sm font-bold text-slate-900">Novo Agendamento</h2>
+                <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-900">
+                  <X size={18} />
                 </button>
               </div>
-
-              <form onSubmit={handleCreate} className="p-8 space-y-8 overflow-y-auto no-scrollbar">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Cliente</label>
+              
+              <form onSubmit={handleCreate} className="overflow-y-auto p-4 space-y-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="col-span-2">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase mb-1 block">Cliente *</label>
                     <select 
                       required
-                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 outline-none transition-all appearance-none"
+                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
                       value={newAppointment.client_id}
-                      onChange={(e) => setNewAppointment({...newAppointment, client_id: e.target.value})}
+                      onChange={(e) => {
+                        setNewAppointment({...newAppointment, client_id: e.target.value, vehicle_id: ''});
+                        fetchVehicles(e.target.value);
+                      }}
                     >
-                      <option value="">Selecionar Cliente...</option>
+                      <option value="">Selecione o cliente...</option>
                       {clients.map(c => (
                         <option key={c.id} value={c.id}>{c.name}</option>
                       ))}
                     </select>
                   </div>
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Veículo</label>
+
+                  <div className="col-span-2">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase mb-1 block">Veículo *</label>
                     <select 
                       required
                       disabled={!newAppointment.client_id}
-                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 outline-none transition-all appearance-none disabled:opacity-50"
+                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none disabled:bg-slate-50 disabled:text-slate-400"
                       value={newAppointment.vehicle_id}
                       onChange={(e) => setNewAppointment({...newAppointment, vehicle_id: e.target.value})}
                     >
-                      <option value="">Selecionar Veículo...</option>
+                      <option value="">Selecione o veículo...</option>
                       {vehicles.map(v => (
                         <option key={v.id} value={v.id}>{v.plate} - {v.model}</option>
                       ))}
                     </select>
+                    {newAppointment.client_id && vehicles.length === 0 && (
+                      <p className="text-xs text-amber-600 mt-1 flex items-center gap-1">
+                        <Info size={12} /> Cliente sem veículos cadastrados
+                      </p>
+                    )}
                   </div>
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Data</label>
+
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-500 uppercase mb-1 block">Data *</label>
                     <input 
                       type="date"
                       required
-                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 outline-none transition-all"
+                      min={format(new Date(), 'yyyy-MM-dd')}
+                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
                       value={newAppointment.date}
                       onChange={(e) => setNewAppointment({...newAppointment, date: e.target.value})}
                     />
                   </div>
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Horário</label>
+
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-500 uppercase mb-1 block">Horário *</label>
                     <input 
                       type="time"
                       required
-                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 outline-none transition-all"
+                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
                       value={newAppointment.time}
                       onChange={(e) => setNewAppointment({...newAppointment, time: e.target.value})}
                     />
                   </div>
-                  <div className="space-y-2 md:col-span-2">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Serviço / Queixa</label>
+
+                  <div className="col-span-2">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase mb-1 block">Serviço / Problema *</label>
                     <input 
                       type="text"
                       required
-                      placeholder="Ex: Troca de óleo, Revisão 30k, Ruído no freio..."
-                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 outline-none transition-all"
+                      placeholder="Ex: Troca de óleo, Revisão, Barulho no freio..."
+                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
                       value={newAppointment.service_description}
                       onChange={(e) => setNewAppointment({...newAppointment, service_description: e.target.value})}
                     />
                   </div>
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Duração Estimada (min)</label>
+
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-500 uppercase mb-1 block">Duração</label>
                     <select 
-                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 outline-none transition-all appearance-none"
+                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
                       value={newAppointment.estimated_duration}
                       onChange={(e) => setNewAppointment({...newAppointment, estimated_duration: parseInt(e.target.value)})}
                     >
-                      <option value={30}>30 minutos</option>
+                      <option value={30}>30 min</option>
                       <option value={60}>1 hora</option>
+                      <option value={90}>1h30</option>
                       <option value={120}>2 horas</option>
                       <option value={180}>3 horas</option>
-                      <option value={240}>4 horas</option>
+                      <option value={240}>4+ horas</option>
                     </select>
                   </div>
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Origem</label>
+
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-500 uppercase mb-1 block">Origem</label>
                     <select 
-                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 outline-none transition-all appearance-none"
+                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
                       value={newAppointment.origin}
                       onChange={(e) => setNewAppointment({...newAppointment, origin: e.target.value})}
                     >
-                      <option value="">Selecione...</option>
+                      <option value="">-</option>
                       <option value="WHATSAPP">WhatsApp</option>
                       <option value="PHONE">Telefone</option>
                       <option value="INSTAGRAM">Instagram</option>
-                      <option value="GOOGLE">Google</option>
+                      <option value="GOOGLE">Google/Site</option>
                       <option value="INDICATION">Indicação</option>
                       <option value="RETURN">Retorno</option>
                     </select>
                   </div>
-                  <div className="space-y-2 md:col-span-2">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Observações do Cliente</label>
+
+                  <div className="col-span-2">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase mb-1 block">Observações</label>
                     <textarea 
-                      rows={3}
-                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 outline-none transition-all resize-none"
-                      placeholder="Algum detalhe importante?"
+                      rows={2}
+                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none resize-none"
+                      placeholder="Algum detalhe importante do cliente..."
                       value={newAppointment.notes}
                       onChange={(e) => setNewAppointment({...newAppointment, notes: e.target.value})}
                     />
                   </div>
                 </div>
 
-                <div className="flex items-center gap-3 p-4 bg-emerald-50 rounded-2xl border border-emerald-100">
+                <div className="flex items-center gap-2 p-3 bg-emerald-50 rounded-lg border border-emerald-100">
                   <input 
                     type="checkbox" 
                     id="confirm"
-                    className="w-5 h-5 rounded border-emerald-300 text-emerald-600 focus:ring-emerald-500"
+                    className="w-4 h-4 rounded border-emerald-300 text-emerald-600 focus:ring-emerald-500"
                     checked={newAppointment.send_confirmation}
                     onChange={(e) => setNewAppointment({...newAppointment, send_confirmation: e.target.checked})}
                   />
-                  <label htmlFor="confirm" className="text-sm font-bold text-emerald-800 cursor-pointer">
-                    Enviar confirmação automática via WhatsApp após salvar
+                  <label htmlFor="confirm" className="text-xs font-medium text-emerald-800 cursor-pointer">
+                    Enviar confirmação via WhatsApp
                   </label>
                 </div>
 
-                <div className="flex gap-4 pt-4">
+                <div className="flex gap-2 pt-2">
                   <button 
                     type="button"
                     onClick={() => setIsModalOpen(false)}
-                    className="flex-1 px-6 py-4 border border-slate-200 text-slate-700 rounded-2xl font-bold hover:bg-slate-50 transition-all"
+                    className="flex-1 px-4 py-2.5 border border-slate-200 text-slate-700 rounded-lg text-sm font-bold hover:bg-slate-50 transition-all"
                   >
                     Cancelar
                   </button>
                   <button 
                     type="submit"
-                    className="flex-2 px-6 py-4 bg-emerald-600 text-white rounded-2xl font-bold hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-600/20"
+                    className="flex-1 px-4 py-2.5 bg-emerald-600 text-white rounded-lg text-sm font-bold hover:bg-emerald-700 transition-all"
                   >
-                    Salvar Agendamento
+                    Salvar
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Edit Appointment Modal - Compact */}
+      <AnimatePresence>
+        {isEditModalOpen && editAppointment && (
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white w-full max-w-lg rounded-xl shadow-2xl flex flex-col max-h-[90vh]"
+            >
+              <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between bg-slate-50 shrink-0">
+                <h2 className="text-sm font-bold text-slate-900">Editar Agendamento</h2>
+                <button onClick={() => setIsEditModalOpen(false)} className="text-slate-400 hover:text-slate-900">
+                  <X size={18} />
+                </button>
+              </div>
+              
+              <form onSubmit={handleEdit} className="overflow-y-auto p-4 space-y-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="col-span-2">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase mb-1 block">Cliente *</label>
+                    <select 
+                      required
+                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
+                      value={editAppointment.client_id}
+                      onChange={(e) => {
+                        setEditAppointment({...editAppointment, client_id: e.target.value, vehicle_id: ''});
+                        fetchEditVehicles(e.target.value);
+                      }}
+                    >
+                      <option value="">Selecione o cliente...</option>
+                      {clients.map(c => (
+                        <option key={c.id} value={c.id}>{c.name}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="col-span-2">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase mb-1 block">Veículo *</label>
+                    <select 
+                      required
+                      disabled={!editAppointment.client_id}
+                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none disabled:bg-slate-50 disabled:text-slate-400"
+                      value={editAppointment.vehicle_id}
+                      onChange={(e) => setEditAppointment({...editAppointment, vehicle_id: e.target.value})}
+                    >
+                      <option value="">Selecione o veículo...</option>
+                      {editVehicles.map(v => (
+                        <option key={v.id} value={v.id}>{v.plate} - {v.model}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-500 uppercase mb-1 block">Data *</label>
+                    <input 
+                      type="date"
+                      required
+                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
+                      value={editAppointment.date}
+                      onChange={(e) => setEditAppointment({...editAppointment, date: e.target.value})}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-500 uppercase mb-1 block">Horário *</label>
+                    <input 
+                      type="time"
+                      required
+                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
+                      value={editAppointment.time}
+                      onChange={(e) => setEditAppointment({...editAppointment, time: e.target.value})}
+                    />
+                  </div>
+
+                  <div className="col-span-2">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase mb-1 block">Serviço / Problema *</label>
+                    <input 
+                      type="text"
+                      required
+                      placeholder="Ex: Troca de óleo, Revisão, Barulho no freio..."
+                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
+                      value={editAppointment.service_description}
+                      onChange={(e) => setEditAppointment({...editAppointment, service_description: e.target.value})}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-500 uppercase mb-1 block">Duração</label>
+                    <select 
+                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
+                      value={editAppointment.estimated_duration}
+                      onChange={(e) => setEditAppointment({...editAppointment, estimated_duration: parseInt(e.target.value)})}
+                    >
+                      <option value={30}>30 min</option>
+                      <option value={60}>1 hora</option>
+                      <option value={90}>1h30</option>
+                      <option value={120}>2 horas</option>
+                      <option value={180}>3 horas</option>
+                      <option value={240}>4+ horas</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-500 uppercase mb-1 block">Origem</label>
+                    <select 
+                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
+                      value={editAppointment.origin || ''}
+                      onChange={(e) => setEditAppointment({...editAppointment, origin: e.target.value})}
+                    >
+                      <option value="">-</option>
+                      <option value="WHATSAPP">WhatsApp</option>
+                      <option value="PHONE">Telefone</option>
+                      <option value="INSTAGRAM">Instagram</option>
+                      <option value="GOOGLE">Google/Site</option>
+                      <option value="INDICATION">Indicação</option>
+                      <option value="RETURN">Retorno</option>
+                    </select>
+                  </div>
+
+                  <div className="col-span-2">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase mb-1 block">Observações</label>
+                    <textarea 
+                      rows={2}
+                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none resize-none"
+                      placeholder="Algum detalhe importante do cliente..."
+                      value={editAppointment.notes || ''}
+                      onChange={(e) => setEditAppointment({...editAppointment, notes: e.target.value})}
+                    />
+                  </div>
+                </div>
+
+                <div className="flex gap-2 pt-2">
+                  <button 
+                    type="button"
+                    onClick={() => setIsEditModalOpen(false)}
+                    className="flex-1 px-4 py-2.5 border border-slate-200 text-slate-700 rounded-lg text-sm font-bold hover:bg-slate-50 transition-all"
+                  >
+                    Cancelar
+                  </button>
+                  <button 
+                    type="submit"
+                    className="flex-1 px-4 py-2.5 bg-emerald-600 text-white rounded-lg text-sm font-bold hover:bg-emerald-700 transition-all"
+                  >
+                    Salvar Alterações
                   </button>
                 </div>
               </form>

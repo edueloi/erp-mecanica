@@ -135,32 +135,7 @@ router.patch("/tenant", (req: any, res) => {
     return res.status(403).json({ error: "Apenas administradores podem alterar configurações da oficina" });
   }
 
-  const {
-    company_name,
-    trade_name,
-    cnpj,
-    phone,
-    whatsapp,
-    email,
-    address,
-    city,
-    state,
-    zip_code,
-    logo_url,
-    signature,
-    default_quote_text,
-    default_payment_terms,
-    default_warranty_days,
-    late_fee_percentage,
-    fixed_penalty,
-    default_due_days,
-    max_installments,
-    card_fee_percentage,
-    pix_key,
-    alert_stock_low,
-    alert_os_stopped_days,
-    alert_overdue_clients,
-  } = req.body;
+  const settingsData = req.body;
 
   try {
     // Ensure settings exists
@@ -176,61 +151,44 @@ router.patch("/tenant", (req: any, res) => {
       ).run(id, req.user.tenant_id);
     }
 
-    db.prepare(
-      `UPDATE tenant_settings 
-       SET company_name = COALESCE(?, company_name),
-           trade_name = COALESCE(?, trade_name),
-           cnpj = COALESCE(?, cnpj),
-           phone = COALESCE(?, phone),
-           whatsapp = COALESCE(?, whatsapp),
-           email = COALESCE(?, email),
-           address = COALESCE(?, address),
-           city = COALESCE(?, city),
-           state = COALESCE(?, state),
-           zip_code = COALESCE(?, zip_code),
-           logo_url = COALESCE(?, logo_url),
-           signature = COALESCE(?, signature),
-           default_quote_text = COALESCE(?, default_quote_text),
-           default_payment_terms = COALESCE(?, default_payment_terms),
-           default_warranty_days = COALESCE(?, default_warranty_days),
-           late_fee_percentage = COALESCE(?, late_fee_percentage),
-           fixed_penalty = COALESCE(?, fixed_penalty),
-           default_due_days = COALESCE(?, default_due_days),
-           max_installments = COALESCE(?, max_installments),
-           card_fee_percentage = COALESCE(?, card_fee_percentage),
-           pix_key = COALESCE(?, pix_key),
-           alert_stock_low = COALESCE(?, alert_stock_low),
-           alert_os_stopped_days = COALESCE(?, alert_os_stopped_days),
-           alert_overdue_clients = COALESCE(?, alert_overdue_clients),
-           updated_at = CURRENT_TIMESTAMP
-       WHERE tenant_id = ?`
-    ).run(
-      company_name,
-      trade_name,
-      cnpj,
-      phone,
-      whatsapp,
-      email,
-      address,
-      city,
-      state,
-      zip_code,
-      logo_url,
-      signature,
-      default_quote_text,
-      default_payment_terms,
-      default_warranty_days,
-      late_fee_percentage,
-      fixed_penalty,
-      default_due_days,
-      max_installments,
-      card_fee_percentage,
-      pix_key,
-      alert_stock_low,
-      alert_os_stopped_days,
-      alert_overdue_clients,
-      req.user.tenant_id
-    );
+    // Build dynamic UPDATE query based on provided fields
+    const allowedFields = [
+      'company_name', 'trade_name', 'cnpj', 'ie', 'im', 'phone', 'whatsapp', 'email',
+      'website', 'instagram', 'address', 'city', 'state', 'zip_code',
+      'logo_url', 'primary_color', 'theme', 'short_name', 'slogan',
+      'weekday_open', 'weekday_close', 'saturday_open', 'saturday_close',
+      'sunday_open', 'sunday_close', 'lunch_start', 'lunch_end',
+      'default_appointment_duration', 'tolerance_minutes', 'blocked_dates',
+      'show_logo_pdf', 'show_company_data_pdf', 'pdf_footer_address',
+      'pdf_footer_phone', 'pdf_footer_whatsapp', 'pdf_footer_website',
+      'terms_and_conditions', 'default_warranty_text', 'default_quote_text',
+      'receipt_text', 'os_prefix', 'os_format', 'os_reset_yearly', 'signature',
+      'default_payment_terms', 'default_warranty_days', 'late_fee_percentage',
+      'fixed_penalty', 'default_due_days', 'max_installments', 'card_fee_percentage',
+      'pix_key', 'payment_methods',
+      'allow_finish_os_without_payment', 'allow_deliver_without_payment',
+      'require_client_approval', 'auto_decrease_stock', 'alert_stock_low',
+      'require_checklist', 'whatsapp_bot_enabled', 'whatsapp_connected',
+      'alert_os_stopped_days', 'alert_overdue_clients'
+    ];
+
+    const updates: string[] = [];
+    const values: any[] = [];
+
+    for (const field of allowedFields) {
+      if (settingsData.hasOwnProperty(field)) {
+        updates.push(`${field} = ?`);
+        values.push(settingsData[field]);
+      }
+    }
+
+    if (updates.length > 0) {
+      updates.push('updated_at = CURRENT_TIMESTAMP');
+      values.push(req.user.tenant_id);
+
+      const query = `UPDATE tenant_settings SET ${updates.join(', ')} WHERE tenant_id = ?`;
+      db.prepare(query).run(...values);
+    }
 
     const updated = db
       .prepare("SELECT * FROM tenant_settings WHERE tenant_id = ?")

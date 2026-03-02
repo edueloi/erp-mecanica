@@ -14,19 +14,62 @@ interface UserPreferences {
 
 interface TenantSettings {
   id?: string;
+  
+  // Dados Básicos
   company_name?: string;
   trade_name?: string;
   cnpj?: string;
+  ie?: string;
+  im?: string;
   phone?: string;
   whatsapp?: string;
   email?: string;
+  website?: string;
+  instagram?: string;
+  
+  // Endereço
   address?: string;
   city?: string;
   state?: string;
   zip_code?: string;
+  
+  // Identidade / Marca
   logo_url?: string;
-  signature?: string;
+  primary_color?: string;
+  theme?: string;
+  short_name?: string;
+  slogan?: string;
+  
+  // Horários de Funcionamento
+  weekday_open?: string;
+  weekday_close?: string;
+  saturday_open?: string;
+  saturday_close?: string;
+  sunday_open?: string;
+  sunday_close?: string;
+  lunch_start?: string;
+  lunch_end?: string;
+  default_appointment_duration?: number;
+  tolerance_minutes?: number;
+  blocked_dates?: string;
+  
+  // Documentos / PDF
+  show_logo_pdf?: boolean;
+  show_company_data_pdf?: boolean;
+  pdf_footer_address?: boolean;
+  pdf_footer_phone?: boolean;
+  pdf_footer_whatsapp?: boolean;
+  pdf_footer_website?: boolean;
+  terms_and_conditions?: string;
+  default_warranty_text?: string;
   default_quote_text?: string;
+  receipt_text?: string;
+  os_prefix?: string;
+  os_format?: string;
+  os_reset_yearly?: boolean;
+  signature?: string;
+  
+  // Financeiro
   default_payment_terms?: string;
   default_warranty_days?: number;
   late_fee_percentage?: number;
@@ -35,7 +78,21 @@ interface TenantSettings {
   max_installments?: number;
   card_fee_percentage?: number;
   pix_key?: string;
+  payment_methods?: string;
+  
+  // Regras Operacionais
+  allow_finish_os_without_payment?: boolean;
+  allow_deliver_without_payment?: boolean;
+  require_client_approval?: boolean;
+  auto_decrease_stock?: boolean;
   alert_stock_low?: boolean;
+  require_checklist?: boolean;
+  
+  // Comunicação
+  whatsapp_bot_enabled?: boolean;
+  whatsapp_connected?: boolean;
+  
+  // Alertas
   alert_os_stopped_days?: number;
   alert_overdue_clients?: boolean;
 }

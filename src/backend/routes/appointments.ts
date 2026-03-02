@@ -92,7 +92,15 @@ router.post("/", (req: AuthRequest, res) => {
       internal_notes, origin, send_confirmation ? 1 : 0
     );
 
-    const newAppointment = db.prepare("SELECT * FROM appointments WHERE id = ?").get(id);
+    // Buscar agendamento com dados do cliente e veículo (JOIN)
+    const newAppointment = db.prepare(`
+      SELECT a.*, c.name as client_name, c.phone as client_phone, v.plate, v.model 
+      FROM appointments a
+      JOIN clients c ON a.client_id = c.id
+      JOIN vehicles v ON a.vehicle_id = v.id
+      WHERE a.id = ?
+    `).get(id);
+    
     res.status(201).json(newAppointment);
   } catch (error: any) {
     res.status(500).json({ error: error.message });

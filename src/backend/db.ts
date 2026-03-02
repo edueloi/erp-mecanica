@@ -438,19 +438,62 @@ export function initDb() {
     CREATE TABLE IF NOT EXISTS tenant_settings (
       id TEXT PRIMARY KEY,
       tenant_id TEXT NOT NULL,
+      
+      -- Dados Básicos
       company_name TEXT,
       trade_name TEXT,
       cnpj TEXT,
+      ie TEXT,
+      im TEXT,
       phone TEXT,
       whatsapp TEXT,
       email TEXT,
+      website TEXT,
+      instagram TEXT,
+      
+      -- Endereço
       address TEXT,
       city TEXT,
       state TEXT,
       zip_code TEXT,
+      
+      -- Identidade / Marca
       logo_url TEXT,
-      signature TEXT,
+      primary_color TEXT DEFAULT '#1e293b',
+      theme TEXT DEFAULT 'light',
+      short_name TEXT,
+      slogan TEXT,
+      
+      -- Horários de Funcionamento
+      weekday_open TEXT DEFAULT '08:00',
+      weekday_close TEXT DEFAULT '18:00',
+      saturday_open TEXT DEFAULT '08:00',
+      saturday_close TEXT DEFAULT '12:00',
+      sunday_open TEXT,
+      sunday_close TEXT,
+      lunch_start TEXT DEFAULT '12:00',
+      lunch_end TEXT DEFAULT '13:00',
+      default_appointment_duration INTEGER DEFAULT 60,
+      tolerance_minutes INTEGER DEFAULT 15,
+      blocked_dates TEXT,
+      
+      -- Documentos / PDF
+      show_logo_pdf BOOLEAN DEFAULT 1,
+      show_company_data_pdf BOOLEAN DEFAULT 1,
+      pdf_footer_address BOOLEAN DEFAULT 1,
+      pdf_footer_phone BOOLEAN DEFAULT 1,
+      pdf_footer_whatsapp BOOLEAN DEFAULT 1,
+      pdf_footer_website BOOLEAN DEFAULT 1,
+      terms_and_conditions TEXT,
+      default_warranty_text TEXT,
       default_quote_text TEXT,
+      receipt_text TEXT,
+      os_prefix TEXT DEFAULT 'OFC',
+      os_format TEXT DEFAULT 'OFC-{YEAR}-{NUMBER}',
+      os_reset_yearly BOOLEAN DEFAULT 1,
+      signature TEXT,
+      
+      -- Financeiro
       default_payment_terms TEXT,
       default_warranty_days INTEGER DEFAULT 90,
       late_fee_percentage REAL DEFAULT 0,
@@ -459,9 +502,24 @@ export function initDb() {
       max_installments INTEGER DEFAULT 12,
       card_fee_percentage REAL DEFAULT 0,
       pix_key TEXT,
+      payment_methods TEXT DEFAULT 'pix,card,cash',
+      
+      -- Regras Operacionais
+      allow_finish_os_without_payment BOOLEAN DEFAULT 0,
+      allow_deliver_without_payment BOOLEAN DEFAULT 0,
+      require_client_approval BOOLEAN DEFAULT 1,
+      auto_decrease_stock BOOLEAN DEFAULT 1,
       alert_stock_low BOOLEAN DEFAULT 1,
+      require_checklist BOOLEAN DEFAULT 0,
+      
+      -- Comunicação
+      whatsapp_bot_enabled BOOLEAN DEFAULT 0,
+      whatsapp_connected BOOLEAN DEFAULT 0,
+      
+      -- Alertas
       alert_os_stopped_days INTEGER DEFAULT 7,
       alert_overdue_clients BOOLEAN DEFAULT 1,
+      
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (tenant_id) REFERENCES tenants(id),
@@ -534,6 +592,17 @@ export function initDb() {
   // ========================================
   // WHATSAPP MODULE
   // ========================================
+
+  // WhatsApp LID Mapping (cache de @lid → telefone real)
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS wa_lid_map (
+      tenant_id TEXT NOT NULL,
+      lid TEXT NOT NULL,
+      phone TEXT NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (tenant_id, lid)
+    )
+  `);
 
   // WhatsApp Sessions (QR Code / Connection Status)
   db.exec(`

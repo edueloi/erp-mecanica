@@ -218,8 +218,6 @@ router.patch("/conversations/:id", (req: any, res: any) => {
       params.push(work_order_id);
     }
 
-    updates.push("updated_at = CURRENT_TIMESTAMP");
-
     params.push(req.params.id, req.user.tenant_id);
 
     db.prepare(
@@ -290,10 +288,25 @@ router.post("/conversations/:id/messages", async (req: any, res: any) => {
       return res.status(404).json({ error: "Conversa não encontrada" });
     }
 
-    // Enviar mensagem
+    // Enviar mensagem - preferir phone_e164 (número limpo) sobre phone (pode ter @lid)
+    let phoneToUse: string;
+    
+    if (conversation.phone_e164) {
+      // Se temos e164, é o número limpo (ex: 5528999999999)
+      phoneToUse = conversation.phone_e164;
+    } else if (conversation.phone && !conversation.phone.includes('@lid')) {
+      // Se phone não é @lid, usar direto
+      phoneToUse = conversation.phone;
+    } else {
+      // Se só temos @lid, tentar usar mesmo assim (sendMessage vai tentar resolver)
+      phoneToUse = conversation.phone;
+    }
+    
+    console.log(`📤 Enviando mensagem: conversationId=${conversation.id}, phone=${conversation.phone}, phone_e164=${conversation.phone_e164}, usando=${phoneToUse}`);
+    
     const result = await wppConnectService.sendMessage(
       req.user.tenant_id,
-      conversation.phone,
+      phoneToUse,
       body,
       {
         conversationId: conversation.id,
@@ -426,8 +439,6 @@ router.patch("/templates/:id", (req: any, res: any) => {
       updates.push("enabled = ?");
       params.push(enabled ? 1 : 0);
     }
-
-    updates.push("updated_at = CURRENT_TIMESTAMP");
 
     params.push(req.params.id, req.user.tenant_id);
 
@@ -605,8 +616,6 @@ router.patch("/automation-rules/:id", (req: any, res: any) => {
       params.push(enabled ? 1 : 0);
     }
 
-    updates.push("updated_at = CURRENT_TIMESTAMP");
-
     params.push(req.params.id, req.user.tenant_id);
 
     db.prepare(
@@ -730,6 +739,56 @@ router.post("/send-template", async (req: any, res: any) => {
   }
 });
 
+/**
+ * POST /api/whatsapp/send
+ * Envia mensagem direta para um número (sem necessidade de conversation_id)
+ * Útil para envios automatizados como confirmação de agendamento
+ */
+router.post("/send", async (req: any, res: any) => {
+  try {
+    const { phone, message, relatedType, relatedId } = req.body;
+
+    if (!phone || !message) {
+      return res.status(400).json({ error: "Telefone e mensagem são obrigatórios" });
+    }
+
+    // Enviar mensagem
+    const result = await wppConnectService.sendMessage(
+      req.user.tenant_id,
+      phone,
+      message,
+      {
+        origin: 'automation',
+        relatedType: relatedType,
+        relatedId: relatedId,
+      }
+    );
+
+    if (result.success) {
+      res.json({ message: "Mensagem enviada com sucesso", messageId: result.messageId });
+    } else {
+      res.status(500).json({ error: result.error });
+    }
+  } catch (error: any) {
+    console.error("Error sending message:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * GET /api/whatsapp/status
+ * Retorna status da conexão WhatsApp
+ */
+router.get("/status", async (req: any, res: any) => {
+  try {
+    const status = wppConnectService.getSessionStatus(req.user.tenant_id);
+    res.json(status);
+  } catch (error: any) {
+    console.error("Error getting WhatsApp status:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // ========================================
 // CLIENT/VEHICLE LINKING (CRM Integration)
 // ========================================
@@ -768,7 +827,7 @@ router.post("/conversations/:id/link-client", (req: any, res: any) => {
     // Vincular
     db.prepare(
       `UPDATE whatsapp_conversations 
-       SET client_id = ?, updated_at = CURRENT_TIMESTAMP 
+       SET client_id = ? 
        WHERE id = ?`
     ).run(clientId, conversationId);
 
@@ -776,7 +835,7 @@ router.post("/conversations/:id/link-client", (req: any, res: any) => {
     if (updateClientPhone && conversation.phone_e164) {
       db.prepare(
         `UPDATE clients 
-         SET phone_e164 = ?, phone = ?, updated_at = CURRENT_TIMESTAMP 
+         SET phone_e164 = ?, phone = ? 
          WHERE id = ?`
       ).run(conversation.phone_e164, conversation.phone, clientId);
     }
@@ -803,7 +862,7 @@ router.delete("/conversations/:id/unlink-client", (req: any, res: any) => {
 
     db.prepare(
       `UPDATE whatsapp_conversations 
-       SET client_id = NULL, vehicle_id = NULL, updated_at = CURRENT_TIMESTAMP 
+       SET client_id = NULL, vehicle_id = NULL 
        WHERE id = ? AND tenant_id = ?`
     ).run(conversationId, req.user.tenant_id);
 
@@ -852,7 +911,7 @@ router.post("/conversations/:id/link-vehicle", (req: any, res: any) => {
     // Vincular
     db.prepare(
       `UPDATE whatsapp_conversations 
-       SET vehicle_id = ?, vehicle_plate = ?, updated_at = CURRENT_TIMESTAMP 
+       SET vehicle_id = ?, vehicle_plate = ? 
        WHERE id = ?`
     ).run(vehicleId, vehicle.plate, conversationId);
 
@@ -895,8 +954,8 @@ router.post("/conversations/:id/create-and-link-client", (req: any, res: any) =>
 
     db.prepare(
       `INSERT INTO clients 
-       (id, tenant_id, name, phone, phone_e164, cpf_cnpj, email, city, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`
+       (id, tenant_id, name, phone, phone_e164, document, email, city, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`
     ).run(
       clientId,
       req.user.tenant_id,
@@ -911,7 +970,7 @@ router.post("/conversations/:id/create-and-link-client", (req: any, res: any) =>
     // Vincular à conversa
     db.prepare(
       `UPDATE whatsapp_conversations 
-       SET client_id = ?, updated_at = CURRENT_TIMESTAMP 
+       SET client_id = ? 
        WHERE id = ?`
     ).run(clientId, conversationId);
 
@@ -943,7 +1002,7 @@ router.get("/search-clients", (req: any, res: any) => {
 
     const clients = db.prepare(`
       SELECT 
-        id, name, phone, phone_e164, cpf_cnpj, email, city,
+        id, name, phone, phone_e164, document, email, city,
         (SELECT COUNT(*) FROM vehicles WHERE client_id = clients.id) as vehicle_count,
         (SELECT COUNT(*) FROM work_orders WHERE client_id = clients.id) as work_order_count
       FROM clients
@@ -952,7 +1011,7 @@ router.get("/search-clients", (req: any, res: any) => {
           name LIKE ? 
           OR phone LIKE ? 
           OR phone_e164 LIKE ?
-          OR cpf_cnpj LIKE ?
+          OR document LIKE ?
           OR email LIKE ?
         )
       ORDER BY name
@@ -977,7 +1036,8 @@ router.get("/conversations/:id/client-context", (req: any, res: any) => {
     // Buscar conversa com cliente
     const conversation = db
       .prepare(`
-        SELECT c.*, cl.id as client_id, cl.name as client_name, cl.phone, cl.email, cl.document
+        SELECT c.*, cl.id as client_id, cl.name as client_name, cl.phone, cl.email, cl.document,
+               cl.street, cl.city, cl.state, cl.zip_code, cl.complement
         FROM whatsapp_conversations c
         LEFT JOIN clients cl ON c.client_id = cl.id
         WHERE c.id = ? AND c.tenant_id = ?
@@ -1011,9 +1071,9 @@ router.get("/conversations/:id/client-context", (req: any, res: any) => {
     // Buscar financeiro (a receber)
     const receivables = db.prepare(`
       SELECT 
-        SUM(CASE WHEN status = 'open' THEN amount ELSE 0 END) as total_open,
-        SUM(CASE WHEN status = 'overdue' THEN amount ELSE 0 END) as total_overdue,
-        COUNT(CASE WHEN status = 'open' OR status = 'overdue' THEN 1 END) as count_pending
+        SUM(CASE WHEN status = 'OPEN' THEN balance ELSE 0 END) as total_open,
+        SUM(CASE WHEN status = 'OVERDUE' THEN balance ELSE 0 END) as total_overdue,
+        COUNT(CASE WHEN status = 'OPEN' OR status = 'OVERDUE' THEN 1 END) as count_pending
       FROM accounts_receivable
       WHERE client_id = ? AND tenant_id = ?
     `).get(conversation.client_id, req.user.tenant_id) as any;
@@ -1034,6 +1094,11 @@ router.get("/conversations/:id/client-context", (req: any, res: any) => {
         phone: conversation.phone,
         email: conversation.email,
         cpfCnpj: conversation.cpf_cnpj,
+        street: conversation.street,
+        city: conversation.city,
+        state: conversation.state,
+        zipCode: conversation.zip_code,
+        complement: conversation.complement,
       },
       vehicles,
       workOrders,

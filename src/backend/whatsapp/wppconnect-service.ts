@@ -28,6 +28,162 @@ interface SessionData {
   phoneNumber?: string;
 }
 
+/**
+ * Extrai o número de telefone de um WhatsApp ID (WID)
+ * Exemplo: "5521999999999@c.us" → "5521999999999"
+ */
+function getPhoneFromWid(wid: string | any): string {
+  if (!wid) return '';
+  
+  // Se for objeto, tentar pegar _serialized primeiro
+  if (typeof wid === 'object') {
+    wid = wid._serialized || wid.user || wid.toString();
+  }
+  
+  // Converter para string e remover sufixo (@c.us, @lid, etc)
+  return wid.toString().split('@')[0];
+}
+
+/**
+ * Valida se uma string é um telefone válido
+ * - Deve ter 10-15 dígitos
+ * - Deve começar com código de país válido (1, 55, 44, 351, etc)
+ * - Não pode ser apenas ID interno tipo 28390019088557
+ */
+function isValidPhone(phone: string): boolean {
+  // Deve ter apenas dígitos
+  if (!/^\d{10,15}$/.test(phone)) return false;
+  
+  // Deve começar com código de país válido (1-999)
+  // Números brasileiros: 55 + DDD (2 dígitos) + número (8-9 dígitos) = 12-13 dígitos
+  // Rejeitar números que começam com 2 ou 3 seguidos de 8 (padrão de ID interno)
+  if (/^2[0-9]3[0-9]/.test(phone)) {
+    console.log(`⚠️ Número rejeitado (parece ID @lid): ${phone}`);
+    return false;
+  }
+  
+  // Aceitar números que começam com códigos de país conhecidos
+  const validCountryCodes = [
+    /^1[0-9]{10}/, // EUA/Canadá (1 + 10 dígitos)
+    /^55[0-9]{10,11}/, // Brasil (55 + 10-11 dígitos)
+    /^44[0-9]{10}/, // Reino Unido
+    /^351[0-9]{9}/, // Portugal
+    /^34[0-9]{9}/, // Espanha
+    /^\d{10,15}/ // Fallback genérico
+  ];
+  
+  // Se começar com 55 (Brasil), validar DDD
+  if (phone.startsWith('55')) {
+    const ddd = phone.substring(2, 4);
+    const dddValidos = ['11','12','13','14','15','16','17','18','19','21','22','24','27','28','31','32','33','34','35','37','38','41','42','43','44','45','46','47','48','49','51','53','54','55','61','62','63','64','65','66','67','68','69','71','73','74','75','77','79','81','82','83','84','85','86','87','88','89','91','92','93','94','95','96','97','98','99'];
+    if (!dddValidos.includes(ddd)) {
+      console.log(`⚠️ Número brasileiro com DDD inválido: ${phone} (DDD: ${ddd})`);
+      return false;
+    }
+  }
+  
+  return true;
+}
+
+/**
+ * Verifica se o WID é @c.us (número real)
+ */
+function widIsCus(wid?: any): boolean {
+  const s = String(wid?._serialized || wid || '');
+  return s.includes('@c.us');
+}
+
+/**
+ * Verifica se o WID é @lid (ID interno)
+ */
+function widIsLid(wid?: any): boolean {
+  const s = String(wid?._serialized || wid || '');
+  return s.includes('@lid');
+}
+
+/**
+ * Resolve o número de telefone real de uma mensagem, convertendo @lid se necessário
+ */
+async function resolvePhoneFromMessage(client: any, message: any, tenantId: string): Promise<{ phone: string; source: string }> {
+  const pick = (wid: any, source: string) => {
+    const phone = getPhoneFromWid(wid);
+    if (isValidPhone(phone)) return { phone, source };
+    return null;
+  };
+
+  // ⚠️ NÃO usar message.to como candidato do "cliente" (é sempre o host)
+  const candidates = [
+    { v: message.chatId, label: 'message.chatId' },
+    { v: message.from, label: 'message.from' },
+    { v: message.author, label: 'message.author' },
+    { v: message.sender?.id?._serialized || message.sender?.id, label: 'message.sender.id' },
+    { v: message.chat?.id?._serialized || message.chat?.id, label: 'message.chat.id' },
+    { v: message.contact?.id?._serialized || message.contact?.id, label: 'message.contact.id' },
+  ];
+
+  // 1) se tiver @c.us direto
+  for (const c of candidates) {
+    const wid = c.v;
+    if (widIsCus(wid)) {
+      const r = pick(wid, c.label);
+      if (r) return r;
+    }
+  }
+
+  // 2) se for @lid, tentar buscar no cache primeiro
+  if (message.from && widIsLid(message.from)) {
+    try {
+      const mapped = db.prepare(`SELECT phone FROM wa_lid_map WHERE tenant_id = ? AND lid = ?`)
+        .get(tenantId, String(message.from)) as any;
+      if (mapped?.phone && isValidPhone(mapped.phone)) {
+        return { phone: mapped.phone, source: 'db wa_lid_map (cached)' };
+      }
+    } catch (e) {
+      // continua
+    }
+
+    // 2.1 getContact
+    try {
+      const contact = await client.getContact(String(message.from));
+
+      const number = contact?.number || contact?.phoneNumber;
+      if (number && isValidPhone(String(number))) {
+        return { phone: String(number), source: 'client.getContact(message.from).number' };
+      }
+
+      const cid = contact?.id?._serialized || contact?.id;
+      if (widIsCus(cid)) {
+        const r = pick(cid, 'client.getContact(message.from).id');
+        if (r) return r;
+      }
+
+      const user = contact?.id?.user;
+      if (user && isValidPhone(String(user))) {
+        return { phone: String(user), source: 'client.getContact(message.from).id.user' };
+      }
+    } catch (e) {}
+
+    // 2.2 getChatById
+    try {
+      const chat = await client.getChatById(String(message.from));
+      const chatId = chat?.id?._serialized || chat?.id;
+      if (widIsCus(chatId)) {
+        const r = pick(chatId, 'client.getChatById(message.from).id');
+        if (r) return r;
+      }
+
+      const contactId = chat?.contact?.id?._serialized || chat?.contact?.id;
+      if (widIsCus(contactId)) {
+        const r = pick(contactId, 'client.getChatById(message.from).contact.id');
+        if (r) return r;
+      }
+    } catch (e) {}
+  }
+
+  // 3) fallback (vai dar 283900...)
+  return { phone: getPhoneFromWid(message.from || ''), source: 'fallback (not resolved)' };
+}
+
 class WPPConnectService extends EventEmitter {
   private sessions: Map<string, SessionData> = new Map();
   private reconnectAttempts: Map<string, number> = new Map();
@@ -37,6 +193,8 @@ class WPPConnectService extends EventEmitter {
     super();
     // Limpar processos antigos antes de inicializar
     this.cleanupOrphanedProcesses();
+    // Limpar cache de números inválidos
+    this.cleanupInvalidPhoneCache();
     this.initExistingSessions();
   }
 
@@ -70,6 +228,35 @@ class WPPConnectService extends EventEmitter {
     }
   }
 
+  /**
+   * Limpa cache de números de telefone inválidos (IDs @lid salvos como números)
+   */
+  private cleanupInvalidPhoneCache() {
+    try {
+      console.log('🧹 Limpando cache de números inválidos...');
+      
+      // Buscar todos os registros no cache
+      const allCached = db.prepare(`SELECT lid, phone FROM wa_lid_map`).all() as any[];
+      
+      let invalidCount = 0;
+      for (const record of allCached) {
+        if (!isValidPhone(record.phone)) {
+          // Deletar registros com números inválidos
+          db.prepare(`DELETE FROM wa_lid_map WHERE lid = ?`).run(record.lid);
+          invalidCount++;
+          console.log(`🗑️ Removido cache inválido: ${record.lid} → ${record.phone}`);
+        }
+      }
+      
+      if (invalidCount > 0) {
+        console.log(`✅ ${invalidCount} registro(s) inválido(s) removido(s) do cache`);
+      } else {
+        console.log('✅ Nenhum registro inválido encontrado no cache');
+      }
+    } catch (error) {
+      console.warn('⚠️ Não foi possível limpar cache de números inválidos:', error);
+    }
+  }
   /**
    * Inicializa sessões ativas ao startar o serviço
    */
@@ -180,7 +367,7 @@ class WPPConnectService extends EventEmitter {
 
       // Obter número do WhatsApp conectado
       const hostDevice = await client.getHostDevice();
-      const phoneNumber = (hostDevice?.id as any)?.user || hostDevice?.id || null;
+      const phoneNumber = getPhoneFromWid(hostDevice?.id) || null;
 
       if (phoneNumber) {
         db.prepare(
@@ -288,7 +475,7 @@ class WPPConnectService extends EventEmitter {
         }
 
         // Processar mensagem recebida
-        await this.handleIncomingMessage(tenantId, message);
+        await this.handleIncomingMessage(client, tenantId, message);
 
       } catch (error: any) {
         console.error('❌ Erro ao processar mensagem recebida:', error.message);
@@ -308,96 +495,104 @@ class WPPConnectService extends EventEmitter {
   /**
    * Processa mensagem recebida (IN)
    */
-  private async handleIncomingMessage(tenantId: string, message: any) {
+  private async handleIncomingMessage(client: any, tenantId: string, message: any) {
     try {
       // Validação adicional: ignorar grupos
       if (message.from?.includes('@g.us') || message.from?.includes('@broadcast')) {
         return;
       }
 
-      // Debug: logar from original
-      console.log(`🔍 DEBUG: message.from = "${message.from}"`);
-      console.log(`🔍 DEBUG: includes @lid? ${message.from?.includes('@lid')}`);
+      // 🔍 DEBUG COMPLETO - Logar TODOS os dados disponíveis da mensagem
+      console.log('═══════════════════════════════════════════════════════');
+      console.log('🔍 DEBUG COMPLETO - MENSAGEM RECEBIDA');
+      console.log('═══════════════════════════════════════════════════════');
+      console.log('📨 message.from:', message.from);
+      console.log('📨 message.to:', message.to);
+      console.log('📨 message.chatId:', message.chatId);
+      console.log('📨 message.author:', message.author);
+      console.log('📨 message.body:', message.body);
+      console.log('📨 message.type:', message.type);
+      console.log('📨 message.isGroupMsg:', message.isGroupMsg);
+      console.log('---');
+      console.log('👤 message.sender:', JSON.stringify(message.sender, null, 2));
+      console.log('---');
+      console.log('💬 message.chat:', JSON.stringify(message.chat, null, 2));
+      console.log('---');
+      console.log('📇 message.contact:', JSON.stringify(message.contact, null, 2));
+      console.log('---');
+      console.log('🆔 message.id:', JSON.stringify(message.id, null, 2));
+      console.log('---');
+      console.log('📦 OBJETO COMPLETO:', JSON.stringify(message, null, 2));
+      console.log('═══════════════════════════════════════════════════════');
 
-      // Extrair número real do telefone
-      // @lid não corresponde ao número real, precisamos buscar em outros lugares
-      let phone = message.from.replace(/@.*$/, ''); // Fallback: ID sem sufixo
-      let phoneSource = 'from (original)';
+      // Resolver número real usando client (converte @lid → número)
+      let { phone, source } = await resolvePhoneFromMessage(client, message, tenantId);
       
-      // Tentar extrair número real de várias fontes
-      if (message.from && message.from.toString().includes('@lid')) {
-        console.log('⚠️ Detectado @lid, buscando número real...');
-        console.log(`🔍 Phone inicial (do @lid): ${phone}`);
+      console.log(`📞 RESOLVE PHONE => ${phone} [${source}] | from=${message.from}`);
+
+      // Validar se conseguiu um número válido
+      if (!isValidPhone(phone)) {
+        console.warn('⚠️ Não resolveu para telefone real. Tentando resolver via WPPConnect...', { 
+          phone, 
+          source, 
+          from: message.from 
+        });
         
-        // Opção 1: sender.id (objeto ou string)
-        if (message.sender?.id) {
-          const senderId = message.sender.id._serialized || message.sender.id;
-          console.log(`🔍 Tentando sender.id: ${senderId}`);
-          if (senderId && senderId.toString().includes('@c.us')) {
-            phone = senderId.replace(/@.*$/, '');
-            phoneSource = 'sender.id';
-            console.log(`✅ Número real encontrado via sender.id: ${phone}`);
-          }
-        }
-        
-        // Opção 2: chat.id
-        if (!phone.match(/^\d{10,15}$/)) {
-          if (message.chat?.id) {
-            const chatId = message.chat.id._serialized || message.chat.id;
-            console.log(`🔍 Tentando chat.id: ${chatId}`);
-            if (chatId && chatId.toString().includes('@c.us')) {
-              phone = chatId.replace(/@.*$/, '');
-              phoneSource = 'chat.id';
-              console.log(`✅ Número real encontrado via chat.id: ${phone}`);
+        // Última tentativa: buscar via getContact se for @lid
+        if (String(message.from).includes('@lid')) {
+          try {
+            const contact = await client.getContact(String(message.from));
+            const phoneNumber = contact?.number || contact?.phoneNumber;
+            
+            if (phoneNumber) {
+              const cleanNum = String(phoneNumber).replace(/\D/g, '');
+              if (isValidPhone(cleanNum)) {
+                console.log(`✅ Número resolvido via getContact: ${message.from} → ${cleanNum}`);
+                
+                // Salvar mapeamento
+                try {
+                  db.prepare(`INSERT OR REPLACE INTO wa_lid_map (tenant_id, lid, phone) VALUES (?, ?, ?)`)
+                    .run(tenantId, String(message.from), cleanNum);
+                  console.log(`✅ Mapeamento @lid salvo: ${message.from} → ${cleanNum}`);
+                } catch (e) {}
+                
+                // Substituir phone inválido pelo válido e continuar processamento
+                phone = cleanNum;
+                source = 'client.getContact().number (fallback)';
+              }
             }
+          } catch (resolveErr: any) {
+            console.error('❌ Falha ao resolver via getContact:', resolveErr.message);
           }
         }
         
-        // Opção 3: to (para mensagens que enviamos)
-        if (!phone.match(/^\d{10,15}$/)) {
-          if (message.to) {
-            console.log(`🔍 Tentando message.to: ${message.to}`);
-            if (message.to.toString().includes('@c.us')) {
-              phone = message.to.replace(/@.*$/, '');
-              phoneSource = 'message.to';
-              console.log(`✅ Número real encontrado via message.to: ${phone}`);
-            }
-          }
+        // Verificar novamente - se ainda não é válido, ignorar
+        if (!isValidPhone(phone)) {
+          console.error(`❌ Mensagem ignorada - número inválido: ${phone} de ${message.from}`);
+          return;
         }
-        
-        // Opção 4: author (para mensagens em chats)
-        if (!phone.match(/^\d{10,15}$/)) {
-          if (message.author) {
-            console.log(`🔍 Tentando message.author: ${message.author}`);
-            if (message.author.toString().includes('@c.us')) {
-              phone = message.author.replace(/@.*$/, '');
-              phoneSource = 'message.author';
-              console.log(`✅ Número real encontrado via message.author: ${phone}`);
-            }
-          }
-        }
-        
-        // Se ainda não encontrou, logar para debug
-        if (!phone.match(/^\d{10,15}$/)) {
-          console.error('❌ Não foi possível extrair número real do telefone');
-          console.log('🔍 Estrutura do message:', {
-            from: message.from,
-            to: message.to,
-            author: message.author,
-            sender: message.sender,
-            chat: message.chat?.id
-          });
+      }
+
+      // Se resolveu o telefone e message.from é @lid, salvar no mapa para cache
+      const lid = String(message.from || '');
+      if (lid.includes('@lid') && isValidPhone(phone)) {
+        try {
+          db.prepare(`INSERT OR REPLACE INTO wa_lid_map (tenant_id, lid, phone) VALUES (?, ?, ?)`)
+            .run(tenantId, lid, phone);
+          console.log(`✅ Mapeamento @lid salvo: ${lid} → ${phone}`);
+        } catch (e) {
+          console.warn('⚠️ Erro ao salvar mapeamento @lid:', e);
         }
       }
 
       const phoneE164 = normalizePhoneE164(phone);
-      const contactName = message.sender?.pushname || message.notifyName || phone;
-      const displayName = message.sender?.pushname || message.notifyName || null;
+      const contactName = message.chat?.name || message.sender?.pushname || message.notifyName || phone;
+      const displayName = message.chat?.name || message.sender?.pushname || message.notifyName || null;
       const body = message.body || '';
       const type = this.getMessageType(message);
       const mediaUrl = message.downloadMedia ? await this.downloadMedia(message) : null;
 
-      console.log(`👤 Processando mensagem de ${contactName} (${phone} → ${phoneE164}) [fonte: ${phoneSource}]`);
+      console.log(`👤 Processando mensagem de ${contactName} (${phone} → ${phoneE164}) [origem: ${source}]`);
 
       // Buscar ou criar conversa (agora usando phone_e164 para evitar duplicação)
       let conversation = db
@@ -446,9 +641,10 @@ class WPPConnectService extends EventEmitter {
                last_message_preview = ?,
                unread_count = unread_count + 1,
                contact_name = COALESCE(contact_name, ?),
-               display_name = COALESCE(display_name, ?)
+               display_name = COALESCE(display_name, ?),
+               phone_e164 = COALESCE(phone_e164, ?)
            WHERE id = ?`
-        ).run(body.substring(0, 100), contactName, displayName, conversation.id);
+        ).run(body.substring(0, 100), contactName, displayName, phoneE164, conversation.id);
       }
 
       // Salvar mensagem
@@ -507,8 +703,67 @@ class WPPConnectService extends EventEmitter {
         throw new Error('Sessão WhatsApp não conectada');
       }
 
-      // Formatar número (adicionar @c.us se necessário)
-      const formattedPhone = phone.includes('@') ? phone : `${phone}@c.us`;
+      // 🔍 RESOLVER @lid → número real @c.us
+      let formattedPhone: string;
+      
+      if (phone.includes('@lid')) {
+        console.log(`🔄 Detectado @lid, tentando resolver: ${phone}`);
+        
+        // 1. Tentar buscar no cache do banco
+        try {
+          const mapped = db.prepare(`SELECT phone FROM wa_lid_map WHERE tenant_id = ? AND lid = ?`)
+            .get(tenantId, phone) as any;
+          
+          if (mapped?.phone && isValidPhone(mapped.phone)) {
+            formattedPhone = `${mapped.phone}@c.us`;
+            console.log(`✅ @lid resolvido via cache: ${phone} → ${formattedPhone}`);
+          } else {
+            throw new Error('Não encontrado no cache');
+          }
+        } catch (cacheError) {
+          // 2. Tentar resolver via client.getChatById
+          console.log(`🔍 Cache miss, tentando resolver via WPPConnect...`);
+          try {
+            const chat = await session.client.getChatById(phone);
+            const contactId = chat?.contact?.id?._serialized || chat?.contact?.id;
+            
+            if (contactId && widIsCus(contactId)) {
+              const resolvedPhone = getPhoneFromWid(contactId);
+              if (isValidPhone(resolvedPhone)) {
+                formattedPhone = `${resolvedPhone}@c.us`;
+                
+                // Salvar no cache
+                db.prepare(`INSERT OR REPLACE INTO wa_lid_map (tenant_id, lid, phone) VALUES (?, ?, ?)`)
+                  .run(tenantId, phone, resolvedPhone);
+                
+                console.log(`✅ @lid resolvido via WPPConnect: ${phone} → ${formattedPhone}`);
+              } else {
+                throw new Error('Número inválido');
+              }
+            } else {
+              throw new Error('Não conseguiu resolver contact ID');
+            }
+          } catch (resolveError: any) {
+            console.error(`❌ Não foi possível resolver @lid: ${phone}`, resolveError.message);
+            throw new Error('Não é possível enviar mensagem para este contato. Use o número de telefone com código do país (ex: 5528999999999)');
+          }
+        }
+      } else if (phone.includes('@c.us')) {
+        // Já é @c.us, usar direto
+        formattedPhone = phone;
+        console.log(`✅ Usando número @c.us direto: ${formattedPhone}`);
+      } else {
+        // Número normal, limpar e adicionar @c.us
+        const cleanPhone = phone.replace(/\D/g, '');
+        if (isValidPhone(cleanPhone)) {
+          formattedPhone = `${cleanPhone}@c.us`;
+          console.log(`✅ Número formatado: ${phone} → ${formattedPhone}`);
+        } else {
+          throw new Error(`Número de telefone inválido: ${phone}`);
+        }
+      }
+
+      console.log(`📤 Enviando mensagem para: ${formattedPhone}`);
 
       // Enviar mensagem via WPPConnect
       const result = await session.client.sendText(formattedPhone, message);
@@ -517,8 +772,8 @@ class WPPConnectService extends EventEmitter {
       const wppMessageId = result.id?._serialized || result.id || null;
       console.log(`📤 Mensagem enviada - ID: ${wppMessageId?.substring(0, 30)}...`);
 
-      // Normalizar telefone para busca
-      const phoneNormalized = phone.replace(/@.*$/, '');
+      // Normalizar telefone para busca (usando helper)
+      const phoneNormalized = getPhoneFromWid(phone);
       const phoneE164 = normalizePhoneE164(phoneNormalized);
 
       // Buscar ou criar conversa (usando phone_e164)
@@ -657,7 +912,7 @@ class WPPConnectService extends EventEmitter {
       if (existing) {
         db.prepare(
           `UPDATE whatsapp_sessions 
-           SET status = ?, updated_at = CURRENT_TIMESTAMP 
+           SET status = ? 
            WHERE tenant_id = ? AND session_name = ?`
         ).run(status, tenantId, sessionName);
       } else {
@@ -675,7 +930,7 @@ class WPPConnectService extends EventEmitter {
     try {
       db.prepare(
         `UPDATE whatsapp_sessions 
-         SET qr_code = ?, status = 'qr_ready', updated_at = CURRENT_TIMESTAMP 
+         SET qr_code = ?, status = 'qr_ready' 
          WHERE tenant_id = ? AND session_name = ?`
       ).run(qrCode, tenantId, sessionName);
     } catch (error: any) {

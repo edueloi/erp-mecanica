@@ -35,6 +35,8 @@ import {
   X,
   Filter,
   Tag,
+  Mail,
+  MapPin,
 } from "lucide-react";
 import api from "../services/api";
 
@@ -93,6 +95,11 @@ interface ClientContext {
     phone: string;
     email?: string;
     cpfCnpj?: string;
+    street?: string;
+    city?: string;
+    state?: string;
+    zipCode?: string;
+    complement?: string;
   };
   vehicles?: any[];
   workOrders?: any[];
@@ -126,6 +133,10 @@ export default function WhatsApp() {
   const [templates, setTemplates] = useState<Template[]>([]);
   const [showTemplates, setShowTemplates] = useState(false);
 
+  // Emoji & Attachments
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [showAttachMenu, setShowAttachMenu] = useState(false);
+
   // Context Panel
   const [showContext, setShowContext] = useState(true);
   const [contextTab, setContextTab] = useState<"summary" | "actions" | "automation">("summary");
@@ -137,6 +148,7 @@ export default function WhatsApp() {
   const [showCreateClientModal, setShowCreateClientModal] = useState(false);
   const [searchClientsQuery, setSearchClientsQuery] = useState("");
   const [searchClientsResults, setSearchClientsResults] = useState<any[]>([]);
+  const [linkingClient, setLinkingClient] = useState(false);
   const [newClientName, setNewClientName] = useState("");
   const [newClientCpf, setNewClientCpf] = useState("");
   const [newClientEmail, setNewClientEmail] = useState("");
@@ -144,6 +156,7 @@ export default function WhatsApp() {
   // Refs
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messageInputRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Load session status
   useEffect(() => {
@@ -308,7 +321,52 @@ export default function WhatsApp() {
   };
 
   const useTemplate = (template: Template) => {
-    setMessageInput(template.body);
+    let templateBody = template.body;
+
+    // Substituir variáveis com dados do cliente/contexto
+    if (clientContext?.client) {
+      const client = clientContext.client;
+      
+      // Substituições básicas
+      templateBody = templateBody.replace(/\{\{nome\}\}/gi, client.name || '');
+      templateBody = templateBody.replace(/\{\{telefone\}\}/gi, client.phone || '');
+      templateBody = templateBody.replace(/\{\{email\}\}/gi, client.email || '');
+      templateBody = templateBody.replace(/\{\{cpf_cnpj\}\}/gi, client.cpfCnpj || '');
+      
+      // Data/hora atual (para agendamentos)
+      const now = new Date();
+      const dataHoje = now.toLocaleDateString('pt-BR');
+      const horaAtual = now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+      
+      templateBody = templateBody.replace(/\{\{data\}\}/gi, dataHoje);
+      templateBody = templateBody.replace(/\{\{hora\}\}/gi, horaAtual);
+      
+      // Próximo agendamento (se houver)
+      if (clientContext.appointments && clientContext.appointments.length > 0) {
+        const nextAppt = clientContext.appointments[0];
+        const apptDate = new Date(nextAppt.scheduled_date);
+        templateBody = templateBody.replace(/\{\{data_agendamento\}\}/gi, apptDate.toLocaleDateString('pt-BR'));
+        templateBody = templateBody.replace(/\{\{hora_agendamento\}\}/gi, apptDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }));
+      }
+      
+      // Veículo (se houver)
+      if (clientContext.vehicles && clientContext.vehicles.length > 0) {
+        const vehicle = clientContext.vehicles[0];
+        templateBody = templateBody.replace(/\{\{veiculo\}\}/gi, `${vehicle.brand} ${vehicle.model}` || '');
+        templateBody = templateBody.replace(/\{\{placa\}\}/gi, vehicle.plate || '');
+      }
+      
+      // Endereço do cliente
+      const addressParts = [];
+      if (client.street) addressParts.push(client.street);
+      if (client.complement) addressParts.push(client.complement);
+      if (client.city) addressParts.push(client.city);
+      if (client.state) addressParts.push(client.state);
+      const fullAddress = addressParts.join(', ') || '';
+      templateBody = templateBody.replace(/\{\{endereco\}\}/gi, fullAddress);
+    }
+
+    setMessageInput(templateBody);
     setShowTemplates(false);
     messageInputRef.current?.focus();
   };
@@ -349,21 +407,35 @@ export default function WhatsApp() {
     }
   };
 
+  const closeLinkClientModal = () => {
+    setShowLinkClientModal(false);
+    setSearchClientsQuery("");
+    setSearchClientsResults([]);
+  };
+
   const linkClient = async (clientId: string) => {
-    if (!selectedConversation) return;
+    if (!selectedConversation || linkingClient) return;
 
     try {
+      setLinkingClient(true);
       await api.post(`/whatsapp/conversations/${selectedConversation.id}/link-client`, {
         clientId,
         updateClientPhone: true,
       });
 
-      alert("Cliente vinculado com sucesso!");
-      setShowLinkClientModal(false);
+      // Fechar modal e limpar busca
+      closeLinkClientModal();
+      
+      // Recarregar dados
       loadConversations();
       loadClientContext(selectedConversation.id);
+      
+      // Feedback de sucesso
+      console.log("✅ Cliente vinculado com sucesso!");
     } catch (error: any) {
       alert(error.response?.data?.error || "Erro ao vincular cliente");
+    } finally {
+      setLinkingClient(false);
     }
   };
 
@@ -794,7 +866,14 @@ export default function WhatsApp() {
               <form onSubmit={sendMessage} className="flex items-end gap-2">
                 <button
                   type="button"
-                  className="p-2 hover:bg-slate-100 rounded-full transition-colors"
+                  onClick={() => {
+                    setShowEmojiPicker(!showEmojiPicker);
+                    setShowTemplates(false);
+                    setShowAttachMenu(false);
+                  }}
+                  className={`p-2 hover:bg-slate-100 rounded-full transition-colors ${
+                    showEmojiPicker ? "bg-slate-100" : ""
+                  }`}
                   title="Emoji"
                 >
                   <Smile className="w-5 h-5 text-slate-600" />
@@ -802,17 +881,42 @@ export default function WhatsApp() {
 
                 <button
                   type="button"
-                  className="p-2 hover:bg-slate-100 rounded-full transition-colors"
+                  onClick={() => {
+                    setShowAttachMenu(!showAttachMenu);
+                    setShowTemplates(false);
+                    setShowEmojiPicker(false);
+                  }}
+                  className={`p-2 hover:bg-slate-100 rounded-full transition-colors ${
+                    showAttachMenu ? "bg-slate-100" : ""
+                  }`}
                   title="Anexar"
                 >
                   <Paperclip className="w-5 h-5 text-slate-600" />
                 </button>
 
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      // TODO: Implementar upload de arquivo
+                      console.log('Arquivo selecionado:', file.name);
+                      alert('Upload de arquivos será implementado em breve');
+                    }
+                  }}
+                />
+
                 <button
                   type="button"
-                  onClick={() => setShowTemplates(!showTemplates)}
+                  onClick={() => {
+                    setShowTemplates(!showTemplates);
+                    setShowEmojiPicker(false);
+                    setShowAttachMenu(false);
+                  }}
                   className={`p-2 hover:bg-slate-100 rounded-full transition-colors ${
-                    showTemplates ? "bg-green-100" : ""
+                    showTemplates ? "bg-slate-100" : ""
                   }`}
                   title="Templates"
                 >
@@ -843,13 +947,135 @@ export default function WhatsApp() {
                 </button>
               </form>
 
+              {/* Emoji Picker */}
+              {showEmojiPicker && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="mt-2 p-3 bg-slate-50 rounded-xl border border-slate-200"
+                >
+                  <div className="grid grid-cols-8 gap-2">
+                    {['😀', '😃', '😄', '😁', '😅', '😂', '🤣', '😊',
+                      '😇', '🙂', '🙃', '😉', '😌', '😍', '🥰', '😘',
+                      '😗', '😙', '😚', '☺️', '😋', '😛', '😝', '😜',
+                      '🤪', '🤨', '🧐', '🤓', '😎', '👍', '👎', '👏',
+                      '🙌', '👌', '✌️', '🤞', '🤝', '🙏', '❤️', '💙',
+                      '💚', '💛', '🧡', '💜', '🖤', '🤍', '🤎', '💔',
+                      '⚡', '💥', '✨', '💫', '🔥', '❌', '⭐', '✅'
+                    ].map((emoji, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => {
+                          setMessageInput(messageInput + emoji);
+                          messageInputRef.current?.focus();
+                        }}
+                        className="text-2xl hover:bg-white p-2 rounded-lg transition-colors"
+                      >
+                        {emoji}
+                      </button>
+                    ))}
+                  </div>
+                </motion.div>
+              )}
+
+              {/* Attach Menu */}
+              {showAttachMenu && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="mt-2 p-3 bg-slate-50 rounded-xl border border-slate-200"
+                >
+                  <div className="space-y-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        fileInputRef.current?.click();
+                        setShowAttachMenu(false);
+                      }}
+                      className="w-full text-left p-3 hover:bg-white rounded-lg transition-colors flex items-center gap-3"
+                    >
+                      <Paperclip className="w-5 h-5 text-slate-600" />
+                      <div>
+                        <div className="font-medium text-sm text-slate-900">Documento</div>
+                        <div className="text-xs text-slate-500">PDF, DOC, XLS, etc.</div>
+                      </div>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        alert('Câmera/Galeria será implementado em breve');
+                        setShowAttachMenu(false);
+                      }}
+                      className="w-full text-left p-3 hover:bg-white rounded-lg transition-colors flex items-center gap-3"
+                    >
+                      <Paperclip className="w-5 h-5 text-slate-600" />
+                      <div>
+                        <div className="font-medium text-sm text-slate-900">Foto ou Vídeo</div>
+                        <div className="text-xs text-slate-500">Enviar mídia</div>
+                      </div>
+                    </button>
+                  </div>
+                </motion.div>
+              )}
+
               {/* Templates Dropdown */}
               {showTemplates && templates.length > 0 && (
                 <motion.div
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="mt-2 p-3 bg-slate-50 rounded-xl border border-slate-200 max-h-64 overflow-y-auto"
+                  className="mt-2 p-3 bg-slate-50 rounded-xl border border-slate-200 max-h-96 overflow-y-auto space-y-3"
                 >
+                  {/* Variáveis Disponíveis */}
+                  {clientContext?.client && (
+                    <div className="pb-3 border-b border-slate-200">
+                      <h4 className="text-xs font-semibold text-slate-600 uppercase mb-2">
+                        Variáveis Disponíveis
+                      </h4>
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div className="bg-white px-2 py-1 rounded border border-slate-200">
+                          <span className="font-mono text-slate-500">{'{{nome}}'}</span>
+                          <span className="ml-1 text-slate-700">→ {clientContext.client.name}</span>
+                        </div>
+                        <div className="bg-white px-2 py-1 rounded border border-slate-200">
+                          <span className="font-mono text-slate-500">{'{{telefone}}'}</span>
+                          <span className="ml-1 text-slate-700">→ {clientContext.client.phone}</span>
+                        </div>
+                        <div className="bg-white px-2 py-1 rounded border border-slate-200">
+                          <span className="font-mono text-slate-500">{'{{data}}'}</span>
+                          <span className="ml-1 text-slate-700">→ {new Date().toLocaleDateString('pt-BR')}</span>
+                        </div>
+                        <div className="bg-white px-2 py-1 rounded border border-slate-200">
+                          <span className="font-mono text-slate-500">{'{{hora}}'}</span>
+                          <span className="ml-1 text-slate-700">→ {new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
+                        </div>
+                        {clientContext.vehicles && clientContext.vehicles.length > 0 && (
+                          <>
+                            <div className="bg-white px-2 py-1 rounded border border-slate-200">
+                              <span className="font-mono text-slate-500">{'{{veiculo}}'}</span>
+                              <span className="ml-1 text-slate-700">→ {clientContext.vehicles[0].brand} {clientContext.vehicles[0].model}</span>
+                            </div>
+                            <div className="bg-white px-2 py-1 rounded border border-slate-200">
+                              <span className="font-mono text-slate-500">{'{{placa}}'}</span>
+                              <span className="ml-1 text-slate-700">→ {clientContext.vehicles[0].plate}</span>
+                            </div>
+                          </>
+                        )}
+                        {(clientContext.client.street || clientContext.client.city) && (
+                          <div className="bg-white px-2 py-1 rounded border border-slate-200 col-span-2">
+                            <span className="font-mono text-slate-500">{'{{endereco}}'}</span>
+                            <span className="ml-1 text-slate-700">→ {[
+                              clientContext.client.street,
+                              clientContext.client.complement,
+                              clientContext.client.city,
+                              clientContext.client.state
+                            ].filter(Boolean).join(', ')}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
                   <h4 className="text-xs font-semibold text-slate-600 uppercase mb-2">
                     Templates
                   </h4>
@@ -1078,26 +1304,62 @@ export default function WhatsApp() {
 
             {contextTab === "actions" && (
               <div className="space-y-2">
-                <button className="w-full p-3 bg-slate-50 hover:bg-slate-100 rounded-xl text-left flex items-center gap-3 transition-colors">
-                  <User className="w-4 h-4 text-slate-600" />
-                  <span className="text-sm text-slate-900">Abrir cliente</span>
-                </button>
-                <button className="w-full p-3 bg-slate-50 hover:bg-slate-100 rounded-xl text-left flex items-center gap-3 transition-colors">
-                  <Car className="w-4 h-4 text-slate-600" />
-                  <span className="text-sm text-slate-900">Abrir veículo</span>
-                </button>
-                <button className="w-full p-3 bg-slate-50 hover:bg-slate-100 rounded-xl text-left flex items-center gap-3 transition-colors">
-                  <Wrench className="w-4 h-4 text-slate-600" />
-                  <span className="text-sm text-slate-900">Criar OS</span>
-                </button>
-                <button className="w-full p-3 bg-slate-50 hover:bg-slate-100 rounded-xl text-left flex items-center gap-3 transition-colors">
-                  <Calendar className="w-4 h-4 text-slate-600" />
-                  <span className="text-sm text-slate-900">Agendar</span>
-                </button>
-                <button className="w-full p-3 bg-slate-50 hover:bg-slate-100 rounded-xl text-left flex items-center gap-3 transition-colors">
-                  <DollarSign className="w-4 h-4 text-slate-600" />
-                  <span className="text-sm text-slate-900">Cobrar</span>
-                </button>
+                {clientContext?.hasClient ? (
+                  <>
+                    {/* Ações disponíveis quando tem cliente vinculado */}
+                    <button 
+                      onClick={() => {
+                        if (clientContext.client?.id) {
+                          window.location.href = `/clients/${clientContext.client.id}`;
+                        }
+                      }}
+                      className="w-full p-3 bg-slate-50 hover:bg-slate-100 rounded-xl text-left flex items-center gap-3 transition-colors"
+                    >
+                      <User className="w-4 h-4 text-slate-600" />
+                      <span className="text-sm text-slate-900">Abrir cliente</span>
+                    </button>
+                    <button className="w-full p-3 bg-slate-50 hover:bg-slate-100 rounded-xl text-left flex items-center gap-3 transition-colors">
+                      <Car className="w-4 h-4 text-slate-600" />
+                      <span className="text-sm text-slate-900">Abrir veículo</span>
+                    </button>
+                    <button className="w-full p-3 bg-slate-50 hover:bg-slate-100 rounded-xl text-left flex items-center gap-3 transition-colors">
+                      <Wrench className="w-4 h-4 text-slate-600" />
+                      <span className="text-sm text-slate-900">Criar OS</span>
+                    </button>
+                    <button className="w-full p-3 bg-slate-50 hover:bg-slate-100 rounded-xl text-left flex items-center gap-3 transition-colors">
+                      <Calendar className="w-4 h-4 text-slate-600" />
+                      <span className="text-sm text-slate-900">Agendar</span>
+                    </button>
+                    <button className="w-full p-3 bg-slate-50 hover:bg-slate-100 rounded-xl text-left flex items-center gap-3 transition-colors">
+                      <DollarSign className="w-4 h-4 text-slate-600" />
+                      <span className="text-sm text-slate-900">Cobrar</span>
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    {/* Quando não tem cliente vinculado */}
+                    <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl text-center">
+                      <AlertCircle className="w-8 h-8 text-amber-600 mx-auto mb-2" />
+                      <p className="text-sm text-slate-700 mb-3">
+                        Vincule um cliente para acessar as ações rápidas
+                      </p>
+                      <div className="space-y-2">
+                        <button
+                          onClick={() => setShowCreateClientModal(true)}
+                          className="w-full p-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition-colors"
+                        >
+                          Criar e Vincular
+                        </button>
+                        <button
+                          onClick={() => setShowLinkClientModal(true)}
+                          className="w-full p-2 bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 rounded-lg text-sm font-medium transition-colors"
+                        >
+                          Vincular Existente
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
             )}
 
@@ -1242,89 +1504,178 @@ export default function WhatsApp() {
       {/* Modal: Vincular Cliente Existente */}
       <AnimatePresence>
         {showLinkClientModal && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-            onClick={() => setShowLinkClientModal(false)}
-          >
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
             <motion.div
-              initial={{ scale: 0.95 }}
-              animate={{ scale: 1 }}
-              exit={{ scale: 0.95 }}
-              className="bg-white rounded-2xl shadow-xl max-w-2xl w-full p-6 max-h-[80vh] overflow-y-auto"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white w-full max-w-2xl rounded-xl shadow-2xl flex flex-col max-h-[85vh]"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-bold text-slate-900">Vincular Cliente</h2>
+              {/* Header */}
+              <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between bg-slate-50 shrink-0">
+                <h2 className="text-sm font-bold text-slate-900">Vincular Cliente</h2>
                 <button
-                  onClick={() => setShowLinkClientModal(false)}
-                  className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+                  onClick={() => closeLinkClientModal()}
+                  className="text-slate-400 hover:text-slate-900 transition-colors"
                 >
-                  <X className="w-5 h-5 text-slate-600" />
+                  <X size={18} />
                 </button>
               </div>
 
-              <div className="mb-4">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-                  <input
-                    type="text"
-                    value={searchClientsQuery}
-                    onChange={(e) => {
-                      setSearchClientsQuery(e.target.value);
-                      searchClients(e.target.value);
-                    }}
-                    placeholder="Buscar por nome, telefone ou CPF..."
-                    className="w-full pl-10 pr-4 py-3 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary"
-                  />
+              {/* Content */}
+              <div className="overflow-y-auto p-4 flex-1">
+                {/* Search Input */}
+                <div className="mb-4">
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">
+                    Buscar Cliente
+                  </label>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                    <input
+                      type="text"
+                      value={searchClientsQuery}
+                      onChange={(e) => {
+                        setSearchClientsQuery(e.target.value);
+                        searchClients(e.target.value);
+                      }}
+                      placeholder="Digite nome, telefone, CPF/CNPJ ou email..."
+                      className="w-full bg-slate-50 border border-slate-200 rounded-lg pl-10 pr-3 py-2 text-sm focus:ring-1 focus:ring-slate-900 outline-none"
+                      autoFocus
+                    />
+                  </div>
+                  {searchClientsQuery.length > 0 && searchClientsQuery.length < 2 && (
+                    <p className="text-[10px] text-slate-500 mt-1">
+                      Digite pelo menos 2 caracteres
+                    </p>
+                  )}
                 </div>
-              </div>
 
-              <div className="space-y-2">
-                {searchClientsResults.length === 0 && searchClientsQuery.length >= 2 && (
-                  <p className="text-center text-slate-500 py-8">
-                    Nenhum cliente encontrado
-                  </p>
-                )}
+                {/* Results */}
+                <div className="space-y-2">
+                  {/* Empty State - Não digitado */}
+                  {searchClientsQuery.length === 0 && (
+                    <div className="text-center py-8">
+                      <Search className="w-12 h-12 text-slate-300 mx-auto mb-2" />
+                      <p className="text-xs font-semibold text-slate-600">Busque um cliente para vincular</p>
+                      <p className="text-[10px] text-slate-400 mt-1">
+                        Digite nome, telefone, CPF/CNPJ ou email
+                      </p>
+                    </div>
+                  )}
 
-                {searchClientsResults.map((client) => (
-                  <div
-                    key={client.id}
-                    className="p-4 border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors"
-                  >
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <h3 className="text-sm font-bold text-slate-900">{client.name}</h3>
-                        <p className="text-xs text-slate-600">{client.phone || client.phone_e164}</p>
-                        {client.cpf_cnpj && (
-                          <p className="text-xs text-slate-600">CPF/CNPJ: {client.cpf_cnpj}</p>
-                        )}
-                        {client.email && (
-                          <p className="text-xs text-slate-600">{client.email}</p>
-                        )}
-                        <div className="flex gap-3 mt-2">
-                          <span className="text-xs text-slate-500">
-                            {client.vehicle_count} veículos
-                          </span>
-                          <span className="text-xs text-slate-500">
-                            {client.work_order_count} OS
-                          </span>
-                        </div>
-                      </div>
+                  {/* Empty State - Não encontrado */}
+                  {searchClientsResults.length === 0 && searchClientsQuery.length >= 2 && (
+                    <div className="text-center py-8">
+                      <UserCircle className="w-12 h-12 text-slate-300 mx-auto mb-2" />
+                      <p className="text-xs font-semibold text-slate-600">Nenhum cliente encontrado</p>
+                      <p className="text-[10px] text-slate-400 mt-1 mb-3">
+                        Nenhum resultado para "{searchClientsQuery}"
+                      </p>
                       <button
-                        onClick={() => linkClient(client.id)}
-                        className="px-4 py-2 bg-primary hover:bg-primary/90 text-white rounded-xl text-sm font-medium transition-colors"
+                        onClick={() => {
+                          closeLinkClientModal();
+                          setShowCreateClientModal(true);
+                        }}
+                        className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-[10px] font-bold inline-flex items-center gap-1.5 transition-colors"
                       >
-                        Vincular
+                        <User className="w-3 h-3" />
+                        Criar Novo Cliente
                       </button>
                     </div>
-                  </div>
-                ))}
+                  )}
+
+                  {/* Cliente Results */}
+                  {searchClientsResults.map((client) => (
+                    <div
+                      key={client.id}
+                      className="bg-slate-50 border border-slate-200 rounded-lg p-3 hover:bg-white hover:border-slate-300 transition-all"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1 min-w-0">
+                          {/* Nome + Badges */}
+                          <div className="flex items-center gap-2 mb-1.5">
+                            <h3 className="text-xs font-bold text-slate-900 truncate">
+                              {client.name}
+                            </h3>
+                            {client.vehicle_count > 0 && (
+                              <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 text-[9px] font-bold rounded flex items-center gap-1">
+                                <Car className="w-2.5 h-2.5" />
+                                {client.vehicle_count}
+                              </span>
+                            )}
+                            {client.work_order_count > 0 && (
+                              <span className="px-1.5 py-0.5 bg-orange-100 text-orange-700 text-[9px] font-bold rounded flex items-center gap-1">
+                                <Wrench className="w-2.5 h-2.5" />
+                                {client.work_order_count}
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Informações */}
+                          <div className="space-y-0.5">
+                            {(client.phone || client.phone_e164) && (
+                              <div className="flex items-center gap-1.5 text-[10px] text-slate-600">
+                                <Phone className="w-3 h-3 text-slate-400 flex-shrink-0" />
+                                <span className="truncate">{client.phone || client.phone_e164}</span>
+                              </div>
+                            )}
+                            
+                            {client.document && (
+                              <div className="flex items-center gap-1.5 text-[10px] text-slate-600">
+                                <FileText className="w-3 h-3 text-slate-400 flex-shrink-0" />
+                                <span className="truncate">
+                                  {client.document.length === 11 
+                                    ? client.document.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4')
+                                    : client.document.length === 14
+                                    ? client.document.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5')
+                                    : client.document
+                                  }
+                                </span>
+                              </div>
+                            )}
+
+                            {client.email && (
+                              <div className="flex items-center gap-1.5 text-[10px] text-slate-600">
+                                <Mail className="w-3 h-3 text-slate-400 flex-shrink-0" />
+                                <span className="truncate">{client.email}</span>
+                              </div>
+                            )}
+
+                            {client.city && (
+                              <div className="flex items-center gap-1.5 text-[10px] text-slate-600">
+                                <MapPin className="w-3 h-3 text-slate-400 flex-shrink-0" />
+                                <span className="truncate">{client.city}</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Botão Vincular */}
+                        <button
+                          onClick={() => linkClient(client.id)}
+                          disabled={linkingClient}
+                          className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 disabled:bg-slate-400 disabled:cursor-not-allowed text-white rounded-lg text-[10px] font-bold transition-colors flex items-center gap-1.5 flex-shrink-0"
+                        >
+                          {linkingClient ? (
+                            <>
+                              <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                              Vinculando
+                            </>
+                          ) : (
+                            <>
+                              <UserCircle className="w-3 h-3" />
+                              Vincular
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             </motion.div>
-          </motion.div>
+          </div>
         )}
       </AnimatePresence>
     </div>
