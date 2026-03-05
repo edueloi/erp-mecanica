@@ -182,6 +182,31 @@ router.get("/vehicle/:vehicleId", (req: AuthRequest, res) => {
   }
 });
 
+// POST Generate/Refresh Public Token
+router.post("/:id/token", (req: AuthRequest, res) => {
+  console.log('Generating token for checklist:', req.params.id);
+  try {
+    const token = uuidv4();
+    const expiresAt = new Date(Date.now() + 10 * 60000).toISOString(); // 10 minutes
+
+    const result = db.prepare(`
+      UPDATE vehicle_checklists 
+      SET public_token = ?, token_expires_at = ?
+      WHERE id = ? AND tenant_id = ?
+    `).run(token, expiresAt, req.params.id, req.user!.tenant_id);
+
+    if (result.changes === 0) {
+      console.warn('Checklist not found or unauthorized:', req.params.id);
+      return res.status(404).json({ error: "Checklist não encontrado" });
+    }
+
+    res.json({ token, expiresAt });
+  } catch (error: any) {
+    console.error('Error generating token:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // GET single checklist with items
 router.get("/:id", (req: AuthRequest, res) => {
   try {
@@ -296,24 +321,6 @@ router.delete("/:id", (req: AuthRequest, res) => {
     db.prepare("DELETE FROM vehicle_checklist_items WHERE checklist_id = ?").run(req.params.id);
     db.prepare("DELETE FROM vehicle_checklists WHERE id = ? AND tenant_id = ?").run(req.params.id, req.user!.tenant_id);
     res.json({ message: "Checklist excluído com sucesso" });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// POST Generate/Refresh Public Token
-router.post("/:id/token", (req: AuthRequest, res) => {
-  try {
-    const token = uuidv4();
-    const expiresAt = new Date(Date.now() + 10 * 60000).toISOString(); // 10 minutes
-
-    db.prepare(`
-      UPDATE vehicle_checklists 
-      SET public_token = ?, token_expires_at = ?
-      WHERE id = ? AND tenant_id = ?
-    `).run(token, expiresAt, req.params.id, req.user!.tenant_id);
-
-    res.json({ token, expiresAt });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }

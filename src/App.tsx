@@ -36,7 +36,12 @@ const Placeholder = ({ title }: { title: string }) => (
 
 const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
   const isAuthenticated = useAuthStore(state => state.isAuthenticated);
-  return isAuthenticated ? <Layout>{children}</Layout> : <Navigate to="/login" />;
+  
+  if (!isAuthenticated) {
+    return <Navigate to="/login" />;
+  }
+  
+  return <>{children}</>;
 };
 
 export default function App() {
@@ -45,26 +50,26 @@ export default function App() {
       <Routes>
         <Route path="/login" element={<Login />} />
         
-        <Route path="/" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
-        <Route path="/clients" element={<PrivateRoute><Clients /></PrivateRoute>} />
-        <Route path="/clients/:id" element={<PrivateRoute><ClientDetail /></PrivateRoute>} />
-        <Route path="/vehicles" element={<PrivateRoute><Vehicles /></PrivateRoute>} />
-        <Route path="/vehicles/:id" element={<PrivateRoute><VehicleDetail /></PrivateRoute>} />
-        <Route path="/vehicles/:vehicleId/checklist" element={<PrivateRoute><VehicleChecklist /></PrivateRoute>} />
-        <Route path="/vehicles/:vehicleId/checklist/:checklistId" element={<PrivateRoute><VehicleChecklist /></PrivateRoute>} />
-        <Route path="/work-orders" element={<PrivateRoute><WorkOrders /></PrivateRoute>} />
-        <Route path="/work-orders/:id" element={<PrivateRoute><WorkOrderDetail /></PrivateRoute>} />
-        <Route path="/appointments" element={<PrivateRoute><Appointments /></PrivateRoute>} />
-        <Route path="/services" element={<PrivateRoute><Services /></PrivateRoute>} />
-        <Route path="/parts" element={<PrivateRoute><Parts /></PrivateRoute>} />
-        <Route path="/suppliers" element={<PrivateRoute><Suppliers /></PrivateRoute>} />
-        <Route path="/finance/receivables" element={<PrivateRoute><AccountsReceivable /></PrivateRoute>} />
-        <Route path="/finance/cashflow" element={<PrivateRoute><CashFlow /></PrivateRoute>} />
-        <Route path="/communication/whatsapp" element={<PrivateRoute><WhatsApp /></PrivateRoute>} />
-        <Route path="/communication/history" element={<PrivateRoute><CommunicationHistory /></PrivateRoute>} />
-        <Route path="/action-plans" element={<PrivateRoute><ActionPlans /></PrivateRoute>} />
-        <Route path="/action-plans/:boardId" element={<PrivateRoute><ActionPlans /></PrivateRoute>} />
-        <Route path="/settings/shop" element={<PrivateRoute><Settings /></PrivateRoute>} />
+        <Route path="/" element={<PrivateRoute><Layout><Dashboard /></Layout></PrivateRoute>} />
+        <Route path="/clients" element={<PrivateRoute><Layout><Clients /></Layout></PrivateRoute>} />
+        <Route path="/clients/:id" element={<PrivateRoute><Layout><ClientDetail /></Layout></PrivateRoute>} />
+        <Route path="/vehicles" element={<PrivateRoute><Layout><Vehicles /></Layout></PrivateRoute>} />
+        <Route path="/vehicles/:id" element={<PrivateRoute><Layout><VehicleDetail /></Layout></PrivateRoute>} />
+        <Route path="/vehicles/:vehicleId/checklist" element={<PrivateRoute><Layout><VehicleChecklist /></Layout></PrivateRoute>} />
+        <Route path="/vehicles/:vehicleId/checklist/:checklistId" element={<PrivateRoute><Layout><VehicleChecklist /></Layout></PrivateRoute>} />
+        <Route path="/work-orders" element={<PrivateRoute><Layout><WorkOrders /></Layout></PrivateRoute>} />
+        <Route path="/work-orders/:id" element={<PrivateRoute><Layout><WorkOrderDetail /></Layout></PrivateRoute>} />
+        <Route path="/appointments" element={<PrivateRoute><Layout><Appointments /></Layout></PrivateRoute>} />
+        <Route path="/services" element={<PrivateRoute><Layout><Services /></Layout></PrivateRoute>} />
+        <Route path="/parts" element={<PrivateRoute><Layout><Parts /></Layout></PrivateRoute>} />
+        <Route path="/suppliers" element={<PrivateRoute><Layout><Suppliers /></Layout></PrivateRoute>} />
+        <Route path="/finance/receivables" element={<PrivateRoute><Layout><AccountsReceivable /></Layout></PrivateRoute>} />
+        <Route path="/finance/cashflow" element={<PrivateRoute><Layout><CashFlow /></Layout></PrivateRoute>} />
+        <Route path="/communication/whatsapp" element={<PrivateRoute><Layout><WhatsApp /></Layout></PrivateRoute>} />
+        <Route path="/communication/history" element={<PrivateRoute><Layout><CommunicationHistory /></Layout></PrivateRoute>} />
+        <Route path="/action-plans" element={<PrivateRoute><Layout><ActionPlans /></Layout></PrivateRoute>} />
+        <Route path="/action-plans/:boardId" element={<PrivateRoute><Layout><ActionPlans /></Layout></PrivateRoute>} />
+        <Route path="/settings/shop" element={<PrivateRoute><Layout><Settings /></Layout></PrivateRoute>} />
         <Route path="/checklist-upload/:token" element={<ChecklistPublicUpload />} />
 
 
