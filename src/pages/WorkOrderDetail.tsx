@@ -34,6 +34,18 @@ export default function WorkOrderDetail() {
   const [sendModalOpen, setSendModalOpen] = useState(false);
   const [statusChangeModalOpen, setStatusChangeModalOpen] = useState(false);
 
+  // Notification modal state
+  const [notification, setNotification] = useState<{
+    show: boolean;
+    type: 'success' | 'error' | 'info';
+    title: string;
+    message: string;
+  }>({ show: false, type: 'info', title: '', message: '' });
+
+  const showNotification = (type: 'success' | 'error' | 'info', title: string, message: string) => {
+    setNotification({ show: true, type, title, message });
+  };
+
   const fetchWO = async () => {
     try {
       const [woRes, usersRes] = await Promise.all([
@@ -50,8 +62,8 @@ export default function WorkOrderDetail() {
     } catch (err) {
       console.error(err);
       setLoading(false);
-      alert('Erro ao carregar OS. Redirecionando...');
-      navigate('/work-orders');
+      showNotification('error', 'Erro', 'Não foi possível carregar a OS. Redirecionando...');
+      setTimeout(() => navigate('/work-orders'), 2000);
     }
   };
 
@@ -107,10 +119,10 @@ export default function WorkOrderDetail() {
     setSaving(true);
     try {
       await api.patch(`/work-orders/${id}`, wo);
-      alert('OS salva com sucesso!');
+      showNotification('success', 'Sucesso', 'OS salva com sucesso!');
       fetchWO();
     } catch (err) {
-      alert('Erro ao salvar OS');
+      showNotification('error', 'Erro', 'Não foi possível salvar a OS. Tente novamente.');
     } finally {
       setSaving(false);
     }
@@ -128,10 +140,10 @@ export default function WorkOrderDetail() {
       updatedWo.history = [...(wo.history || []), historyEntry];
       setWo(updatedWo);
       await api.patch(`/work-orders/${id}`, updatedWo);
-      alert(`Status alterado para ${statusMap[newStatus]?.label}`);
+      showNotification('success', 'Status Alterado', `Status alterado para ${statusMap[newStatus]?.label}`);
       fetchWO();
     } catch (err) {
-      alert('Erro ao alterar status');
+      showNotification('error', 'Erro', 'Não foi possível alterar o status. Tente novamente.');
     }
   };
 
@@ -177,11 +189,11 @@ export default function WorkOrderDetail() {
       }
 
       setPaymentModalOpen(false);
-      alert('Pagamento registrado com sucesso!');
+      showNotification('success', 'Pagamento Registrado', 'Pagamento registrado com sucesso!');
       fetchWO();
     } catch (err) {
       console.error('Error registering payment:', err);
-      alert('Erro ao registrar pagamento');
+      showNotification('error', 'Erro', 'Não foi possível registrar o pagamento. Tente novamente.');
     }
   };
 
@@ -199,7 +211,7 @@ export default function WorkOrderDetail() {
       } else {
         // Generate PDF and prepare email
         generatePDF();
-        alert('PDF gerado! Configure seu cliente de email para enviar.');
+        showNotification('info', 'PDF Gerado', 'PDF gerado! Configure seu cliente de email para enviar.');
       }
       
       // Add to history
@@ -213,7 +225,7 @@ export default function WorkOrderDetail() {
       setSendModalOpen(false);
       fetchWO();
     } catch (err) {
-      alert('Erro ao enviar orçamento');
+      showNotification('error', 'Erro', 'Não foi possível enviar o orçamento. Tente novamente.');
     }
   };
 
@@ -1137,8 +1149,62 @@ export default function WorkOrderDetail() {
           </div>
         )}
       </AnimatePresence>
+
+      {/* Notification Modal */}
+      <AnimatePresence>
+        {notification.show && (
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[200] flex items-center justify-center p-4" onClick={() => setNotification({ ...notification, show: false })}>
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden"
+            >
+              <div className={cn(
+                "px-6 py-4 flex items-center gap-4",
+                notification.type === 'success' && "bg-emerald-50",
+                notification.type === 'error' && "bg-red-50",
+                notification.type === 'info' && "bg-blue-50"
+              )}>
+                <div className={cn(
+                  "w-12 h-12 rounded-full flex items-center justify-center shrink-0",
+                  notification.type === 'success' && "bg-emerald-100",
+                  notification.type === 'error' && "bg-red-100",
+                  notification.type === 'info' && "bg-blue-100"
+                )}>
+                  {notification.type === 'success' && <CheckCircle className="text-emerald-600" size={24} />}
+                  {notification.type === 'error' && <AlertTriangle className="text-red-600" size={24} />}
+                  {notification.type === 'info' && <Info className="text-blue-600" size={24} />}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className={cn(
+                    "font-bold text-base",
+                    notification.type === 'success' && "text-emerald-900",
+                    notification.type === 'error' && "text-red-900",
+                    notification.type === 'info' && "text-blue-900"
+                  )}>{notification.title}</h3>
+                  <p className="text-sm text-slate-600 mt-0.5">{notification.message}</p>
+                </div>
+                <button 
+                  onClick={() => setNotification({ ...notification, show: false })}
+                  className="text-slate-400 hover:text-slate-900 transition-colors shrink-0"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+              <div className="px-6 py-4 bg-slate-50 flex justify-end">
+                <button 
+                  onClick={() => setNotification({ ...notification, show: false })}
+                  className="px-6 py-2 bg-slate-900 text-white rounded-lg text-sm font-bold hover:bg-slate-800 transition-all"
+                >
+                  OK
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
-
-

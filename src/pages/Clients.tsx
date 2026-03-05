@@ -12,6 +12,7 @@ import api from '../services/api';
 import { motion, AnimatePresence } from 'motion/react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import ImportExportModal from '../components/ImportExportModal';
 
 import { cepService } from '../services/cepService';
 
@@ -30,6 +31,8 @@ export default function Clients() {
   const [selectedClient, setSelectedClient] = useState<any>(null);
   const [isCepLoading, setIsCepLoading] = useState(false);
   const [isEditCepLoading, setIsEditCepLoading] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
 
   const [newClient, setNewClient] = useState({
     name: '',
@@ -61,6 +64,72 @@ export default function Clients() {
         }));
       }
       setIsCepLoading(false);
+    }
+  };
+
+  // Template data for import
+  const templateData = [{
+    name: 'Nome do Cliente',
+    type: 'PF ou PJ',
+    document: 'CPF ou CNPJ',
+    phone: '(11) 98765-4321',
+    email: 'cliente@email.com',
+    cep: '01234-567',
+    street: 'Rua Exemplo',
+    number: '123',
+    complement: 'Apto 45',
+    neighborhood: 'Bairro',
+    city: 'Cidade',
+    state: 'SP'
+  }];
+
+  // Columns for export
+  const exportColumns = [
+    { header: 'Nome', dataKey: 'name' },
+    { header: 'Tipo', dataKey: 'type' },
+    { header: 'Documento', dataKey: 'document' },
+    { header: 'Telefone', dataKey: 'phone' },
+    { header: 'Email', dataKey: 'email' },
+    { header: 'Cidade', dataKey: 'city' },
+    { header: 'Estado', dataKey: 'state' },
+    { header: 'Status', dataKey: 'status' }
+  ];
+
+  // Handle import
+  const handleImport = async (data: any[]) => {
+    try {
+      // Validate and transform data
+      const validData = data.map(item => ({
+        name: item.name || item.Nome || '',
+        type: (item.type || item.Tipo || 'PF').toUpperCase(),
+        document: item.document || item.Documento || item.CPF || item.CNPJ || '',
+        phone: item.phone || item.Telefone || item.telefone || '',
+        email: item.email || item.Email || '',
+        cep: item.cep || item.CEP || '',
+        street: item.street || item.Rua || item.Logradouro || '',
+        number: item.number || item.Numero || item.Número || '',
+        complement: item.complement || item.Complemento || '',
+        neighborhood: item.neighborhood || item.Bairro || '',
+        city: item.city || item.Cidade || '',
+        state: item.state || item.Estado || item.UF || ''
+      }));
+
+      // Send to backend bulk endpoint
+      const response = await api.post('/clients/bulk', validData);
+      
+      if (response.data.errors && response.data.errors.length > 0) {
+        console.warn('Alguns registros falharam:', response.data.errors);
+      }
+
+      if (response.data.success === 0) {
+        throw new Error('Nenhum registro foi importado com sucesso');
+      }
+
+      fetchClients();
+      return response.data;
+    } catch (error: any) {
+      console.error('Erro ao importar clientes:', error);
+      throw new Error(error.response?.data?.error || 'Erro ao importar clientes. Verifique os dados e tente novamente.');
     }
   };
 
@@ -164,10 +233,16 @@ export default function Clients() {
         </div>
 
         <div className="flex items-center gap-2">
-          <button className="h-9 px-3 text-slate-600 hover:bg-slate-100 rounded-lg text-xs font-bold flex items-center gap-2 transition-all">
+          <button 
+            onClick={() => setIsImportModalOpen(true)}
+            className="h-9 px-3 text-slate-600 hover:bg-slate-100 rounded-lg text-xs font-bold flex items-center gap-2 transition-all"
+          >
             <Upload size={14} /> <span className="hidden sm:inline">Importar</span>
           </button>
-          <button className="h-9 px-3 text-slate-600 hover:bg-slate-100 rounded-lg text-xs font-bold flex items-center gap-2 transition-all">
+          <button 
+            onClick={() => setIsExportModalOpen(true)}
+            className="h-9 px-3 text-slate-600 hover:bg-slate-100 rounded-lg text-xs font-bold flex items-center gap-2 transition-all"
+          >
             <Download size={14} /> <span className="hidden sm:inline">Exportar</span>
           </button>
           <button 
@@ -668,6 +743,28 @@ export default function Clients() {
           </div>
         )}
       </AnimatePresence>
+
+      {/* Import Modal */}
+      <ImportExportModal
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        mode="import"
+        title="Importar Clientes"
+        templateData={templateData}
+        onImport={handleImport}
+        entityName="clientes"
+      />
+
+      {/* Export Modal */}
+      <ImportExportModal
+        isOpen={isExportModalOpen}
+        onClose={() => setIsExportModalOpen(false)}
+        mode="export"
+        title="Exportar Clientes"
+        data={clients}
+        columns={exportColumns}
+        entityName="clientes"
+      />
     </div>
   );
 }

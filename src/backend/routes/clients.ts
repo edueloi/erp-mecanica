@@ -100,4 +100,82 @@ router.patch("/:id", (req: AuthRequest, res) => {
   }
 });
 
+// Bulk import endpoint
+router.post("/bulk", (req: AuthRequest, res) => {
+  const clients = req.body;
+  
+  if (!Array.isArray(clients)) {
+    return res.status(400).json({ error: "Request body must be an array" });
+  }
+
+  const results = {
+    success: 0,
+    errors: [] as any[],
+    inserted: [] as any[]
+  };
+
+  // Process each client
+  clients.forEach((clientData, index) => {
+    try {
+      const { 
+        type, name, document, email, phone, status, 
+        cep, street, number, neighborhood, city, state, complement,
+        zip_code, // Support both cep and zip_code
+        tags 
+      } = clientData;
+
+      // Validate required fields
+      if (!name) {
+        results.errors.push({
+          index,
+          data: clientData,
+          error: "Nome é obrigatório"
+        });
+        return;
+      }
+
+      const id = uuidv4();
+      const finalZipCode = zip_code || cep;
+
+      db.prepare(`
+        INSERT INTO clients (
+          id, tenant_id, type, name, document, email, phone, status, 
+          zip_code, street, number, neighborhood, city, state, complement, 
+          tags, pref_contact
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(
+        id, 
+        req.user!.tenant_id, 
+        type || 'PF', 
+        name, 
+        document || '', 
+        email || '', 
+        phone || '', 
+        status || 'ACTIVE', 
+        finalZipCode || '', 
+        street || '', 
+        number || '', 
+        neighborhood || '', 
+        city || '', 
+        state || '', 
+        complement || '', 
+        JSON.stringify(tags || []),
+        'WHATSAPP'
+      );
+
+      const newClient = db.prepare("SELECT * FROM clients WHERE id = ?").get(id);
+      results.success++;
+      results.inserted.push(newClient);
+    } catch (error: any) {
+      results.errors.push({
+        index,
+        data: clientData,
+        error: error.message
+      });
+    }
+  });
+
+  res.json(results);
+});
+
 export default router;

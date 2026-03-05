@@ -914,6 +914,70 @@ export function initDb() {
     console.error("⚠️  Error adding phone_e164 to clients:", e.message);
   }
 
+  // Action Plans (Plano de Ação / Kanban)
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS action_boards (
+      id TEXT PRIMARY KEY,
+      tenant_id TEXT NOT NULL,
+      name TEXT NOT NULL,
+      description TEXT,
+      color TEXT DEFAULT '#10b981',
+      icon TEXT,
+      filter_type TEXT,
+      filter_value TEXT,
+      created_by TEXT NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (tenant_id) REFERENCES tenants(id),
+      FOREIGN KEY (created_by) REFERENCES users(id)
+    )
+  `);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS action_columns (
+      id TEXT PRIMARY KEY,
+      board_id TEXT NOT NULL,
+      name TEXT NOT NULL,
+      color TEXT DEFAULT '#6b7280',
+      position INTEGER NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (board_id) REFERENCES action_boards(id) ON DELETE CASCADE
+    )
+  `);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS action_cards (
+      id TEXT PRIMARY KEY,
+      column_id TEXT NOT NULL,
+      board_id TEXT NOT NULL,
+      title TEXT NOT NULL,
+      description TEXT,
+      priority TEXT CHECK(priority IN ('LOW', 'MEDIUM', 'HIGH', 'URGENT')) DEFAULT 'MEDIUM',
+      due_date DATETIME,
+      assigned_to TEXT,
+      position INTEGER NOT NULL,
+      tags TEXT,
+      created_by TEXT NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (column_id) REFERENCES action_columns(id) ON DELETE CASCADE,
+      FOREIGN KEY (board_id) REFERENCES action_boards(id) ON DELETE CASCADE,
+      FOREIGN KEY (assigned_to) REFERENCES users(id),
+      FOREIGN KEY (created_by) REFERENCES users(id)
+    )
+  `);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS action_card_links (
+      id TEXT PRIMARY KEY,
+      card_id TEXT NOT NULL,
+      entity_type TEXT CHECK(entity_type IN ('CLIENT', 'VEHICLE', 'WORK_ORDER', 'SERVICE', 'PART', 'APPOINTMENT')) NOT NULL,
+      entity_id TEXT NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (card_id) REFERENCES action_cards(id) ON DELETE CASCADE
+    )
+  `);
+
   console.log("Database initialized successfully.");
 }
 

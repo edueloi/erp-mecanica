@@ -3,7 +3,7 @@ import {
   Plus, Search, ClipboardList, Filter, ChevronRight, X, User, Car, 
   FileText, AlertTriangle, Clock, Download, Calendar, Eye, Edit, 
   CheckCircle, DollarSign, Truck, Ban, MoreVertical, Send, Check,
-  Upload, Printer, ArrowUpDown, FilterX
+  Upload, Printer, ArrowUpDown, FilterX, Info, Bell
 } from 'lucide-react';
 import api from '../services/api';
 import { motion, AnimatePresence } from 'motion/react';
@@ -12,6 +12,7 @@ import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import ImportExportModal from '../components/ImportExportModal';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -43,7 +44,34 @@ export default function WorkOrders() {
   const [statusFilter, setStatusFilter] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isAppointmentModalOpen, setIsAppointmentModalOpen] = useState(false);
+  const [isAlertsModalOpen, setIsAlertsModalOpen] = useState(false);
   const [pendingAppointments, setPendingAppointments] = useState<any[]>([]);
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  
+  // Notification modal state
+  const [notification, setNotification] = useState<{
+    show: boolean;
+    type: 'success' | 'error' | 'info';
+    title: string;
+    message: string;
+  }>({ show: false, type: 'info', title: '', message: '' });
+
+  const showNotification = (type: 'success' | 'error' | 'info', title: string, message: string) => {
+    setNotification({ show: true, type, title, message });
+  };
+
+  // Export columns for Work Orders
+  const exportColumns = [
+    { header: 'Número', dataKey: 'number' },
+    { header: 'Status', dataKey: 'status' },
+    { header: 'Cliente', dataKey: 'client_name' },
+    { header: 'Veículo', dataKey: 'brand' },
+    { header: 'Modelo', dataKey: 'model' },
+    { header: 'Placa', dataKey: 'plate' },
+    { header: 'Queixa', dataKey: 'complaint' },
+    { header: 'Valor Total', dataKey: 'total_amount' },
+    { header: 'Criada em', dataKey: 'created_at' }
+  ];
   
   const [newWO, setNewWO] = useState({
     client_id: '',
@@ -89,7 +117,7 @@ export default function WorkOrders() {
       setIsModalOpen(false);
       navigate(`/work-orders/${res.data.id}`);
     } catch (err) {
-      alert('Erro ao criar OS');
+      showNotification('error', 'Erro', 'Não foi possível criar a OS. Tente novamente.');
     }
   };
 
@@ -108,7 +136,7 @@ export default function WorkOrders() {
       setIsAppointmentModalOpen(false);
       navigate(`/work-orders/${res.data.id}`);
     } catch (err) {
-      alert('Erro ao criar OS a partir do agendamento');
+      showNotification('error', 'Erro', 'Não foi possível criar OS a partir do agendamento.');
     }
   };
 
@@ -128,14 +156,23 @@ export default function WorkOrders() {
           >
             <Calendar size={14} /> Agendamentos
           </button>
-          <button className="h-9 px-3 text-slate-600 hover:bg-slate-100 rounded-lg text-xs font-bold flex items-center gap-2 transition-all">
+          <button 
+            onClick={() => setIsExportModalOpen(true)}
+            className="h-9 px-3 text-slate-600 hover:bg-slate-100 rounded-lg text-xs font-bold flex items-center gap-2 transition-all"
+          >
             <Download size={14} /> Exportar
           </button>
           <button 
-            onClick={() => setIsModalOpen(true)}
-            className="h-9 px-4 bg-slate-900 text-white rounded-lg text-xs font-bold flex items-center gap-2 hover:bg-slate-800 transition-all shadow-sm"
+            onClick={() => setIsAlertsModalOpen(true)}
+            className="relative h-9 px-4 bg-slate-900 text-white rounded-lg text-xs font-bold flex items-center gap-2 hover:bg-slate-800 transition-all shadow-sm"
           >
-            <Plus size={16} /> Nova OS
+            <Bell size={16} /> 
+            Alertas
+            {(pendingAppointments.length + stats.waiting_approval) > 0 && (
+              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center">
+                {pendingAppointments.length + stats.waiting_approval}
+              </span>
+            )}
           </button>
         </div>
       </header>
@@ -449,6 +486,215 @@ export default function WorkOrders() {
           </div>
         )}
       </AnimatePresence>
+
+      {/* Alerts Modal */}
+      <AnimatePresence>
+        {isAlertsModalOpen && (
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-white w-full max-w-2xl rounded-xl shadow-2xl flex flex-col max-h-[85vh]"
+            >
+              <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-gradient-to-r from-slate-900 to-slate-700 shrink-0 rounded-t-xl">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-white/10 rounded-lg flex items-center justify-center">
+                    <Bell className="text-white" size={20} />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-bold text-white">Central de Alertas</h2>
+                    <p className="text-xs text-white/70">Notificações e pendências do sistema</p>
+                  </div>
+                </div>
+                <button onClick={() => setIsAlertsModalOpen(false)} className="text-white/70 hover:text-white transition-colors">
+                  <X size={20} />
+                </button>
+              </div>
+              
+              <div className="p-6 overflow-y-auto space-y-4">
+                {/* Agendamentos Pendentes */}
+                {pendingAppointments.length > 0 && (
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Calendar className="text-blue-600" size={18} />
+                      <h3 className="font-bold text-slate-900">Agendamentos Pendentes</h3>
+                      <span className="bg-blue-100 text-blue-600 text-xs font-bold px-2 py-0.5 rounded-full">
+                        {pendingAppointments.length}
+                      </span>
+                    </div>
+                    {pendingAppointments.slice(0, 5).map((app) => (
+                      <button
+                        key={app.id}
+                        onClick={() => {
+                          setIsAlertsModalOpen(false);
+                          handleCreateFromAppointment(app);
+                        }}
+                        className="w-full flex items-center gap-3 p-3 rounded-lg border border-slate-200 hover:border-blue-300 hover:bg-blue-50/50 transition-all text-left group"
+                      >
+                        <div className="w-12 h-12 bg-blue-100 rounded-lg flex flex-col items-center justify-center shrink-0">
+                          <p className="text-[10px] font-black text-blue-600 uppercase leading-none">
+                            {format(parseISO(app.date), 'dd/MM')}
+                          </p>
+                          <p className="text-xs font-bold text-blue-900 leading-none mt-0.5">{app.time}</p>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-bold text-slate-900 truncate">{app.client_name}</p>
+                          <p className="text-xs text-slate-500 truncate">{app.plate} • {app.service_description}</p>
+                        </div>
+                        <div className="text-blue-600 group-hover:translate-x-1 transition-transform">
+                          <ChevronRight size={18} />
+                        </div>
+                      </button>
+                    ))}
+                    {pendingAppointments.length > 5 && (
+                      <button 
+                        onClick={() => {
+                          setIsAlertsModalOpen(false);
+                          setIsAppointmentModalOpen(true);
+                        }}
+                        className="w-full py-2 text-xs font-bold text-blue-600 hover:text-blue-700 transition-colors"
+                      >
+                        Ver todos os {pendingAppointments.length} agendamentos →
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                {/* OSs Aguardando Aprovação */}
+                {stats.waiting_approval > 0 && (
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Clock className="text-orange-600" size={18} />
+                      <h3 className="font-bold text-slate-900">Orçamentos Aguardando Aprovação</h3>
+                      <span className="bg-orange-100 text-orange-600 text-xs font-bold px-2 py-0.5 rounded-full">
+                        {stats.waiting_approval}
+                      </span>
+                    </div>
+                    {workOrders.filter(wo => wo.status === 'WAITING_APPROVAL').slice(0, 3).map((wo) => (
+                      <Link
+                        key={wo.id}
+                        to={`/work-orders/${wo.id}`}
+                        onClick={() => setIsAlertsModalOpen(false)}
+                        className="w-full flex items-center gap-3 p-3 rounded-lg border border-slate-200 hover:border-orange-300 hover:bg-orange-50/50 transition-all text-left group"
+                      >
+                        <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center shrink-0">
+                          <FileText className="text-orange-600" size={20} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-bold text-slate-900">OS #{wo.number}</p>
+                          <p className="text-xs text-slate-500 truncate">{wo.client_name} • {wo.brand} {wo.model}</p>
+                        </div>
+                        <div className="text-orange-600 group-hover:translate-x-1 transition-transform">
+                          <ChevronRight size={18} />
+                        </div>
+                      </Link>
+                    ))}
+                    {stats.waiting_approval > 3 && (
+                      <button 
+                        onClick={() => {
+                          setIsAlertsModalOpen(false);
+                          setStatusFilter('WAITING_APPROVAL');
+                        }}
+                        className="w-full py-2 text-xs font-bold text-orange-600 hover:text-orange-700 transition-colors"
+                      >
+                        Ver todas as {stats.waiting_approval} OSs →
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                {/* Sem alertas */}
+                {pendingAppointments.length === 0 && stats.waiting_approval === 0 && (
+                  <div className="text-center py-12">
+                    <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <CheckCircle className="text-emerald-600" size={32} />
+                    </div>
+                    <h3 className="text-lg font-bold text-slate-900 mb-1">Tudo em Dia!</h3>
+                    <p className="text-sm text-slate-500">Não há alertas pendentes no momento.</p>
+                  </div>
+                )}
+              </div>
+
+              <div className="px-6 py-4 border-t border-slate-100 bg-slate-50 flex justify-end gap-2 shrink-0 rounded-b-xl">
+                <button 
+                  onClick={() => setIsAlertsModalOpen(false)}
+                  className="px-5 py-2 bg-slate-900 text-white rounded-lg text-sm font-bold hover:bg-slate-800 transition-all"
+                >
+                  Fechar
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Notification Modal */}
+      <AnimatePresence>
+        {notification.show && (
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[200] flex items-center justify-center p-4" onClick={() => setNotification({ ...notification, show: false })}>
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden"
+            >
+              <div className={cn(
+                "px-6 py-4 flex items-center gap-4",
+                notification.type === 'success' && "bg-emerald-50",
+                notification.type === 'error' && "bg-red-50",
+                notification.type === 'info' && "bg-blue-50"
+              )}>
+                <div className={cn(
+                  "w-12 h-12 rounded-full flex items-center justify-center shrink-0",
+                  notification.type === 'success' && "bg-emerald-100",
+                  notification.type === 'error' && "bg-red-100",
+                  notification.type === 'info' && "bg-blue-100"
+                )}>
+                  {notification.type === 'success' && <CheckCircle className="text-emerald-600" size={24} />}
+                  {notification.type === 'error' && <AlertTriangle className="text-red-600" size={24} />}
+                  {notification.type === 'info' && <Info className="text-blue-600" size={24} />}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className={cn(
+                    "font-bold text-base",
+                    notification.type === 'success' && "text-emerald-900",
+                    notification.type === 'error' && "text-red-900",
+                    notification.type === 'info' && "text-blue-900"
+                  )}>{notification.title}</h3>
+                  <p className="text-sm text-slate-600 mt-0.5">{notification.message}</p>
+                </div>
+                <button 
+                  onClick={() => setNotification({ ...notification, show: false })}
+                  className="text-slate-400 hover:text-slate-900 transition-colors shrink-0"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+              <div className="px-6 py-4 bg-slate-50 flex justify-end">
+                <button 
+                  onClick={() => setNotification({ ...notification, show: false })}
+                  className="px-6 py-2 bg-slate-900 text-white rounded-lg text-sm font-bold hover:bg-slate-800 transition-all"
+                >
+                  OK
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Export Modal */}
+      <ImportExportModal
+        isOpen={isExportModalOpen}
+        onClose={() => setIsExportModalOpen(false)}
+        mode="export"
+        title="Exportar Ordens de Serviço"
+        data={workOrders}
+        columns={exportColumns}
+        entityName="ordens_servico"
+      />
     </div>
   );
 }

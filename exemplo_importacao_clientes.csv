@@ -1,0 +1,4 @@
+name,type,document,phone,email,cep,street,number,complement,neighborhood,city,state
+João Silva,PF,123.456.789-00,(11) 98765-4321,joao@email.com,01310-100,Av. Paulista,1000,Conj. 45,Bela Vista,São Paulo,SP
+Maria Santos,PF,987.654.321-00,(11) 97654-3210,maria@email.com,04543-907,Av. Brigadeiro Faria Lima,3000,,Itaim Bibi,São Paulo,SP
+Empresa ABC Ltda,PJ,12.345.678/0001-90,(11) 3456-7890,contato@empresaabc.com.br,05508-000,Av. das Nações Unidas,12000,10º andar,Vila Gertrudes,São Paulo,SP
