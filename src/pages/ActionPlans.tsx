@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, MoreVertical, Edit2, Trash2, Grid, List, ArrowLeft, X, Calendar, User, Tag, Link as LinkIcon, AlertCircle, Clock, Search, Filter, Target } from 'lucide-react';
+import { Plus, MoreVertical, Edit, Edit2, Trash2, Grid, List, ArrowLeft, X, Calendar, User, Tag, Link as LinkIcon, AlertCircle, Clock, Search, Filter, Target } from 'lucide-react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import axios from 'axios';
@@ -11,6 +11,9 @@ interface Board {
   description?: string;
   color: string;
   icon?: string;
+  category_id?: string;
+  category_name?: string;
+  category_color?: string;
   created_at: string;
   creator_name: string;
 }
@@ -85,19 +88,26 @@ export default function ActionPlans() {
   const [boards, setBoards] = useState<Board[]>([]);
   const [currentBoard, setCurrentBoard] = useState<BoardWithColumns | null>(null);
   const [showNewBoardModal, setShowNewBoardModal] = useState(false);
+  const [showEditBoardModal, setShowEditBoardModal] = useState(false);
+  const [showDeleteBoardModal, setShowDeleteBoardModal] = useState(false);
   const [showNewCardModal, setShowNewCardModal] = useState(false);
   const [showNewColumnModal, setShowNewColumnModal] = useState(false);
   const [showCardDetailModal, setShowCardDetailModal] = useState(false);
   const [selectedCard, setSelectedCard] = useState<Card | null>(null);
+  const [selectedBoard, setSelectedBoard] = useState<Board | null>(null);
   const [selectedColumnForCard, setSelectedColumnForCard] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [draggedCard, setDraggedCard] = useState<Card | null>(null);
   const [draggedOverColumn, setDraggedOverColumn] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterCategory, setFilterCategory] = useState('');
+  const [filterDateRange, setFilterDateRange] = useState<'all' | 'today' | 'week' | 'month'>('all');
 
   // Data for selects
   const [clients, setClients] = useState<any[]>([]);
   const [workOrders, setWorkOrders] = useState<any[]>([]);
   const [users, setUsers] = useState<any[]>([]);
+  const [categories, setCategories] = useState<any[]>([]);
 
   const api = axios.create({
     baseURL: '/api',
@@ -109,6 +119,7 @@ export default function ActionPlans() {
     loadClients();
     loadWorkOrders();
     loadUsers();
+    loadCategories();
   }, []);
 
   useEffect(() => {
@@ -141,6 +152,15 @@ export default function ActionPlans() {
       setUsers(Array.isArray(response.data) ? response.data : []);
     } catch (error) {
       console.error('Error loading users:', error);
+    }
+  };
+
+  const loadCategories = async () => {
+    try {
+      const response = await api.get('/action-plans/categories');
+      setCategories(Array.isArray(response.data) ? response.data : []);
+    } catch (error) {
+      console.error('Error loading categories:', error);
     }
   };
 
@@ -177,14 +197,30 @@ export default function ActionPlans() {
     }
   };
 
-  const deleteBoard = async (id: string) => {
-    if (!confirm('Deseja realmente excluir este quadro?')) return;
+  const updateBoard = async (id: string, data: { name: string; description: string; color: string }) => {
     try {
-      await api.delete(`/action-plans/boards/${id}`);
+      await api.put(`/action-plans/boards/${id}`, data);
       await loadBoards();
       if (boardId === id) {
+        await loadBoard(id);
+      }
+      setShowEditBoardModal(false);
+      setSelectedBoard(null);
+    } catch (error) {
+      console.error('Error updating board:', error);
+    }
+  };
+
+  const deleteBoard = async () => {
+    if (!selectedBoard) return;
+    try {
+      await api.delete(`/action-plans/boards/${selectedBoard.id}`);
+      await loadBoards();
+      if (boardId === selectedBoard.id) {
         navigate('/action-plans');
       }
+      setShowDeleteBoardModal(false);
+      setSelectedBoard(null);
     } catch (error) {
       console.error('Error deleting board:', error);
     }
@@ -302,6 +338,38 @@ export default function ActionPlans() {
 
   // Board List View
   if (!boardId) {
+    // Filtrar boards
+    const filteredBoards = boards.filter(board => {
+      const matchesSearch = !searchQuery || 
+        board.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (board.description && board.description.toLowerCase().includes(searchQuery.toLowerCase()));
+      
+      const matchesCategory = !filterCategory || board.category_id === filterCategory;
+      
+      let matchesDate = true;
+      if (filterDateRange !== 'all' && board.created_at) {
+        const boardDate = new Date(board.created_at);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        if (filterDateRange === 'today') {
+          const boardDay = new Date(boardDate);
+          boardDay.setHours(0, 0, 0, 0);
+          matchesDate = boardDay.getTime() === today.getTime();
+        } else if (filterDateRange === 'week') {
+          const weekAgo = new Date(today);
+          weekAgo.setDate(weekAgo.getDate() - 7);
+          matchesDate = boardDate >= weekAgo;
+        } else if (filterDateRange === 'month') {
+          const monthAgo = new Date(today);
+          monthAgo.setMonth(monthAgo.getMonth() - 1);
+          matchesDate = boardDate >= monthAgo;
+        }
+      }
+
+      return matchesSearch && matchesCategory && matchesDate;
+    });
+
     return (
       <div className="flex flex-col h-full -m-6">
         {/* Header - Compact */}
@@ -320,46 +388,143 @@ export default function ActionPlans() {
           </button>
         </header>
 
+        {/* Filters */}
+        {boards.length > 0 && (
+          <div className="bg-white border-b border-slate-200 px-6 py-3" style={{ marginTop: '20px' }}>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <div className="flex-1">
+                <input
+                  type="text"
+                  placeholder="Buscar quadros por nome..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-slate-900 focus:border-slate-900"
+                />
+              </div>
+              <div className="flex gap-2">
+                <select
+                  value={filterCategory}
+                  onChange={(e) => setFilterCategory(e.target.value)}
+                  className="px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-slate-900 focus:border-slate-900 min-w-[180px]"
+                >
+                  <option value="">Todas as categorias</option>
+                  {categories.map(cat => (
+                    <option key={cat.id} value={cat.id}>{cat.name}</option>
+                  ))}
+                </select>
+                <select
+                  value={filterDateRange}
+                  onChange={(e) => setFilterDateRange(e.target.value as any)}
+                  className="px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-slate-900 focus:border-slate-900"
+                >
+                  <option value="all">Todas as datas</option>
+                  <option value="today">Hoje</option>
+                  <option value="week">Última semana</option>
+                  <option value="month">Último mês</option>
+                </select>
+                {(searchQuery || filterCategory || filterDateRange !== 'all') && (
+                  <button
+                    onClick={() => {
+                      setSearchQuery('');
+                      setFilterCategory('');
+                      setFilterDateRange('all');
+                    }}
+                    className="px-3 py-2 bg-slate-100 text-slate-700 rounded-lg text-sm font-medium hover:bg-slate-200 transition-all"
+                  >
+                    Limpar
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Content */}
         <div className="flex-1 overflow-auto bg-slate-50 p-6">
           {Array.isArray(boards) && boards.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {boards.map(board => (
-                <motion.div
-                  key={board.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="bg-white rounded-lg border border-slate-200 p-5 hover:shadow-md transition-all cursor-pointer group"
-                  onClick={() => navigate(`/action-plans/${board.id}`)}
-                >
-                  <div className="flex items-start justify-between mb-4">
-                    <div
-                      className="w-11 h-11 rounded-lg flex items-center justify-center text-white font-bold text-base"
-                      style={{ backgroundColor: board.color }}
-                    >
-                      {board.icon || board.name.charAt(0).toUpperCase()}
+            <>
+              {filteredBoards.length === 0 ? (
+                <div className="flex items-center justify-center h-full">
+                  <div className="text-center">
+                    <div className="w-16 h-16 bg-slate-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                      <Target size={32} className="text-slate-400" />
                     </div>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        deleteBoard(board.id);
-                      }}
-                      className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded opacity-0 group-hover:opacity-100 transition-all"
+                    <p className="text-slate-900 font-bold text-lg mb-1">Nenhum quadro encontrado</p>
+                    <p className="text-slate-600 text-sm mb-4">Tente ajustar os filtros</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                  {filteredBoards.map(board => (
+                    <motion.div
+                      key={board.id}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="bg-white rounded-lg border border-slate-200 overflow-hidden hover:shadow-lg transition-all group"
                     >
-                      <Trash2 size={14} />
-                    </button>
-                  </div>
-                  <h3 className="font-bold text-slate-900 mb-1.5">{board.name}</h3>
-                  <p className="text-slate-600 text-xs mb-3 line-clamp-2 leading-relaxed">
-                    {board.description || 'Sem descrição'}
-                  </p>
-                  <div className="flex items-center gap-2 text-[10px] text-slate-500 pt-2 border-t border-slate-100">
-                    <User size={12} />
-                    <span>{board.creator_name}</span>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
+                      {/* Card Header */}
+                      <div 
+                        className="p-5 cursor-pointer"
+                        onClick={() => navigate(`/action-plans/${board.id}`)}
+                      >
+                        <div className="flex items-start justify-between mb-4">
+                          <div
+                            className="w-12 h-12 rounded-lg flex items-center justify-center text-white font-bold text-lg shadow-sm"
+                            style={{ backgroundColor: board.category_color || board.color }}
+                          >
+                            {board.icon || board.name.charAt(0).toUpperCase()}
+                          </div>
+                          <div 
+                            className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedBoard(board);
+                                setShowEditBoardModal(true);
+                              }}
+                              className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-all"
+                              title="Editar"
+                            >
+                              <Edit size={14} />
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedBoard(board);
+                                setShowDeleteBoardModal(true);
+                              }}
+                              className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-all"
+                              title="Excluir"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        </div>
+                        <h3 className="font-bold text-slate-900 mb-1.5 text-base">{board.name}</h3>
+                        <p className="text-slate-600 text-xs mb-3 line-clamp-2 leading-relaxed min-h-[2.5rem]">
+                          {board.description || 'Sem descrição'}
+                        </p>
+                      </div>
+
+                      {/* Card Footer com Stats */}
+                      <div className="bg-slate-50 px-5 py-3 border-t border-slate-100">
+                        <div className="flex items-center justify-between text-[11px]">
+                          <div className="flex items-center gap-1.5 text-slate-500">
+                            <User size={12} />
+                            <span className="font-medium">{board.creator_name}</span>
+                          </div>
+                          <div className="text-slate-400">
+                            {new Date(board.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}
+                          </div>
+                        </div>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              )}
+            </>
           ) : (
             <div className="flex items-center justify-center h-full">
               <div className="text-center">
@@ -379,8 +544,31 @@ export default function ActionPlans() {
           )}
         </div>
 
-        {/* New Board Modal */}
-        {showNewBoardModal && <NewBoardModal onClose={() => setShowNewBoardModal(false)} onSave={createBoard} />}
+        {/* Modals */}
+        <AnimatePresence>
+          {showNewBoardModal && <NewBoardModal categories={categories} onClose={() => setShowNewBoardModal(false)} onSave={createBoard} />}
+          {showEditBoardModal && selectedBoard && (
+            <EditBoardModal 
+              board={selectedBoard}
+              categories={categories}
+              onClose={() => {
+                setShowEditBoardModal(false);
+                setSelectedBoard(null);
+              }} 
+              onSave={(data) => updateBoard(selectedBoard.id, data)} 
+            />
+          )}
+          {showDeleteBoardModal && selectedBoard && (
+            <DeleteBoardModal
+              boardName={selectedBoard.name}
+              onClose={() => {
+                setShowDeleteBoardModal(false);
+                setSelectedBoard(null);
+              }}
+              onConfirm={deleteBoard}
+            />
+          )}
+        </AnimatePresence>
       </div>
     );
   }
@@ -479,7 +667,7 @@ export default function ActionPlans() {
               </div>
 
               {/* Cards */}
-              <div className="flex-1 overflow-y-auto p-3 space-y-2.5">
+              <div className="flex-1 overflow-y-auto p-3 pt-[15px] space-y-2.5">
                 {column.cards.length === 0 ? (
                   <div className="text-center py-8 text-slate-400 text-xs">
                     <p>Nenhum card ainda</p>
@@ -646,17 +834,25 @@ export default function ActionPlans() {
 }
 
 // New Board Modal Component
-function NewBoardModal({ onClose, onSave }: { onClose: () => void; onSave: (data: any) => void }) {
+function NewBoardModal({ categories, onClose, onSave }: { 
+  categories: any[];
+  onClose: () => void; 
+  onSave: (data: any) => void 
+}) {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
-  const [color, setColor] = useState('#10b981');
-
-  const colors = ['#10b981', '#3b82f6', '#8b5cf6', '#f59e0b', '#ef4444', '#ec4899', '#14b8a6'];
+  const [categoryId, setCategoryId] = useState('');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
-    onSave({ name, description, color });
+    const selectedCategory = categories.find(c => c.id === categoryId);
+    onSave({ 
+      name, 
+      description, 
+      category_id: categoryId || null,
+      color: selectedCategory?.color || '#64748b'
+    });
   };
 
   return (
@@ -677,43 +873,44 @@ function NewBoardModal({ onClose, onSave }: { onClose: () => void; onSave: (data
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">Nome do Quadro</label>
+            <label className="block text-sm font-medium text-slate-700 mb-2">Nome do Quadro *</label>
             <input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full px-4 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-              placeholder="Ex: Projecto 2024, Sprint 1, etc."
+              className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-slate-900 focus:border-slate-900"
+              placeholder="Ex: Projeto 2024, Sprint 1"
               autoFocus
+              required
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">Descrição (opcional)</label>
+            <label className="block text-sm font-medium text-slate-700 mb-2">Descrição</label>
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              className="w-full px-4 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+              className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-slate-900 focus:border-slate-900"
               placeholder="Descreva o propósito deste quadro..."
               rows={3}
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">Cor</label>
-            <div className="flex gap-2">
-              {colors.map((c) => (
-                <button
-                  key={c}
-                  type="button"
-                  onClick={() => setColor(c)}
-                  className={`w-10 h-10 rounded-xl transition-all ${
-                    color === c ? 'ring-2 ring-offset-2 ring-slate-900 scale-110' : ''
-                  }`}
-                  style={{ backgroundColor: c }}
-                />
+            <label className="block text-sm font-medium text-slate-700 mb-2">Categoria *</label>
+            <select
+              value={categoryId}
+              onChange={(e) => setCategoryId(e.target.value)}
+              className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-slate-900 focus:border-slate-900"
+              required
+            >
+              <option value="">Selecione uma categoria</option>
+              {categories.map(cat => (
+                <option key={cat.id} value={cat.id}>
+                  {cat.name} ({cat.type === 'MECANICA' ? 'Mecânica' : cat.type === 'ELETRICA' ? 'Elétrica' : cat.type === 'SERVICOS_GERAIS' ? 'Serviços Gerais' : 'Outros'})
+                </option>
               ))}
-            </div>
+            </select>
           </div>
 
           <div className="flex gap-2.5 pt-5">
@@ -737,12 +934,189 @@ function NewBoardModal({ onClose, onSave }: { onClose: () => void; onSave: (data
   );
 }
 
+// Edit Board Modal Component
+function EditBoardModal({ board, categories, onClose, onSave }: { 
+  board: Board; 
+  categories: any[];
+  onClose: () => void; 
+  onSave: (data: any) => void 
+}) {
+  const [name, setName] = useState(board.name);
+  const [description, setDescription] = useState(board.description || '');
+  const [categoryId, setCategoryId] = useState((board as any).category_id || '');
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim()) return;
+    const selectedCategory = categories.find(c => c.id === categoryId);
+    onSave({ 
+      name, 
+      description, 
+      category_id: categoryId || null,
+      color: selectedCategory?.color || board.color
+    });
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.95 }}
+        className="bg-white rounded-xl p-6 w-full max-w-md shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="text-lg font-bold text-slate-900">Editar Quadro</h2>
+          <button onClick={onClose} className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-all">
+            <X size={18} />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-2">Nome do Quadro *</label>
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-slate-900 focus:border-slate-900"
+              placeholder="Ex: Projeto 2024, Sprint 1"
+              autoFocus
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-2">Descrição</label>
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-slate-900 focus:border-slate-900"
+              placeholder="Descreva o propósito deste quadro..."
+              rows={3}
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-2">Categoria *</label>
+            <select
+              value={categoryId}
+              onChange={(e) => setCategoryId(e.target.value)}
+              className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-slate-900 focus:border-slate-900"
+              required
+            >
+              <option value="">Selecione uma categoria</option>
+              {categories.map(cat => (
+                <option key={cat.id} value={cat.id}>
+                  {cat.name} ({cat.type === 'MECANICA' ? 'Mecânica' : cat.type === 'ELETRICA' ? 'Elétrica' : cat.type === 'SERVICOS_GERAIS' ? 'Serviços Gerais' : 'Outros'})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="flex gap-2.5 pt-5">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 px-4 py-2.5 border border-slate-300 text-slate-700 rounded-lg text-sm font-medium hover:bg-slate-50 transition-all"
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              className="flex-1 px-4 py-2.5 bg-slate-900 text-white rounded-lg text-sm font-medium hover:bg-slate-800 transition-all"
+            >
+              Salvar Alterações
+            </button>
+          </div>
+        </form>
+      </motion.div>
+    </div>
+  );
+}
+
+// Delete Board Confirmation Modal
+function DeleteBoardModal({ boardName, onClose, onConfirm }: { 
+  boardName: string; 
+  onClose: () => void; 
+  onConfirm: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.95 }}
+        className="bg-white rounded-xl p-6 w-full max-w-md shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="text-lg font-bold text-slate-900">Excluir Quadro</h2>
+          <button onClick={onClose} className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-all">
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="mb-6">
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+            <div className="flex gap-3">
+              <AlertCircle className="text-red-600 flex-shrink-0" size={20} />
+              <div>
+                <p className="text-sm font-semibold text-red-900 mb-1">Atenção: Ação irreversível</p>
+                <p className="text-sm text-red-700">
+                  Todas as colunas e cards deste quadro serão excluídos permanentemente.
+                </p>
+              </div>
+            </div>
+          </div>
+          
+          <p className="text-slate-700 text-sm">
+            Deseja realmente excluir o quadro <span className="font-bold">"{boardName}"</span>?
+          </p>
+        </div>
+
+        <div className="flex gap-2.5">
+          <button
+            onClick={onClose}
+            className="flex-1 px-4 py-2.5 border border-slate-300 text-slate-700 rounded-lg text-sm font-medium hover:bg-slate-50 transition-all"
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={() => {
+              onConfirm();
+              onClose();
+            }}
+            className="flex-1 px-4 py-2.5 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 transition-all"
+          >
+            Sim, Excluir
+          </button>
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+
 // New Column Modal Component
 function NewColumnModal({ onClose, onSave }: { onClose: () => void; onSave: (data: any) => void }) {
   const [name, setName] = useState('');
-  const [color, setColor] = useState('#6b7280');
+  const [color, setColor] = useState('#64748b');
 
-  const colors = ['#6b7280', '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
+  const colors = [
+    '#64748b', // slate
+    '#3b82f6', // blue
+    '#10b981', // emerald
+    '#14b8a6', // teal
+    '#06b6d4', // cyan
+    '#6366f1', // indigo
+    '#8b5cf6', // violet
+    '#a855f7', // purple
+    '#ec4899', // pink
+    '#f43f5e', // rose
+    '#f97316', // orange
+    '#f59e0b'  // amber
+  ];
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -768,29 +1142,31 @@ function NewColumnModal({ onClose, onSave }: { onClose: () => void; onSave: (dat
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">Nome da Coluna</label>
+            <label className="block text-sm font-medium text-slate-700 mb-2">Nome da Coluna *</label>
             <input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full px-4 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+              className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-slate-900 focus:border-slate-900"
               placeholder="Ex: Pendente, Em Progresso, Finalizado"
               autoFocus
+              required
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">Cor</label>
-            <div className="flex gap-2">
+            <label className="block text-sm font-medium text-slate-700 mb-2">Cor da Coluna</label>
+            <div className="grid grid-cols-6 gap-2">
               {colors.map((c) => (
                 <button
                   key={c}
                   type="button"
                   onClick={() => setColor(c)}
-                  className={`w-10 h-10 rounded-xl transition-all ${
-                    color === c ? 'ring-2 ring-offset-2 ring-slate-900 scale-110' : ''
+                  className={`w-full aspect-square rounded-lg transition-all hover:scale-105 ${
+                    color === c ? 'ring-2 ring-offset-2 ring-slate-900' : 'ring-1 ring-slate-200'
                   }`}
                   style={{ backgroundColor: c }}
+                  title={c}
                 />
               ))}
             </div>

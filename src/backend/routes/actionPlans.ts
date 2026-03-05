@@ -7,14 +7,27 @@ const router = express.Router();
 
 router.use(authenticateToken);
 
+// ===== CATEGORIES =====
+
+// Get all categories
+router.get("/categories", (req: AuthRequest, res) => {
+  const categories = db.prepare(`
+    SELECT * FROM action_categories
+    ORDER BY type, name
+  `).all();
+  
+  res.json(categories);
+});
+
 // ===== BOARDS =====
 
 // Get all boards
 router.get("/boards", (req: AuthRequest, res) => {
   const boards = db.prepare(`
-    SELECT b.*, u.name as creator_name
+    SELECT b.*, u.name as creator_name, c.name as category_name, c.color as category_color
     FROM action_boards b
     LEFT JOIN users u ON b.created_by = u.id
+    LEFT JOIN action_categories c ON b.category_id = c.id
     WHERE b.tenant_id = ?
     ORDER BY b.created_at DESC
   `).all(req.user!.tenant_id);
@@ -27,9 +40,10 @@ router.get("/boards/:id", (req: AuthRequest, res) => {
   const { id } = req.params;
   
   const board = db.prepare(`
-    SELECT b.*, u.name as creator_name
+    SELECT b.*, u.name as creator_name, c.name as category_name, c.color as category_color
     FROM action_boards b
     LEFT JOIN users u ON b.created_by = u.id
+    LEFT JOIN action_categories c ON b.category_id = c.id
     WHERE b.id = ? AND b.tenant_id = ?
   `).get(id, req.user!.tenant_id);
   
@@ -83,14 +97,14 @@ router.get("/boards/:id", (req: AuthRequest, res) => {
 
 // Create board
 router.post("/boards", (req: AuthRequest, res) => {
-  const { name, description, color, icon, filter_type, filter_value } = req.body;
+  const { name, description, color, icon, filter_type, filter_value, category_id } = req.body;
   const id = uuidv4();
   
   try {
     db.prepare(`
-      INSERT INTO action_boards (id, tenant_id, name, description, color, icon, filter_type, filter_value, created_by)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(id, req.user!.tenant_id, name, description, color || '#10b981', icon, filter_type, filter_value, req.user!.id);
+      INSERT INTO action_boards (id, tenant_id, name, description, color, icon, filter_type, filter_value, category_id, created_by)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(id, req.user!.tenant_id, name, description, color || '#10b981', icon, filter_type, filter_value, category_id, req.user!.id);
     
     // Create default columns
     const defaultColumns = [
@@ -108,9 +122,10 @@ router.post("/boards", (req: AuthRequest, res) => {
     });
     
     const board = db.prepare(`
-      SELECT b.*, u.name as creator_name
+      SELECT b.*, u.name as creator_name, c.name as category_name, c.color as category_color
       FROM action_boards b
       LEFT JOIN users u ON b.created_by = u.id
+      LEFT JOIN action_categories c ON b.category_id = c.id
       WHERE b.id = ?
     `).get(id);
     
@@ -123,19 +138,20 @@ router.post("/boards", (req: AuthRequest, res) => {
 // Update board
 router.put("/boards/:id", (req: AuthRequest, res) => {
   const { id } = req.params;
-  const { name, description, color, icon, filter_type, filter_value } = req.body;
+  const { name, description, color, icon, filter_type, filter_value, category_id } = req.body;
   
   try {
     db.prepare(`
       UPDATE action_boards
-      SET name = ?, description = ?, color = ?, icon = ?, filter_type = ?, filter_value = ?, updated_at = CURRENT_TIMESTAMP
+      SET name = ?, description = ?, color = ?, icon = ?, filter_type = ?, filter_value = ?, category_id = ?, updated_at = CURRENT_TIMESTAMP
       WHERE id = ? AND tenant_id = ?
-    `).run(name, description, color, icon, filter_type, filter_value, id, req.user!.tenant_id);
+    `).run(name, description, color, icon, filter_type, filter_value, category_id, id, req.user!.tenant_id);
     
     const board = db.prepare(`
-      SELECT b.*, u.name as creator_name
+      SELECT b.*, u.name as creator_name, c.name as category_name, c.color as category_color
       FROM action_boards b
       LEFT JOIN users u ON b.created_by = u.id
+      LEFT JOIN action_categories c ON b.category_id = c.id
       WHERE b.id = ?
     `).get(id);
     

@@ -914,6 +914,74 @@ export function initDb() {
     console.error("⚠️  Error adding phone_e164 to clients:", e.message);
   }
 
+  // Action Plan Categories
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS action_categories (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL UNIQUE,
+      color TEXT DEFAULT '#64748b',
+      icon TEXT,
+      type TEXT CHECK(type IN ('MECANICA', 'ELETRICA', 'SERVICOS_GERAIS', 'OUTROS')) DEFAULT 'OUTROS',
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  // Populate categories if table is empty
+  const categoryCount = db.prepare("SELECT COUNT(*) as count FROM action_categories").get() as any;
+  if (categoryCount.count === 0) {
+    const categories = [
+      // Mecânica
+      { name: 'Motor', color: '#ef4444', type: 'MECANICA' },
+      { name: 'Freios', color: '#dc2626', type: 'MECANICA' },
+      { name: 'Suspensão', color: '#f97316', type: 'MECANICA' },
+      { name: 'Transmissão', color: '#ea580c', type: 'MECANICA' },
+      { name: 'Embreagem', color: '#f59e0b', type: 'MECANICA' },
+      { name: 'Direção', color: '#d97706', type: 'MECANICA' },
+      { name: 'Arrefecimento', color: '#06b6d4', type: 'MECANICA' },
+      { name: 'Escapamento', color: '#64748b', type: 'MECANICA' },
+      { name: 'Injeção Eletrônica', color: '#8b5cf6', type: 'MECANICA' },
+      { name: 'Turbo/Supercharger', color: '#a855f7', type: 'MECANICA' },
+      
+      // Elétrica
+      { name: 'Bateria', color: '#eab308', type: 'ELETRICA' },
+      { name: 'Alternador', color: '#ca8a04', type: 'ELETRICA' },
+      { name: 'Motor de Arranque', color: '#3b82f6', type: 'ELETRICA' },
+      { name: 'Iluminação', color: '#2563eb', type: 'ELETRICA' },
+      { name: 'Central Elétrica', color: '#6366f1', type: 'ELETRICA' },
+      { name: 'Sensores', color: '#4f46e5', type: 'ELETRICA' },
+      { name: 'Chicote Elétrico', color: '#7c3aed', type: 'ELETRICA' },
+      { name: 'Som e Multimídia', color: '#ec4899', type: 'ELETRICA' },
+      { name: 'Ar Condicionado', color: '#14b8a6', type: 'ELETRICA' },
+      
+      // Serviços Gerais
+      { name: 'Revisão Preventiva', color: '#10b981', type: 'SERVICOS_GERAIS' },
+      { name: 'Troca de Óleo', color: '#059669', type: 'SERVICOS_GERAIS' },
+      { name: 'Alinhamento e Balanceamento', color: '#22c55e', type: 'SERVICOS_GERAIS' },
+      { name: 'Troca de Pneus', color: '#16a34a', type: 'SERVICOS_GERAIS' },
+      { name: 'Lavagem e Polimento', color: '#0891b2', type: 'SERVICOS_GERAIS' },
+      { name: 'Funilaria', color: '#f43f5e', type: 'SERVICOS_GERAIS' },
+      { name: 'Pintura', color: '#e11d48', type: 'SERVICOS_GERAIS' },
+      { name: 'Vidros e Para-brisas', color: '#06b6d4', type: 'SERVICOS_GERAIS' },
+      { name: 'Estofamento', color: '#a855f7', type: 'SERVICOS_GERAIS' },
+      { name: 'Instalação de Acessórios', color: '#ec4899', type: 'SERVICOS_GERAIS' },
+      
+      // Outros
+      { name: 'Diagnóstico', color: '#6366f1', type: 'OUTROS' },
+      { name: 'Orçamento', color: '#64748b', type: 'OUTROS' },
+      { name: 'Garantia', color: '#0ea5e9', type: 'OUTROS' }
+    ];
+
+    const stmt = db.prepare(`
+      INSERT INTO action_categories (id, name, color, type)
+      VALUES (?, ?, ?, ?)
+    `);
+
+    for (const cat of categories) {
+      stmt.run(uuidv4(), cat.name, cat.color, cat.type);
+    }
+    console.log("✅ Populated action_categories with default categories");
+  }
+
   // Action Plans (Plano de Ação / Kanban)
   db.exec(`
     CREATE TABLE IF NOT EXISTS action_boards (
@@ -1003,6 +1071,22 @@ export function initDb() {
     }
   } catch (e: any) {
     console.error("⚠️  Error adding columns to action_cards:", e.message);
+  }
+
+  // Migration: Add category_id to action_boards
+  try {
+    const checkCategoryId = db.prepare(`
+      SELECT COUNT(*) as count 
+      FROM pragma_table_info('action_boards') 
+      WHERE name='category_id'
+    `).get() as any;
+
+    if (checkCategoryId.count === 0) {
+      db.exec(`ALTER TABLE action_boards ADD COLUMN category_id TEXT REFERENCES action_categories(id)`);
+      console.log("✅ Added category_id column to action_boards");
+    }
+  } catch (e: any) {
+    console.error("⚠️  Error adding category_id to action_boards:", e.message);
   }
 
   console.log("Database initialized successfully.");
