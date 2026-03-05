@@ -11,8 +11,10 @@ import api from '../services/api';
 import { motion, AnimatePresence } from 'motion/react';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+// @ts-ignore
 import { jsPDF } from 'jspdf';
-import 'jspdf-autotable';
+// @ts-ignore
+import autoTable from 'jspdf-autotable';
 
 function cn(...inputs: (string | undefined | null | false)[]) {
   return inputs.filter(Boolean).join(' ');
@@ -26,6 +28,7 @@ export default function WorkOrderDetail() {
   const [wo, setWo] = useState<any>(null);
   const [users, setUsers] = useState<any[]>([]);
   const [parts, setParts] = useState<any[]>([]);
+  const [settings, setSettings] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState<TabType>('DIAGNOSIS');
@@ -47,10 +50,11 @@ export default function WorkOrderDetail() {
 
   const fetchWO = async () => {
     try {
-      const [woRes, usersRes, partsRes] = await Promise.all([
+      const [woRes, usersRes, partsRes, settingsRes] = await Promise.all([
         api.get(`/work-orders/${id}`),
         api.get('/users'),
-        api.get('/parts')
+        api.get('/parts'),
+        api.get('/settings/tenant')
       ]);
       // Ensure items and history are always arrays
       const woData = woRes.data;
@@ -59,6 +63,7 @@ export default function WorkOrderDetail() {
       setWo(woData);
       setUsers(usersRes.data);
       setParts(partsRes.data);
+      setSettings(settingsRes.data);
       setLoading(false);
     } catch (err) {
       console.error(err);
@@ -299,29 +304,159 @@ export default function WorkOrderDetail() {
 
   const generatePDF = () => {
     const doc = new jsPDF() as any;
-    doc.setFontSize(20);
-    doc.text('MecaERP - Ordem de Serviço', 105, 20, { align: 'center' });
-    doc.setFontSize(10);
-    doc.text(`Número: ${wo.number}`, 20, 35);
-    doc.text(`Status: ${statusMap[wo.status].label}`, 20, 40);
-    doc.text(`Data: ${format(new Date(wo.created_at), 'dd/MM/yyyy HH:mm')}`, 120, 35);
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const margin = 15;
     
-    doc.autoTable({
-      startY: 50,
-      head: [['Cliente', 'Veículo', 'Placa', 'KM']],
-      body: [[wo.client_name, `${wo.brand} ${wo.model}`, wo.plate, wo.km]],
-    });
+    // Header - Workshop Info
+    doc.setFontSize(16);
+    doc.setFont('helvetica', 'bold');
+    doc.text(settings?.company_name || 'Workshop Name', margin, 20);
+    
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'normal');
+    const workshopInfo = [
+      settings?.address || 'Address not set',
+      `${settings?.city || ''} - ${settings?.state || ''} ${settings?.zip_code || ''}`,
+      `CNPJ: ${settings?.cnpj || 'N/A'} | Fone: ${settings?.phone || 'N/A'}`,
+      `Email: ${settings?.email || 'N/A'}`
+    ];
+    workshopInfo.forEach((text, i) => doc.text(text, margin, 26 + (i * 4)));
 
-    doc.text('Diagnóstico:', 20, doc.lastAutoTable.finalY + 10);
-    doc.text(wo.diagnosis || 'N/A', 20, doc.lastAutoTable.finalY + 15);
+    // Header Right - OS Info
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text(`OS #${wo.number}`, pageWidth - margin, 20, { align: 'right' });
+    
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Data: ${format(new Date(wo.created_at), 'dd/MM/yyyy HH:mm')}`, pageWidth - margin, 26, { align: 'right' });
+    doc.text(`Status: ${statusMap[wo.status].label}`, pageWidth - margin, 30, { align: 'right' });
+    if (wo.estimated_delivery) {
+      doc.text(`Previsão: ${format(new Date(wo.estimated_delivery), 'dd/MM/yyyy HH:mm')}`, pageWidth - margin, 34, { align: 'right' });
+    }
 
-    doc.autoTable({
-      startY: doc.lastAutoTable.finalY + 25,
-      head: [['Item', 'Qtd', 'Unitário', 'Total']],
-      body: wo.items.map((i: any) => [i.description, i.quantity, i.unit_price, i.total_price]),
-    });
+    doc.setDrawColor(200);
+    doc.line(margin, 45, pageWidth - margin, 45);
 
-    doc.save(`${wo.number}.pdf`);
+    // Client & Vehicle Grid
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
+    doc.text('CLIENTE', margin, 55);
+    doc.text('VEIÍCULO', pageWidth / 2 + 5, 55);
+
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Nome: ${wo.client_name}`, margin, 60);
+    doc.text(`Documento: ${wo.client_document || 'N/A'}`, margin, 64);
+    doc.text(`Telefone: ${wo.client_phone || 'N/A'}`, margin, 68);
+
+    doc.text(`Marca/Modelo: ${wo.brand} ${wo.model}`, pageWidth / 2 + 5, 60);
+    doc.text(`Placa: ${wo.plate || 'N/A'}`, pageWidth / 2 + 5, 64);
+    doc.text(`KM: ${wo.km || 0}`, pageWidth / 2 + 5, 68);
+    doc.text(`Cor: ${wo.color || 'N/A'}`, pageWidth / 2 + 25, 64); // Small space for color
+
+    doc.line(margin, 75, pageWidth - margin, 75);
+
+    // Diagnosis
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
+    doc.text('RECLAMAÇÃO / DIAGNÓSTICO', margin, 85);
+    
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'normal');
+    const complaint = wo.complaint || 'Não informado';
+    const diagnosis = wo.diagnosis || 'Não informado';
+    
+    doc.text('Relato:', margin, 90);
+    doc.text(doc.splitTextToSize(complaint, pageWidth - 40), 35, 90);
+    
+    doc.text('Diagnóstico:', margin, 98);
+    doc.text(doc.splitTextToSize(diagnosis, pageWidth - 40), 35, 98);
+
+    // Items Tables
+    const services = (wo.items || []).filter((i:any) => i.type === 'SERVICE');
+    const parts = (wo.items || []).filter((i:any) => i.type === 'PART');
+
+    let currentY = 110;
+
+    if (services.length > 0) {
+      autoTable(doc, {
+        startY: currentY,
+        head: [['Serviços', 'Executante', 'Valor']],
+        body: services.map((i: any) => [
+          i.description, 
+          users.find(u => u.id === i.mechanic_id)?.name || 'N/A',
+          `R$ ${parseFloat(i.unit_price).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
+        ]),
+        headStyles: { fillColor: [40, 40, 40] },
+        styles: { fontSize: 8 }
+      });
+      currentY = (doc as any).lastAutoTable.finalY + 5;
+    }
+
+    if (parts.length > 0) {
+      autoTable(doc, {
+        startY: currentY,
+        head: [['Peças / Produtos', 'Qtd', 'Unitário', 'Total']],
+        body: parts.map((i: any) => [
+          i.description, 
+          i.quantity, 
+          `R$ ${parseFloat(i.unit_price).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
+          `R$ ${(i.quantity * i.unit_price).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
+        ]),
+        headStyles: { fillColor: [70, 70, 70] },
+        styles: { fontSize: 8 }
+      });
+      currentY = (doc as any).lastAutoTable.finalY + 5;
+    }
+
+    // Totals
+    const servicesTotal = services.reduce((sum: number, i: any) => sum + (i.unit_price * i.quantity), 0);
+    const partsTotal = parts.reduce((sum: number, i: any) => sum + (i.unit_price * i.quantity), 0);
+    const subtotal = servicesTotal + partsTotal;
+    const taxes = wo.taxes || 0;
+    const discount = wo.discount || 0;
+    const total = subtotal + taxes - discount;
+
+    if (currentY > 240) { doc.addPage(); currentY = 20; }
+
+    const totalsX = pageWidth - margin - 50;
+    doc.setFontSize(9);
+    doc.text(`Total Serviços:`, totalsX, currentY + 5);
+    doc.text(`R$ ${servicesTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, pageWidth - margin, currentY + 5, { align: 'right' });
+    
+    doc.text(`Total Peças:`, totalsX, currentY + 10);
+    doc.text(`R$ ${partsTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, pageWidth - margin, currentY + 10, { align: 'right' });
+    
+    if (discount > 0) {
+      doc.text(`Desconto:`, totalsX, currentY + 15);
+      doc.text(`- R$ ${discount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, pageWidth - margin, currentY + 15, { align: 'right' });
+      currentY += 5;
+    }
+
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'bold');
+    doc.text(`TOTAL GERAL:`, totalsX, currentY + 15);
+    doc.text(`R$ ${total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, pageWidth - margin, currentY + 15, { align: 'right' });
+
+    // Footer - Terms & Signature
+    currentY += 35;
+    if (currentY > 250) { doc.addPage(); currentY = 20; }
+
+    doc.setFontSize(7);
+    doc.setFont('helvetica', 'normal');
+    const terms = settings?.terms_and_conditions || 'Termos e condições padrão: Garantia de 90 dias para serviços. Peças seguem garantia do fabricante.';
+    doc.text('OBSERVAÇÕES / TERMOS:', margin, currentY);
+    doc.text(doc.splitTextToSize(terms, pageWidth - 30), margin, currentY + 4);
+
+    doc.setDrawColor(150);
+    doc.line(margin + 10, currentY + 40, margin + 80, currentY + 40);
+    doc.text('ASSINATURA DO CLIENTE', margin + 45, currentY + 44, { align: 'center' });
+
+    doc.line(pageWidth - margin - 80, currentY + 40, pageWidth - margin - 10, currentY + 40);
+    doc.text('RESPONSÁVEL TÉCNICO', pageWidth - margin - 45, currentY + 44, { align: 'center' });
+
+    doc.save(`OS_${wo.number}.pdf`);
   };
 
   if (loading) return <div className="flex items-center justify-center h-full">Carregando...</div>;
@@ -798,6 +933,20 @@ export default function WorkOrderDetail() {
                   <CheckCircle size={16} /> Aprovar Orçamento
                 </button>
               )}
+              
+              <button 
+                onClick={generatePDF}
+                className="w-full h-10 bg-white/10 hover:bg-white/20 rounded-lg font-bold text-sm transition-all flex items-center justify-center gap-2 border border-white/10"
+              >
+                <Printer size={16} /> Baixar Orçamento (PDF)
+              </button>
+
+              <button 
+                onClick={() => handleSendQuote('whatsapp')}
+                className="w-full h-10 bg-emerald-600/20 text-emerald-400 hover:bg-emerald-600/30 rounded-lg font-bold text-sm transition-all flex items-center justify-center gap-2 border border-emerald-600/30"
+              >
+                <Send size={16} /> Enviar via WhatsApp
+              </button>
               {wo.status === 'APPROVED' && (
                 <button 
                   onClick={() => handleStatusChange('EXECUTING')}

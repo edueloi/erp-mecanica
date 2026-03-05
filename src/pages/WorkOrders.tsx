@@ -9,13 +9,15 @@ import api from '../services/api';
 import { motion, AnimatePresence } from 'motion/react';
 import { Link, useNavigate } from 'react-router-dom';
 import { format, parseISO } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
-import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+// @ts-ignore
+import { jsPDF } from 'jspdf';
+// @ts-ignore
+import autoTable from 'jspdf-autotable';
 import ImportExportModal from '../components/ImportExportModal';
 
-function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs));
+function cn(...inputs: any[]) {
+  return twMerge(inputs.filter(Boolean).map(i => typeof i === 'object' ? Object.keys(i).filter(k => i[k]).join(' ') : i).join(' '));
 }
 
 const statusConfig: any = {
@@ -47,6 +49,8 @@ export default function WorkOrders() {
   const [isAlertsModalOpen, setIsAlertsModalOpen] = useState(false);
   const [pendingAppointments, setPendingAppointments] = useState<any[]>([]);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const [workshopSettings, setWorkshopSettings] = useState<any>(null);
+  const [downloadingPDF, setDownloadingPDF] = useState<string | null>(null);
   
   // Notification modal state
   const [notification, setNotification] = useState<{
@@ -85,13 +89,14 @@ export default function WorkOrders() {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [woRes, statsRes, cRes, vRes, uRes, appRes] = await Promise.all([
+      const [woRes, statsRes, cRes, vRes, uRes, appRes, settingsRes] = await Promise.all([
         api.get(`/work-orders?q=${search}&status=${statusFilter}`),
         api.get('/work-orders/stats'),
         api.get('/clients'),
         api.get('/vehicles'),
         api.get('/users'),
-        api.get('/appointments?status=PENDING,CONFIRMED,ARRIVED')
+        api.get('/appointments?status=PENDING,CONFIRMED,ARRIVED'),
+        api.get('/settings/tenant')
       ]);
       setWorkOrders(woRes.data);
       setStats(statsRes.data);
@@ -99,6 +104,7 @@ export default function WorkOrders() {
       setVehicles(vRes.data);
       setUsers(uRes.data);
       setPendingAppointments(appRes.data);
+      setWorkshopSettings(settingsRes.data);
     } catch (err) {
       console.error(err);
     } finally {
@@ -137,6 +143,91 @@ export default function WorkOrders() {
       navigate(`/work-orders/${res.data.id}`);
     } catch (err) {
       showNotification('error', 'Erro', 'Não foi possível criar OS a partir do agendamento.');
+    }
+  };
+
+  const handleDownloadPDF = async (woId: string) => {
+    try {
+      setDownloadingPDF(woId);
+      const res = await api.get(`/work-orders/${woId}`);
+      const fullWo = res.data;
+      
+      const doc = new jsPDF() as any;
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const margin = 15;
+      
+      // Header
+      doc.setFontSize(16);
+      doc.setFont('helvetica', 'bold');
+      doc.text(workshopSettings?.company_name || 'Workflow Workshop', margin, 20);
+      
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'normal');
+      const workshopInfo = [
+        workshopSettings?.address || 'Address not set',
+        `${workshopSettings?.city || ''} - ${workshopSettings?.state || ''} ${workshopSettings?.zip_code || ''}`,
+        `CNPJ: ${workshopSettings?.cnpj || 'N/A'} | Phone: ${workshopSettings?.phone || 'N/A'}`,
+        `Email: ${workshopSettings?.email || 'N/A'}`
+      ];
+      workshopInfo.forEach((text, i) => doc.text(text, margin, 26 + (i * 4)));
+
+      doc.setFontSize(14);
+      doc.setFont('helvetica', 'bold');
+      doc.text(`OS #${fullWo.number}`, pageWidth - margin, 20, { align: 'right' });
+      
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'normal');
+      doc.text(`Data: ${format(parseISO(fullWo.created_at), 'dd/MM/yyyy HH:mm')}`, pageWidth - margin, 26, { align: 'right' });
+      doc.text(`Status: ${statusConfig[fullWo.status]?.label || fullWo.status}`, pageWidth - margin, 30, { align: 'right' });
+
+      doc.setDrawColor(200);
+      doc.line(margin, 40, pageWidth - margin, 40);
+
+      // Client & Vehicle
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold');
+      doc.text('CLIENTE', margin, 50);
+      doc.text('VEIÍCULO', pageWidth / 2 + 5, 50);
+
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'normal');
+      doc.text(`Nome: ${fullWo.client_name}`, margin, 55);
+      doc.text(`Telefone: ${fullWo.client_phone || 'N/A'}`, margin, 59);
+
+      doc.text(`Marca/Modelo: ${fullWo.brand} ${fullWo.model}`, pageWidth / 2 + 5, 55);
+      doc.text(`Placa: ${fullWo.plate || 'N/A'}`, pageWidth / 2 + 5, 59);
+      doc.text(`KM: ${fullWo.km || 0}`, pageWidth / 2 + 5, 63);
+
+      doc.line(margin, 70, pageWidth - margin, 70);
+
+      // Items Table
+      const items = fullWo.items || [];
+      if (items.length > 0) {
+        autoTable(doc, {
+          startY: 80,
+          head: [['Item/Descrição', 'Qtd', 'Unitário', 'Total']],
+          body: items.map((i: any) => [
+            i.description, 
+            i.quantity, 
+            `R$ ${parseFloat(i.unit_price).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
+            `R$ ${(i.quantity * i.unit_price).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
+          ]),
+          headStyles: { fillColor: [40, 40, 40] },
+          styles: { fontSize: 8 }
+        });
+        
+        const subtotal = items.reduce((sum: number, i: any) => sum + (i.unit_price * i.quantity), 0);
+        const totalY = (doc as any).lastAutoTable.finalY + 10;
+        doc.setFont('helvetica', 'bold');
+        doc.text(`TOTAL GERAL: R$ ${subtotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, pageWidth - margin, totalY, { align: 'right' });
+      }
+
+      doc.save(`OS_${fullWo.number}.pdf`);
+    } catch (err) {
+      console.error(err);
+      showNotification('error', 'Erro', 'Falha ao gerar o PDF.');
+    } finally {
+      setDownloadingPDF(null);
     }
   };
 
@@ -323,8 +414,13 @@ export default function WorkOrders() {
                     >
                       <Eye size={14} />
                     </button>
-                    <button className="p-1.5 text-slate-400 hover:text-slate-900 hover:bg-slate-200 rounded transition-all" title="Imprimir">
-                      <Printer size={14} />
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); handleDownloadPDF(wo.id); }}
+                      disabled={downloadingPDF === wo.id}
+                      className="p-1.5 text-slate-400 hover:text-slate-900 hover:bg-slate-200 rounded transition-all disabled:opacity-50" 
+                      title="Imprimir PDF"
+                    >
+                      {downloadingPDF === wo.id ? <div className="w-3.5 h-3.5 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" /> : <Printer size={14} />}
                     </button>
                     <button className="p-1.5 text-slate-400 hover:text-slate-900 hover:bg-slate-200 rounded transition-all" title="Enviar WhatsApp">
                       <Send size={14} />
