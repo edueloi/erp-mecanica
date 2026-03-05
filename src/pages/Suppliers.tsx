@@ -67,6 +67,10 @@ export default function Suppliers() {
   const [selectedStatus, setSelectedStatus] = useState("all");
   const [selectedCity, setSelectedCity] = useState("all");
   const [showPreferredOnly, setShowPreferredOnly] = useState(false);
+
+  // New Part Inline
+  const [showNewPartModal, setShowNewPartModal] = useState(false);
+  const [partFormData, setPartFormData] = useState({ name: '', code: '', cost_price: 0, sale_price: 0 });
   const [categories, setCategories] = useState<string[]>([]);
   const [cities, setCities] = useState<string[]>([]);
   const [showNewModal, setShowNewModal] = useState(false);
@@ -319,6 +323,33 @@ export default function Suppliers() {
     }
   };
 
+  const handleCreateNewPart = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedSupplier) return;
+    try {
+      const res = await api.post('/parts', {
+        ...partFormData,
+        supplier_id: selectedSupplier.id,
+        stock_quantity: 0,
+        min_stock: 0
+      });
+      showNotification('success', 'Sucesso', 'Peça cadastrada e vinculada com sucesso!');
+      setShowNewPartModal(false);
+      setPartFormData({ name: '', code: '', cost_price: 0, sale_price: 0 });
+      
+      const newPartsListRes = await api.get('/parts');
+      setParts(newPartsListRes.data);
+      
+      // Auto-add to order
+      setOrderData({
+        ...orderData,
+        items: [...orderData.items, { part_id: res.data.id, quantity: 1, unit_cost: res.data.cost_price }]
+      });
+    } catch (err) {
+      showNotification('error', 'Erro', 'Falha ao cadastrar a peça.');
+    }
+  };
+
   const handleAddOrderItem = () => {
     setOrderData({
       ...orderData,
@@ -535,6 +566,7 @@ export default function Suppliers() {
       contact_phone: "",
       notes: "",
     });
+    setPartFormData({ name: '', code: '', cost_price: 0, sale_price: 0 });
   };
 
   const formatDate = (dateString: string) => {
@@ -1238,13 +1270,22 @@ export default function Suppliers() {
                   <div>
                     <div className="flex items-center justify-between mb-3">
                       <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wide">Itens do Pedido</h3>
-                      <button 
-                        type="button"
-                        onClick={handleAddOrderItem}
-                        className="text-indigo-600 hover:text-indigo-700 text-xs font-bold flex items-center gap-1 bg-indigo-50 px-3 py-1.5 rounded-lg transition-all"
-                      >
-                        <Plus size={14} /> Adicionar Peça
-                      </button>
+                      <div className="flex gap-2">
+                        <button 
+                          type="button"
+                          onClick={() => setShowNewPartModal(true)}
+                          className="text-emerald-600 hover:text-emerald-700 text-xs font-bold flex items-center gap-1 bg-emerald-50 px-3 py-1.5 rounded-lg transition-all"
+                        >
+                          <Plus size={14} /> Nova Peça
+                        </button>
+                        <button 
+                          type="button"
+                          onClick={handleAddOrderItem}
+                          className="text-indigo-600 hover:text-indigo-700 text-xs font-bold flex items-center gap-1 bg-indigo-50 px-3 py-1.5 rounded-lg transition-all"
+                        >
+                          <Plus size={14} /> Adicionar Existente
+                        </button>
+                      </div>
                     </div>
 
                     <div className="border border-slate-200 rounded-xl overflow-hidden">
@@ -1564,6 +1605,81 @@ export default function Suppliers() {
            </>
          )}
        </AnimatePresence>
+
+      {/* Mini New Part Modal */}
+      <AnimatePresence>
+        {showNewPartModal && (
+          <div className="fixed inset-0 z-[160] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/40 backdrop-blur-sm shadow-2xl"
+              onClick={() => setShowNewPartModal(false)}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="bg-white rounded-2xl w-full max-w-lg z-10 overflow-hidden"
+            >
+              <div className="bg-gradient-to-r from-emerald-600 to-emerald-500 px-6 py-4 flex items-center justify-between">
+                <div>
+                  <h2 className="text-lg font-bold text-white">Cadastrar Nova Peça</h2>
+                  <p className="text-emerald-100 text-xs">A peça será vinculada ao fornecedor {selectedSupplier?.name}</p>
+                </div>
+                <button onClick={() => setShowNewPartModal(false)} className="text-white/80 hover:text-white">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <form onSubmit={handleCreateNewPart} className="p-6 space-y-4">
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Nome da Peça *</label>
+                    <input 
+                      type="text" required
+                      className="w-full h-10 px-3 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                      value={partFormData.name}
+                      onChange={e => setPartFormData({...partFormData, name: e.target.value})}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Código Interno *</label>
+                    <input 
+                      type="text" required
+                      className="w-full h-10 px-3 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                      value={partFormData.code}
+                      onChange={e => setPartFormData({...partFormData, code: e.target.value})}
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Preço Custo (R$) *</label>
+                      <input 
+                        type="number" step="0.01" required
+                        className="w-full h-10 px-3 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                        value={partFormData.cost_price || ''}
+                        onChange={e => setPartFormData({...partFormData, cost_price: parseFloat(e.target.value) || 0})}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Preço Venda (R$)</label>
+                      <input 
+                        type="number" step="0.01"
+                        className="w-full h-10 px-3 text-sm border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                        value={partFormData.sale_price || ''}
+                        onChange={e => setPartFormData({...partFormData, sale_price: parseFloat(e.target.value) || 0})}
+                      />
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="pt-4 flex justify-end gap-3 border-t border-slate-100 mt-6">
+                  <button type="button" onClick={() => setShowNewPartModal(false)} className="px-5 py-2 text-sm font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg">Cancelar</button>
+                  <button type="submit" className="px-5 py-2 text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-700 shadow-md shadow-emerald-200 rounded-lg">Salvar e Adicionar</button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* Notification Toast */}
       <AnimatePresence>

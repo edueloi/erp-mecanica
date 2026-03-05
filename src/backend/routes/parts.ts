@@ -12,33 +12,40 @@ router.get("/", (req: AuthRequest, res) => {
   const { q, category, brand, status } = req.query;
   
   let query = `
-    SELECT * FROM parts 
-    WHERE tenant_id = ?
+    SELECT p.*, s.name as supplier_name 
+    FROM parts p
+    LEFT JOIN suppliers s ON p.supplier_id = s.id
+    WHERE p.tenant_id = ?
   `;
   const params: any[] = [req.user!.tenant_id];
 
   if (q) {
-    query += " AND (name LIKE ? OR code LIKE ? OR supplier_code LIKE ?)";
+    query += " AND (p.name LIKE ? OR p.code LIKE ? OR p.supplier_code LIKE ?)";
     params.push(`%${q}%`, `%${q}%`, `%${q}%`);
   }
 
+  if (req.query.supplier_id) {
+    query += " AND p.supplier_id = ?";
+    params.push(req.query.supplier_id);
+  }
+
   if (category) {
-    query += " AND category = ?";
+    query += " AND p.category = ?";
     params.push(category);
   }
 
   if (brand) {
-    query += " AND brand = ?";
+    query += " AND p.brand = ?";
     params.push(brand);
   }
 
   if (status === 'low') {
-    query += " AND stock_quantity <= min_stock AND stock_quantity > 0";
+    query += " AND p.stock_quantity <= p.min_stock AND p.stock_quantity > 0";
   } else if (status === 'zero') {
-    query += " AND stock_quantity = 0";
+    query += " AND p.stock_quantity = 0";
   }
 
-  query += " ORDER BY name ASC";
+  query += " ORDER BY p.name ASC";
   
   try {
     const parts = db.prepare(query).all(...params);
@@ -166,6 +173,13 @@ router.post("/", (req: AuthRequest, res) => {
         uuidv4(), req.user!.tenant_id, id, 'ENTRY', stock_quantity, cost_price || 0,
         req.user!.id, 'Estoque inicial'
       );
+    }
+
+    if (supplier_id) {
+      db.prepare(`
+        INSERT INTO supplier_parts (id, supplier_id, part_id, supplier_code, last_cost, is_preferred, last_purchase_date)
+        VALUES (?, ?, ?, ?, ?, 1, CURRENT_TIMESTAMP)
+      `).run(uuidv4(), supplier_id, id, supplier_code || null, cost_price || 0);
     }
 
     const newPart = db.prepare("SELECT * FROM parts WHERE id = ?").get(id);

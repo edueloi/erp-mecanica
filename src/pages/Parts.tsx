@@ -26,6 +26,7 @@ interface Part {
   category: string | null;
   brand: string | null;
   supplier_id: string | null;
+  supplier_name?: string | null;
   cost_price: number;
   sale_price: number;
   stock_quantity: number;
@@ -62,12 +63,14 @@ export default function Parts() {
   const [stats, setStats] = useState<Stats>({ total: 0, low_stock: 0, zero_stock: 0, total_value: 0 });
   const [categories, setCategories] = useState<string[]>([]);
   const [brands, setBrands] = useState<string[]>([]);
+  const [suppliers, setSuppliers] = useState<{id: string, name: string}[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Filters
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("");
   const [selectedBrand, setSelectedBrand] = useState("");
+  const [selectedSupplier, setSelectedSupplier] = useState("");
   const [selectedStatus, setSelectedStatus] = useState("");
 
   // Modals
@@ -91,7 +94,8 @@ export default function Parts() {
     min_stock: "",
     location: "",
     compatibility: "",
-    notes: ""
+    notes: "",
+    supplier_id: ""
   });
 
   const [entryData, setEntryData] = useState({
@@ -117,24 +121,28 @@ export default function Parts() {
       if (searchTerm) params.append("q", searchTerm);
       if (selectedCategory) params.append("category", selectedCategory);
       if (selectedBrand) params.append("brand", selectedBrand);
+      if (selectedSupplier) params.append("supplier_id", selectedSupplier);
       if (selectedStatus) params.append("status", selectedStatus);
 
-      const [partsRes, statsRes, categoriesRes, brandsRes] = await Promise.all([
+      const [partsRes, statsRes, categoriesRes, brandsRes, suppliersRes] = await Promise.all([
         api.get(`/parts?${params.toString()}`),
         api.get("/parts/stats"),
         api.get("/parts/categories"),
-        api.get("/parts/brands")
+        api.get("/parts/brands"),
+        api.get("/suppliers?status=ACTIVE")
       ]);
 
       setParts(Array.isArray(partsRes.data) ? partsRes.data : []);
       setStats(statsRes.data || { total: 0, low_stock: 0, zero_stock: 0, total_value: 0 });
       setCategories(Array.isArray(categoriesRes.data) ? categoriesRes.data : []);
       setBrands(Array.isArray(brandsRes.data) ? brandsRes.data : []);
+      setSuppliers(Array.isArray(suppliersRes.data) ? suppliersRes.data : []);
     } catch (error) {
       console.error("Error loading parts:", error);
       setParts([]);
       setCategories([]);
       setBrands([]);
+      setSuppliers([]);
     } finally {
       setLoading(false);
     }
@@ -227,7 +235,8 @@ export default function Parts() {
       min_stock: "",
       location: "",
       compatibility: "",
-      notes: ""
+      notes: "",
+      supplier_id: ""
     });
   };
 
@@ -351,6 +360,20 @@ export default function Parts() {
         </div>
         <div className="h-4 w-px bg-slate-200 shrink-0" />
         <div className="flex items-center gap-2 shrink-0">
+          <span className="text-[10px] font-bold text-slate-400 uppercase">Fornecedor:</span>
+          <select
+            className="bg-transparent text-xs font-bold text-slate-600 outline-none cursor-pointer"
+            value={selectedSupplier}
+            onChange={(e) => setSelectedSupplier(e.target.value)}
+          >
+            <option value="">Todos</option>
+            {suppliers.map((s) => (
+              <option key={s.id} value={s.id}>{s.name}</option>
+            ))}
+          </select>
+        </div>
+        <div className="h-4 w-px bg-slate-200 shrink-0" />
+        <div className="flex items-center gap-2 shrink-0">
           <span className="text-[10px] font-bold text-slate-400 uppercase">Status:</span>
           <select
             className="bg-transparent text-xs font-bold text-slate-600 outline-none cursor-pointer"
@@ -373,7 +396,7 @@ export default function Parts() {
               <th className="px-4 py-3 text-left text-[10px] font-bold text-slate-500 uppercase tracking-wider">Nome</th>
               <th className="px-4 py-3 text-left text-[10px] font-bold text-slate-500 uppercase tracking-wider">Categoria</th>
               <th className="px-4 py-3 text-left text-[10px] font-bold text-slate-500 uppercase tracking-wider">Marca</th>
-              <th className="px-4 py-3 text-left text-[10px] font-bold text-slate-500 uppercase tracking-wider">Local</th>
+              <th className="px-4 py-3 text-left text-[10px] font-bold text-slate-500 uppercase tracking-wider">Fornecedor</th>
               <th className="px-4 py-3 text-right text-[10px] font-bold text-slate-500 uppercase tracking-wider">Custo</th>
               <th className="px-4 py-3 text-right text-[10px] font-bold text-slate-500 uppercase tracking-wider">Venda</th>
               <th className="px-4 py-3 text-right text-[10px] font-bold text-slate-500 uppercase tracking-wider">Margem</th>
@@ -405,7 +428,16 @@ export default function Parts() {
                     <td className="px-4 py-3 text-sm font-medium text-slate-900">{part.name}</td>
                     <td className="px-4 py-3 text-xs text-slate-600">{part.category || "-"}</td>
                     <td className="px-4 py-3 text-xs text-slate-600">{part.brand || "-"}</td>
-                    <td className="px-4 py-3 text-xs text-slate-600">{part.location || "-"}</td>
+                    <td className="px-4 py-3 text-xs text-slate-600">
+                      {part.supplier_name ? (
+                        <button 
+                          onClick={() => setSelectedSupplier(part.supplier_id!)}
+                          className="text-indigo-600 font-medium hover:underline text-left block"
+                        >
+                          {part.supplier_name}
+                        </button>
+                      ) : "-"}
+                    </td>
                     <td className="px-4 py-3 text-xs text-slate-900 text-right font-medium">{formatCurrency(part.cost_price)}</td>
                     <td className="px-4 py-3 text-xs text-slate-900 text-right font-medium">{formatCurrency(part.sale_price)}</td>
                     <td className="px-4 py-3 text-xs text-slate-600 text-right">{margin.toFixed(1)}%</td>
@@ -488,6 +520,17 @@ export default function Parts() {
                         className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-slate-900/10 focus:border-slate-900 transition-all outline-none"
                         placeholder="Ex: Pastilha de Freio Dianteira"
                       />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1.5">Fornecedor Preferencial</label>
+                      <select
+                        value={formData.supplier_id}
+                        onChange={(e) => setFormData({ ...formData, supplier_id: e.target.value })}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-slate-900/10 focus:border-slate-900 transition-all outline-none"
+                      >
+                        <option value="">Nenhum</option>
+                        {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                      </select>
                     </div>
                     <div>
                       <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1.5">Código Interno</label>
