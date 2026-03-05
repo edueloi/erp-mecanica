@@ -13,11 +13,9 @@ import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { jsPDF } from 'jspdf';
 import 'jspdf-autotable';
-import { clsx, type ClassValue } from 'clsx';
-import { twMerge } from 'tailwind-merge';
 
-function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs));
+function cn(...inputs: (string | undefined | null | false)[]) {
+  return inputs.filter(Boolean).join(' ');
 }
 
 type TabType = 'INFORMATION' | 'DIAGNOSIS' | 'SERVICES' | 'PARTS' | 'PHOTOS' | 'HISTORY';
