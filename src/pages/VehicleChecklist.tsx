@@ -4,7 +4,7 @@ import {
   ArrowLeft, Plus, CheckCircle, AlertTriangle, XCircle,
   Minus, ChevronDown, ChevronRight, FileDown, Trash2,
   Car, Clock, User2, Gauge, Save, ClipboardCheck, History, Camera, ExternalLink, Image,
-  MessageSquare, ChevronUp, Loader, Shield, Wrench, AlertCircle, CheckCircle2, Share2, QrCode
+  MessageSquare, ChevronUp, Loader, Shield, Wrench, AlertCircle, CheckCircle2, Share2, QrCode, Smartphone
 } from 'lucide-react';
 import api from '../services/api';
 import { motion, AnimatePresence } from 'motion/react';
@@ -68,6 +68,9 @@ export default function VehicleChecklist() {
   const [notification, setNotification] = useState<{ show: boolean; msg: string; type: 'success' | 'error' }>({ show: false, msg: '', type: 'success' });
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [showQR, setShowQR] = useState(false);
+  const [publicToken, setPublicToken] = useState<string | null>(null);
+  const [tokenExpiresAt, setTokenExpiresAt] = useState<string | null>(null);
+  const [tokenCountdown, setTokenCountdown] = useState<number>(0);
 
   // Auto-hide notification
   useEffect(() => {
@@ -109,12 +112,48 @@ export default function VehicleChecklist() {
         openChecklist(cls[0].id);
       }
     } catch (err) {
-      console.error('Checklist fetch error:', err);
-      setChecklists([]);
+      console.error(err);
+      showToast('Erro ao carregar dados', 'error');
     } finally {
       setLoading(false);
     }
-  }, [vehicleId, checklistId]);
+  }, [vehicleId, checklistId, showToast]);
+
+  const handleRefreshToken = useCallback(async () => {
+    if (!activeChecklist) return;
+    try {
+      const res = await api.post(`/checklists/${activeChecklist.id}/token`);
+      setPublicToken(res.data.token);
+      setTokenExpiresAt(res.data.expiresAt);
+      setTokenCountdown(600); // 10 minutes
+    } catch (err) {
+      showToast('Erro ao gerar link de acesso', 'error');
+    }
+  }, [activeChecklist, showToast]);
+
+  // Handle Token Countdown
+  useEffect(() => {
+    let timer: any;
+    if (showQR && tokenCountdown > 0) {
+      timer = setInterval(() => {
+        setTokenCountdown(prev => {
+          if (prev <= 1) {
+            handleRefreshToken();
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+    return () => clearInterval(timer);
+  }, [showQR, tokenCountdown, handleRefreshToken]);
+
+  // Initial token fetch when modal opens
+  useEffect(() => {
+    if (showQR && !publicToken) {
+      handleRefreshToken();
+    }
+  }, [showQR, publicToken, handleRefreshToken]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -435,8 +474,8 @@ export default function VehicleChecklist() {
               <button onClick={handleGeneratePDF} className="h-9 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold flex items-center gap-2 transition-all">
                 <FileDown size={15} /> PDF
               </button>
-              <button onClick={() => setShowQR(true)} className="h-9 px-4 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-xl text-xs font-bold flex items-center gap-2 transition-all border border-indigo-100">
-                <QrCode size={15} /> Upload p/ Celular
+              <button onClick={() => setShowQR(true)} className="h-9 px-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold flex items-center gap-2 transition-all shadow-lg shadow-indigo-200">
+                <Smartphone size={15} /> Upload p/ Celular
               </button>
             </>
           )}
@@ -950,35 +989,60 @@ export default function VehicleChecklist() {
                 className="bg-white rounded-3xl shadow-2xl w-full max-w-sm pointer-events-auto overflow-hidden text-center"
               >
                 <div className="p-8 space-y-6">
-                  <div className="w-16 h-16 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center mx-auto">
-                    <QrCode size={32} />
+                  <div className="w-16 h-16 bg-emerald-50 text-emerald-600 rounded-3xl flex items-center justify-center mx-auto shadow-inner">
+                    <Smartphone size={32} />
                   </div>
-                  <div>
-                    <h3 className="text-xl font-bold text-slate-900">Upload Externo</h3>
-                    <p className="text-sm text-slate-500 mt-2 px-4">Aponte a câmera para anexar fotos deste checklist pelo celular</p>
+                  <div className="space-y-2">
+                    <h3 className="text-2xl font-black text-slate-900 tracking-tight">Fotos pelo Celular</h3>
+                    <p className="text-sm text-slate-500 px-4 leading-relaxed">
+                      Aponte a câmera do seu celular para registrar as fotos deste checklist de forma rápida e segura.
+                    </p>
                   </div>
                   
-                  <div className="bg-white p-4 rounded-3xl border-2 border-slate-100 inline-block shadow-inner">
-                    <img 
-                      src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(window.location.origin + '/checklist-upload/' + activeChecklist.id)}`} 
-                      alt="QR Code" 
-                      className="w-48 h-48"
-                    />
+                  <div className="relative group">
+                    <div className="absolute -inset-4 bg-emerald-500/10 rounded-[48px] blur-2xl group-hover:bg-emerald-500/20 transition-all" />
+                    <div className="relative bg-white p-4 rounded-[40px] border-4 border-slate-50 inline-block shadow-2xl">
+                      {publicToken ? (
+                        <img 
+                          src={`https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(window.location.origin + '/checklist-upload/' + publicToken)}`} 
+                          alt="QR Code" 
+                          className="w-56 h-56 rounded-2xl"
+                        />
+                      ) : (
+                        <div className="w-56 h-56 flex items-center justify-center">
+                          <Loader className="animate-spin text-slate-300" size={32} />
+                        </div>
+                      )}
+                    </div>
                   </div>
 
-                  <div className="space-y-3">
-                    <button 
-                      onClick={() => {
-                        navigator.clipboard.writeText(window.location.origin + '/checklist-upload/' + activeChecklist.id);
-                        showToast('Link copiado!');
-                      }}
-                      className="w-full h-12 bg-slate-900 text-white rounded-2xl font-bold text-sm flex items-center justify-center gap-2 hover:bg-slate-800 transition-all"
-                    >
-                      Copiar Link de Upload
-                    </button>
-                    <button onClick={() => setShowQR(false)} className="w-full text-slate-400 text-xs font-bold uppercase tracking-widest hover:text-slate-600">
-                      Fechar
-                    </button>
+                  <div className="flex flex-col items-center gap-1">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-none">Válido por</p>
+                    <div className="flex items-center gap-2">
+                       <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                       <span className="text-sm font-black text-slate-900 tabular-nums">
+                         {Math.floor(tokenCountdown / 60)}:{String(tokenCountdown % 60).padStart(2, '0')}
+                       </span>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4 pt-2">
+                    <div className="flex flex-col gap-3">
+                      <button 
+                        onClick={() => {
+                          const url = window.location.origin + '/checklist-upload/' + publicToken;
+                          navigator.clipboard.writeText(url);
+                          showToast('Link de acesso copiado!');
+                        }}
+                        disabled={!publicToken}
+                        className="w-full h-14 bg-slate-900 text-white rounded-2xl font-bold text-sm flex items-center justify-center gap-3 hover:bg-slate-800 transition-all shadow-xl shadow-slate-200 disabled:opacity-50"
+                      >
+                        <Share2 size={18} /> Copiar Link de Acesso
+                      </button>
+                      <button onClick={() => setShowQR(false)} className="h-12 text-slate-400 text-[10px] font-black uppercase tracking-[0.2em] hover:text-slate-600 transition-colors">
+                        Voltar para a página
+                      </button>
+                    </div>
                   </div>
                 </div>
               </motion.div>

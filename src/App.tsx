@@ -65,7 +65,7 @@ export default function App() {
         <Route path="/action-plans" element={<PrivateRoute><ActionPlans /></PrivateRoute>} />
         <Route path="/action-plans/:boardId" element={<PrivateRoute><ActionPlans /></PrivateRoute>} />
         <Route path="/settings/shop" element={<PrivateRoute><Settings /></PrivateRoute>} />
-        <Route path="/checklist-upload/:id" element={<ChecklistPublicUpload />} />
+        <Route path="/checklist-upload/:token" element={<ChecklistPublicUpload />} />
 
 
         <Route path="*" element={<Navigate to="/" />} />

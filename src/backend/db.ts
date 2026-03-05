@@ -1115,6 +1115,8 @@ export function initDb() {
       inspector_name TEXT,
       status TEXT CHECK(status IN ('DRAFT','COMPLETED')) DEFAULT 'DRAFT',
       general_notes TEXT,
+      public_token TEXT,
+      token_expires_at DATETIME,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (tenant_id) REFERENCES tenants(id),
@@ -1131,10 +1133,30 @@ export function initDb() {
       item TEXT NOT NULL,
       status TEXT CHECK(status IN ('OK','ATTENTION','CRITICAL','NA')) DEFAULT 'NA',
       notes TEXT,
+      image_url TEXT,
+      external_link TEXT,
       sort_order INTEGER DEFAULT 0,
       FOREIGN KEY (checklist_id) REFERENCES vehicle_checklists(id) ON DELETE CASCADE
     )
   `);
+
+  // Migration: Checklist Columns
+  const migrations = [
+    { table: 'vehicle_checklists', col: 'public_token', type: 'TEXT' },
+    { table: 'vehicle_checklists', col: 'token_expires_at', type: 'DATETIME' },
+    { table: 'vehicle_checklist_items', col: 'image_url', type: 'TEXT' },
+    { table: 'vehicle_checklist_items', col: 'external_link', type: 'TEXT' },
+  ];
+
+  for (const m of migrations) {
+    try {
+      const check = db.prepare(`SELECT COUNT(*) as count FROM pragma_table_info('${m.table}') WHERE name='${m.col}'`).get() as any;
+      if (check.count === 0) {
+        db.exec(`ALTER TABLE ${m.table} ADD COLUMN ${m.col} ${m.type}`);
+        console.log(`✅ Added ${m.col} to ${m.table}`);
+      }
+    } catch (e) {}
+  }
 
   console.log("Database initialized successfully.");
 }

@@ -5,23 +5,23 @@ import { authenticateToken, AuthRequest } from "../middleware/auth";
 
 const router = express.Router();
 
-// GET single checklist publicly (for photo upload via QR Code)
-router.get("/public/:id", (req, res) => {
+// GET single checklist publicly using TOKEN
+router.get("/public/:token", (req, res) => {
   try {
     const checklist = db.prepare(`
       SELECT cl.*, v.brand as vehicle_brand, v.model as vehicle_model, v.plate as vehicle_plate
       FROM vehicle_checklists cl
       JOIN vehicles v ON cl.vehicle_id = v.id
-      WHERE cl.id = ?
-    `).get(req.params.id) as any;
+      WHERE cl.public_token = ? AND cl.token_expires_at > DATETIME('now')
+    `).get(req.params.token) as any;
 
-    if (!checklist) return res.status(404).json({ error: "Checklist not found" });
+    if (!checklist) return res.status(404).json({ error: "Link expirado ou inválido" });
 
     const items = db.prepare(`
       SELECT * FROM vehicle_checklist_items 
       WHERE checklist_id = ?
       ORDER BY sort_order ASC
-    `).all(req.params.id);
+    `).all(checklist.id);
 
     res.json({ ...checklist, items });
   } catch (error: any) {
@@ -29,17 +29,24 @@ router.get("/public/:id", (req, res) => {
   }
 });
 
-// PATCH item publicly (for photo upload via QR Code)
-router.patch("/public/:checklistId/items/:itemId", (req, res) => {
+// PATCH item publicly using TOKEN
+router.patch("/public/:token/items/:itemId", (req, res) => {
   const { image_url } = req.body;
   try {
+    const checklist = db.prepare(`
+      SELECT id FROM vehicle_checklists 
+      WHERE public_token = ? AND token_expires_at > DATETIME('now')
+    `).get(req.params.token) as any;
+
+    if (!checklist) return res.status(404).json({ error: "Link expirado" });
+
     const stmt = db.prepare(`
       UPDATE vehicle_checklist_items 
       SET image_url = ?, status = CASE WHEN status = 'NA' THEN 'OK' ELSE status END
       WHERE id = ? AND checklist_id = ?
     `);
     
-    const result = stmt.run(image_url, req.params.itemId, req.params.checklistId);
+    const result = stmt.run(image_url, req.params.itemId, checklist.id);
     if (result.changes === 0) return res.status(404).json({ error: "Item not found" });
     
     res.json({ success: true });
@@ -289,6 +296,24 @@ router.delete("/:id", (req: AuthRequest, res) => {
     db.prepare("DELETE FROM vehicle_checklist_items WHERE checklist_id = ?").run(req.params.id);
     db.prepare("DELETE FROM vehicle_checklists WHERE id = ? AND tenant_id = ?").run(req.params.id, req.user!.tenant_id);
     res.json({ message: "Checklist excluído com sucesso" });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// POST Generate/Refresh Public Token
+router.post("/:id/token", (req: AuthRequest, res) => {
+  try {
+    const token = uuidv4();
+    const expiresAt = new Date(Date.now() + 10 * 60000).toISOString(); // 10 minutes
+
+    db.prepare(`
+      UPDATE vehicle_checklists 
+      SET public_token = ?, token_expires_at = ?
+      WHERE id = ? AND tenant_id = ?
+    `).run(token, expiresAt, req.params.id, req.user!.tenant_id);
+
+    res.json({ token, expiresAt });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
