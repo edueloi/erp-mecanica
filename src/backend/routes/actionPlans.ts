@@ -19,6 +19,78 @@ router.get("/categories", (req: AuthRequest, res) => {
   res.json(categories);
 });
 
+// ===== STATISTICS =====
+
+// Get global statistics
+router.get("/statistics", (req: AuthRequest, res) => {
+  const tenantId = req.user!.tenant_id;
+  
+  // Total boards
+  const totalBoards = db.prepare(`
+    SELECT COUNT(*) as count FROM action_boards WHERE tenant_id = ?
+  `).get(tenantId) as any;
+  
+  // Total cards
+  const totalCards = db.prepare(`
+    SELECT COUNT(*) as count FROM action_cards 
+    WHERE board_id IN (SELECT id FROM action_boards WHERE tenant_id = ?)
+  `).get(tenantId) as any;
+  
+  // Cards by status (column name)
+  const cardsByStatus = db.prepare(`
+    SELECT 
+      col.name as status,
+      COUNT(c.id) as count
+    FROM action_columns col
+    LEFT JOIN action_cards c ON c.column_id = col.id
+    WHERE col.board_id IN (SELECT id FROM action_boards WHERE tenant_id = ?)
+    GROUP BY col.id, col.name
+    ORDER BY col.name
+  `).all(tenantId);
+  
+  // Cards by category
+  const cardsByCategory = db.prepare(`
+    SELECT 
+      cat.name as category,
+      cat.color,
+      COUNT(c.id) as count
+    FROM action_categories cat
+    LEFT JOIN action_boards b ON b.category_id = cat.id AND b.tenant_id = ?
+    LEFT JOIN action_cards c ON c.board_id = b.id
+    GROUP BY cat.id, cat.name, cat.color
+    HAVING COUNT(c.id) > 0
+    ORDER BY count DESC
+  `).all(tenantId);
+  
+  // Cards by priority
+  const cardsByPriority = db.prepare(`
+    SELECT 
+      c.priority,
+      COUNT(c.id) as count
+    FROM action_cards c
+    WHERE c.board_id IN (SELECT id FROM action_boards WHERE tenant_id = ?)
+    GROUP BY c.priority
+  `).all(tenantId);
+  
+  // Overdue cards
+  const overdueCards = db.prepare(`
+    SELECT COUNT(*) as count 
+    FROM action_cards c
+    WHERE c.board_id IN (SELECT id FROM action_boards WHERE tenant_id = ?)
+      AND c.due_date IS NOT NULL
+      AND c.due_date < datetime('now')
+  `).get(tenantId) as any;
+  
+  res.json({
+    totalBoards: totalBoards.count,
+    totalCards: totalCards.count,
+    cardsByStatus,
+    cardsByCategory,
+    cardsByPriority,
+    overdueCards: overdueCards.count
+  });
+});
+
 // ===== BOARDS =====
 
 // Get all boards
@@ -92,6 +164,63 @@ router.get("/boards/:id", (req: AuthRequest, res) => {
   res.json({
     ...board,
     columns: columnsWithCards
+  });
+});
+
+// Get board statistics
+router.get("/boards/:id/statistics", (req: AuthRequest, res) => {
+  const { id } = req.params;
+  
+  // Verify board belongs to tenant
+  const board = db.prepare(`
+    SELECT id FROM action_boards WHERE id = ? AND tenant_id = ?
+  `).get(id, req.user!.tenant_id);
+  
+  if (!board) {
+    return res.status(404).json({ error: "Board not found" });
+  }
+  
+  // Cards count by column
+  const cardsByColumn = db.prepare(`
+    SELECT 
+      col.id,
+      col.name,
+      col.color,
+      COUNT(c.id) as count
+    FROM action_columns col
+    LEFT JOIN action_cards c ON c.column_id = col.id
+    WHERE col.board_id = ?
+    GROUP BY col.id, col.name, col.color
+    ORDER BY col.position
+  `).all(id);
+  
+  // Total cards in board
+  const totalCards = db.prepare(`
+    SELECT COUNT(*) as count FROM action_cards WHERE board_id = ?
+  `).get(id) as any;
+  
+  // Overdue cards
+  const overdueCards = db.prepare(`
+    SELECT COUNT(*) as count 
+    FROM action_cards 
+    WHERE board_id = ?
+      AND due_date IS NOT NULL
+      AND due_date < datetime('now')
+  `).get(id) as any;
+  
+  // Cards by priority
+  const cardsByPriority = db.prepare(`
+    SELECT priority, COUNT(*) as count
+    FROM action_cards
+    WHERE board_id = ?
+    GROUP BY priority
+  `).all(id);
+  
+  res.json({
+    totalCards: totalCards.count,
+    overdueCards: overdueCards.count,
+    cardsByColumn,
+    cardsByPriority
   });
 });
 
@@ -271,6 +400,13 @@ router.post("/cards", (req: AuthRequest, res) => {
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(id, column_id, board_id, title, description, priority || 'MEDIUM', due_date, assigned_to, position, JSON.stringify(tags || []), client_id, work_order_id, req.user!.id);
     
+    // Register history - card created
+    const column = db.prepare("SELECT name FROM action_columns WHERE id = ?").get(column_id) as any;
+    db.prepare(`
+      INSERT INTO action_card_history (id, card_id, board_id, action, to_column_id, to_column_name, changed_by)
+      VALUES (?, ?, ?, 'CREATED', ?, ?, ?)
+    `).run(uuidv4(), id, board_id, column_id, column?.name, req.user!.id);
+    
     // Add links if provided
     if (links && Array.isArray(links)) {
       const linkStmt = db.prepare(`
@@ -360,6 +496,26 @@ router.put("/cards/:id/move", (req: AuthRequest, res) => {
   const { column_id, position } = req.body;
   
   try {
+    // Get current card data
+    const currentCard = db.prepare("SELECT column_id, board_id FROM action_cards WHERE id = ?").get(id) as any;
+    
+    if (!currentCard) {
+      return res.status(404).json({ error: "Card not found" });
+    }
+    
+    // Check if column changed (not just position)
+    if (currentCard.column_id !== column_id) {
+      // Get column names
+      const fromColumn = db.prepare("SELECT name FROM action_columns WHERE id = ?").get(currentCard.column_id) as any;
+      const toColumn = db.prepare("SELECT name FROM action_columns WHERE id = ?").get(column_id) as any;
+      
+      // Register history - card moved
+      db.prepare(`
+        INSERT INTO action_card_history (id, card_id, board_id, action, from_column_id, to_column_id, from_column_name, to_column_name, changed_by)
+        VALUES (?, ?, ?, 'MOVED', ?, ?, ?, ?, ?)
+      `).run(uuidv4(), id, currentCard.board_id, currentCard.column_id, column_id, fromColumn?.name, toColumn?.name, req.user!.id);
+    }
+    
     db.prepare(`
       UPDATE action_cards
       SET column_id = ?, position = ?, updated_at = CURRENT_TIMESTAMP
@@ -438,6 +594,29 @@ router.delete("/cards/:cardId/links/:linkId", (req: AuthRequest, res) => {
   try {
     db.prepare("DELETE FROM action_card_links WHERE id = ?").run(linkId);
     res.status(204).send();
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ===== CARD HISTORY =====
+
+// Get card history
+router.get("/cards/:id/history", (req: AuthRequest, res) => {
+  const { id } = req.params;
+  
+  try {
+    const history = db.prepare(`
+      SELECT 
+        h.*,
+        u.name as changed_by_name
+      FROM action_card_history h
+      LEFT JOIN users u ON h.changed_by = u.id
+      WHERE h.card_id = ?
+      ORDER BY h.created_at DESC
+    `).all(id);
+    
+    res.json(history);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }

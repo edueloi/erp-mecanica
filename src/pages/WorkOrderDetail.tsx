@@ -27,6 +27,7 @@ export default function WorkOrderDetail() {
   const navigate = useNavigate();
   const [wo, setWo] = useState<any>(null);
   const [users, setUsers] = useState<any[]>([]);
+  const [parts, setParts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState<TabType>('DIAGNOSIS');
@@ -48,9 +49,10 @@ export default function WorkOrderDetail() {
 
   const fetchWO = async () => {
     try {
-      const [woRes, usersRes] = await Promise.all([
+      const [woRes, usersRes, partsRes] = await Promise.all([
         api.get(`/work-orders/${id}`),
-        api.get('/users')
+        api.get('/users'),
+        api.get('/parts')
       ]);
       // Ensure items and history are always arrays
       const woData = woRes.data;
@@ -58,6 +60,7 @@ export default function WorkOrderDetail() {
       if (!woData.history) woData.history = [];
       setWo(woData);
       setUsers(usersRes.data);
+      setParts(partsRes.data);
       setLoading(false);
     } catch (err) {
       console.error(err);
@@ -254,6 +257,25 @@ export default function WorkOrderDetail() {
       ...wo,
       items: (wo.items || []).map((i: any) => i.id === itemId ? { ...i, [field]: value } : i)
     });
+  };
+
+  const selectPart = (itemId: string, partId: string) => {
+    const selectedPart = parts.find(p => p.id === partId);
+    if (selectedPart) {
+      setWo({
+        ...wo,
+        items: (wo.items || []).map((i: any) => 
+          i.id === itemId ? {
+            ...i,
+            part_id: partId,
+            description: selectedPart.name,
+            unit_price: selectedPart.sale_price || 0,
+            cost_price: selectedPart.cost_price || 0,
+            sku: selectedPart.sku || ''
+          } : i
+        )
+      });
+    }
   };
 
   const statusMap: any = {
@@ -602,16 +624,40 @@ export default function WorkOrderDetail() {
                           </td>
                         </tr>
                       ) : (
-                        wo.items.filter((i: any) => i.type === 'PART').map((item: any) => (
+                        wo.items.filter((i: any) => i.type === 'PART').map((item: any) => {
+                          const linkedPart = item.part_id ? parts.find(p => p.id === item.part_id) : null;
+                          return (
                           <tr key={item.id} className="group hover:bg-slate-50">
                             <td className="px-6 py-4">
-                              <input 
-                                type="text" 
-                                className="w-full bg-transparent border-none focus:ring-0 text-sm font-medium p-0"
-                                value={item.description}
-                                onChange={e => updateItem(item.id, 'description', e.target.value)}
-                                placeholder="Nome da peça..."
-                              />
+                              <div className="space-y-2">
+                                <select
+                                  className="w-full bg-transparent border border-slate-200 rounded-lg px-3 py-2 text-sm font-medium focus:ring-2 focus:ring-slate-900"
+                                  value={item.part_id || ''}
+                                  onChange={e => selectPart(item.id, e.target.value)}
+                                >
+                                  <option value="">Selecione uma peça...</option>
+                                  {parts.map(part => (
+                                    <option key={part.id} value={part.id}>
+                                      {part.name} ({part.sku}) - Estoque: {part.stock_quantity}
+                                    </option>
+                                  ))}
+                                </select>
+                                {linkedPart && (
+                                  <div className="flex items-center gap-2 text-xs">
+                                    <span className={`px-2 py-1 rounded-lg font-medium ${
+                                      linkedPart.stock_quantity > 0 
+                                        ? 'bg-emerald-50 text-emerald-700' 
+                                        : 'bg-red-50 text-red-700'
+                                    }`}>
+                                      {linkedPart.stock_quantity > 0 
+                                        ? `${linkedPart.stock_quantity} em estoque`
+                                        : 'Sem estoque'
+                                      }
+                                    </span>
+                                    <span className="text-slate-500">SKU: {linkedPart.sku}</span>
+                                  </div>
+                                )}
+                              </div>
                             </td>
                             <td className="px-6 py-4 text-center">
                               <input 
@@ -641,7 +687,8 @@ export default function WorkOrderDetail() {
                               </button>
                             </td>
                           </tr>
-                        ))
+                          );
+                        })
                       )}
                     </tbody>
                   </table>

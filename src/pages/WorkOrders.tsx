@@ -151,6 +151,12 @@ export default function WorkOrders() {
 
         <div className="flex items-center gap-2">
           <button 
+            onClick={() => setIsModalOpen(true)}
+            className="h-9 px-4 bg-slate-900 text-white rounded-lg text-xs font-bold flex items-center gap-2 hover:bg-slate-800 transition-all shadow-sm"
+          >
+            <Plus size={16} /> Nova OS
+          </button>
+          <button 
             onClick={() => setIsAppointmentModalOpen(true)}
             className="h-9 px-3 text-slate-600 hover:bg-slate-100 rounded-lg text-xs font-bold flex items-center gap-2 transition-all"
           >

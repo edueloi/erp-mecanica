@@ -199,6 +199,42 @@ router.patch("/:id", (req: AuthRequest, res) => {
       }
 
       if (items) {
+        // Get old items to return parts to stock
+        const oldItems = db.prepare("SELECT * FROM work_order_items WHERE work_order_id = ?").all(req.params.id);
+        
+        // Return parts to stock for old items
+        for (const oldItem of oldItems as any[]) {
+          if (oldItem.type === 'PART' && oldItem.part_id) {
+            const part = db.prepare("SELECT * FROM parts WHERE id = ? AND tenant_id = ?")
+              .get(oldItem.part_id, req.user!.tenant_id) as any;
+            
+            if (part) {
+              const newStock = part.stock_quantity + oldItem.quantity;
+              db.prepare("UPDATE parts SET stock_quantity = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?")
+                .run(newStock, oldItem.part_id);
+
+              db.prepare(`
+                INSERT INTO stock_movements (
+                  id, tenant_id, part_id, type, quantity, unit_cost, 
+                  reference_id, reference_type, reason, user_id
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+              `).run(
+                uuidv4(),
+                req.user!.tenant_id,
+                oldItem.part_id,
+                'ENTRY',
+                oldItem.quantity,
+                oldItem.cost_price,
+                req.params.id,
+                'WORK_ORDER',
+                'Devolvido - OS atualizada',
+                req.user!.id
+              );
+            }
+          }
+        }
+        
+        // Delete old items
         db.prepare("DELETE FROM work_order_items WHERE work_order_id = ?").run(req.params.id);
         
         const stmt = db.prepare(`
@@ -208,6 +244,42 @@ router.patch("/:id", (req: AuthRequest, res) => {
         
         let total = 0;
         for (const item of items) {
+          // Check stock for parts
+          if (item.type === 'PART' && item.part_id) {
+            const part = db.prepare("SELECT * FROM parts WHERE id = ? AND tenant_id = ?")
+              .get(item.part_id, req.user!.tenant_id) as any;
+            
+            if (part) {
+              if (part.stock_quantity < item.quantity) {
+                throw new Error(`Estoque insuficiente para ${part.name}. Disponível: ${part.stock_quantity}`);
+              }
+
+              // Deduct stock
+              const newStock = part.stock_quantity - item.quantity;
+              db.prepare("UPDATE parts SET stock_quantity = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?")
+                .run(newStock, item.part_id);
+
+              // Register stock movement
+              db.prepare(`
+                INSERT INTO stock_movements (
+                  id, tenant_id, part_id, type, quantity, unit_cost, 
+                  reference_id, reference_type, reason, user_id
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+              `).run(
+                uuidv4(),
+                req.user!.tenant_id,
+                item.part_id,
+                'OS_USED',
+                item.quantity,
+                item.cost_price || part.cost_price,
+                req.params.id,
+                'WORK_ORDER',
+                'Usado na OS (atualização)',
+                req.user!.id
+              );
+            }
+          }
+          
           const itemTotal = item.quantity * item.unit_price;
           total += itemTotal;
           stmt.run(

@@ -103,6 +103,10 @@ export default function ActionPlans() {
   const [filterCategory, setFilterCategory] = useState('');
   const [filterDateRange, setFilterDateRange] = useState<'all' | 'today' | 'week' | 'month'>('all');
 
+  // Statistics
+  const [statistics, setStatistics] = useState<any>(null);
+  const [boardStatistics, setBoardStatistics] = useState<Record<string, any>>({});
+
   // Data for selects
   const [clients, setClients] = useState<any[]>([]);
   const [workOrders, setWorkOrders] = useState<any[]>([]);
@@ -120,6 +124,7 @@ export default function ActionPlans() {
     loadWorkOrders();
     loadUsers();
     loadCategories();
+    loadStatistics();
   }, []);
 
   useEffect(() => {
@@ -164,13 +169,37 @@ export default function ActionPlans() {
     }
   };
 
+  const loadStatistics = async () => {
+    try {
+      const response = await api.get('/action-plans/statistics');
+      setStatistics(response.data);
+    } catch (error) {
+      console.error('Error loading statistics:', error);
+    }
+  };
+
   const loadBoards = async () => {
     try {
       const response = await api.get('/action-plans/boards');
-      setBoards(Array.isArray(response.data) ? response.data : []);
+      const boardsData = Array.isArray(response.data) ? response.data : [];
+      setBoards(boardsData);
+      
+      // Load statistics for each board
+      for (const board of boardsData) {
+        loadBoardStatistics(board.id);
+      }
     } catch (error) {
       console.error('Error loading boards:', error);
       setBoards([]);
+    }
+  };
+
+  const loadBoardStatistics = async (boardId: string) => {
+    try {
+      const response = await api.get(`/action-plans/boards/${boardId}/statistics`);
+      setBoardStatistics(prev => ({ ...prev, [boardId]: response.data }));
+    } catch (error) {
+      console.error('Error loading board statistics:', error);
     }
   };
 
@@ -439,6 +468,120 @@ export default function ActionPlans() {
           </div>
         )}
 
+        {/* Statistics Cards */}
+        {statistics && (
+          <div className="bg-gradient-to-br from-slate-50 to-white border-b border-slate-200 px-6 py-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {/* Total Boards */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm"
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <div className="w-10 h-10 rounded-lg bg-slate-900 flex items-center justify-center">
+                    <Grid size={20} className="text-white" />
+                  </div>
+                  <span className="text-2xl font-bold text-slate-900">{statistics.totalBoards}</span>
+                </div>
+                <p className="text-sm font-medium text-slate-600">Total de Quadros</p>
+              </motion.div>
+
+              {/* Total Cards */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 }}
+                className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm"
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <div className="w-10 h-10 rounded-lg bg-blue-500 flex items-center justify-center">
+                    <Target size={20} className="text-white" />
+                  </div>
+                  <span className="text-2xl font-bold text-slate-900">{statistics.totalCards}</span>
+                </div>
+                <p className="text-sm font-medium text-slate-600">Total de Cards</p>
+                {statistics.cardsByStatus && statistics.cardsByStatus.length > 0 && (
+                  <div className="mt-3 pt-3 border-t border-slate-100 space-y-1">
+                    {statistics.cardsByStatus.slice(0, 3).map((status: any) => (
+                      <div key={status.status} className="flex items-center justify-between text-xs">
+                        <span className="text-slate-600">{status.status}</span>
+                        <span className="font-semibold text-slate-900">{status.count}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </motion.div>
+
+              {/* Cards by Category */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 }}
+                className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm"
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <div className="w-10 h-10 rounded-lg bg-purple-500 flex items-center justify-center">
+                    <Tag size={20} className="text-white" />
+                  </div>
+                  <span className="text-2xl font-bold text-slate-900">
+                    {statistics.cardsByCategory?.length || 0}
+                  </span>
+                </div>
+                <p className="text-sm font-medium text-slate-600">Categorias Ativas</p>
+                {statistics.cardsByCategory && statistics.cardsByCategory.length > 0 && (
+                  <div className="mt-3 pt-3 border-t border-slate-100 space-y-1">
+                    {statistics.cardsByCategory.slice(0, 3).map((cat: any) => (
+                      <div key={cat.category} className="flex items-center justify-between text-xs">
+                        <div className="flex items-center gap-2">
+                          <div 
+                            className="w-2 h-2 rounded-full" 
+                            style={{ backgroundColor: cat.color }}
+                          />
+                          <span className="text-slate-600 truncate">{cat.category}</span>
+                        </div>
+                        <span className="font-semibold text-slate-900">{cat.count}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </motion.div>
+
+              {/* Overdue Cards */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3 }}
+                className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm"
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                    statistics.overdueCards > 0 ? 'bg-red-500' : 'bg-emerald-500'
+                  }`}>
+                    <Clock size={20} className="text-white" />
+                  </div>
+                  <span className={`text-2xl font-bold ${
+                    statistics.overdueCards > 0 ? 'text-red-600' : 'text-emerald-600'
+                  }`}>
+                    {statistics.overdueCards}
+                  </span>
+                </div>
+                <p className="text-sm font-medium text-slate-600">Cards Atrasados</p>
+                {statistics.cardsByPriority && statistics.cardsByPriority.length > 0 && (
+                  <div className="mt-3 pt-3 border-t border-slate-100 space-y-1">
+                    {statistics.cardsByPriority.map((priority: any) => (
+                      <div key={priority.priority} className="flex items-center justify-between text-xs">
+                        <span className="text-slate-600">{priorityLabels[priority.priority as keyof typeof priorityLabels]}</span>
+                        <span className="font-semibold text-slate-900">{priority.count}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </motion.div>
+            </div>
+          </div>
+        )}
+
         {/* Content */}
         <div className="flex-1 overflow-auto bg-slate-50 p-6">
           {Array.isArray(boards) && boards.length > 0 ? (
@@ -510,15 +653,44 @@ export default function ActionPlans() {
 
                       {/* Card Footer com Stats */}
                       <div className="bg-slate-50 px-5 py-3 border-t border-slate-100">
-                        <div className="flex items-center justify-between text-[11px]">
-                          <div className="flex items-center gap-1.5 text-slate-500">
-                            <User size={12} />
-                            <span className="font-medium">{board.creator_name}</span>
+                        {boardStatistics[board.id] && boardStatistics[board.id].cardsByColumn?.length > 0 ? (
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between text-[11px] mb-2">
+                              <span className="font-semibold text-slate-700">Cards por Status</span>
+                              <span className="text-slate-500">
+                                Total: {boardStatistics[board.id].totalCards}
+                              </span>
+                            </div>
+                            <div className="grid grid-cols-3 gap-2">
+                              {boardStatistics[board.id].cardsByColumn.slice(0, 3).map((col: any) => (
+                                <div
+                                  key={col.id}
+                                  className="flex flex-col items-center p-2 rounded-lg bg-white border border-slate-200"
+                                >
+                                  <span
+                                    className="text-xs font-bold mb-1"
+                                    style={{ color: col.color }}
+                                  >
+                                    {col.count}
+                                  </span>
+                                  <span className="text-[10px] text-slate-600 text-center leading-tight">
+                                    {col.name}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
                           </div>
-                          <div className="text-slate-400">
-                            {new Date(board.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}
+                        ) : (
+                          <div className="flex items-center justify-between text-[11px]">
+                            <div className="flex items-center gap-1.5 text-slate-500">
+                              <User size={12} />
+                              <span className="font-medium">{board.creator_name}</span>
+                            </div>
+                            <div className="text-slate-400">
+                              {new Date(board.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}
+                            </div>
                           </div>
-                        </div>
+                        )}
                       </div>
                     </motion.div>
                   ))}

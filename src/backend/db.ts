@@ -930,45 +930,40 @@ export function initDb() {
   const categoryCount = db.prepare("SELECT COUNT(*) as count FROM action_categories").get() as any;
   if (categoryCount.count === 0) {
     const categories = [
-      // Mecânica
-      { name: 'Motor', color: '#ef4444', type: 'MECANICA' },
-      { name: 'Freios', color: '#dc2626', type: 'MECANICA' },
-      { name: 'Suspensão', color: '#f97316', type: 'MECANICA' },
-      { name: 'Transmissão', color: '#ea580c', type: 'MECANICA' },
-      { name: 'Embreagem', color: '#f59e0b', type: 'MECANICA' },
-      { name: 'Direção', color: '#d97706', type: 'MECANICA' },
-      { name: 'Arrefecimento', color: '#06b6d4', type: 'MECANICA' },
-      { name: 'Escapamento', color: '#64748b', type: 'MECANICA' },
-      { name: 'Injeção Eletrônica', color: '#8b5cf6', type: 'MECANICA' },
-      { name: 'Turbo/Supercharger', color: '#a855f7', type: 'MECANICA' },
+      // Atendimento ao Cliente
+      { name: 'Fazer Orçamento', color: '#3b82f6', type: 'OUTROS' },
+      { name: 'Criar Ordem de Serviço', color: '#2563eb', type: 'OUTROS' },
+      { name: 'Contato com Cliente', color: '#06b6d4', type: 'OUTROS' },
+      { name: 'Atendimento WhatsApp', color: '#10b981', type: 'OUTROS' },
+      { name: 'Retorno ao Cliente', color: '#14b8a6', type: 'OUTROS' },
+      { name: 'Aprovação de Serviço', color: '#6366f1', type: 'OUTROS' },
       
-      // Elétrica
-      { name: 'Bateria', color: '#eab308', type: 'ELETRICA' },
-      { name: 'Alternador', color: '#ca8a04', type: 'ELETRICA' },
-      { name: 'Motor de Arranque', color: '#3b82f6', type: 'ELETRICA' },
-      { name: 'Iluminação', color: '#2563eb', type: 'ELETRICA' },
-      { name: 'Central Elétrica', color: '#6366f1', type: 'ELETRICA' },
-      { name: 'Sensores', color: '#4f46e5', type: 'ELETRICA' },
-      { name: 'Chicote Elétrico', color: '#7c3aed', type: 'ELETRICA' },
-      { name: 'Som e Multimídia', color: '#ec4899', type: 'ELETRICA' },
-      { name: 'Ar Condicionado', color: '#14b8a6', type: 'ELETRICA' },
+      // Compras e Fornecedores
+      { name: 'Compra de Peças', color: '#f59e0b', type: 'SERVICOS_GERAIS' },
+      { name: 'Contato com Fornecedor', color: '#d97706', type: 'SERVICOS_GERAIS' },
+      { name: 'Solicitar Cotação', color: '#ea580c', type: 'SERVICOS_GERAIS' },
+      { name: 'Pedido de Compra', color: '#f97316', type: 'SERVICOS_GERAIS' },
+      { name: 'Recebimento de Mercadoria', color: '#fb923c', type: 'SERVICOS_GERAIS' },
+      
+      // Serviços Técnicos
+      { name: 'Mecânica Geral', color: '#ef4444', type: 'MECANICA' },
+      { name: 'Manutenção Preventiva', color: '#22c55e', type: 'MECANICA' },
+      { name: 'Diagnóstico Técnico', color: '#8b5cf6', type: 'MECANICA' },
+      { name: 'Reparo Elétrico', color: '#eab308', type: 'ELETRICA' },
+      { name: 'Funilaria e Pintura', color: '#ec4899', type: 'SERVICOS_GERAIS' },
+      
+      // Administrativo e Financeiro
+      { name: 'Pagamento a Fornecedor', color: '#dc2626', type: 'OUTROS' },
+      { name: 'Cobrança', color: '#e11d48', type: 'OUTROS' },
+      { name: 'Faturamento', color: '#059669', type: 'OUTROS' },
+      { name: 'Documentação', color: '#64748b', type: 'OUTROS' },
       
       // Serviços Gerais
-      { name: 'Revisão Preventiva', color: '#10b981', type: 'SERVICOS_GERAIS' },
-      { name: 'Troca de Óleo', color: '#059669', type: 'SERVICOS_GERAIS' },
-      { name: 'Alinhamento e Balanceamento', color: '#22c55e', type: 'SERVICOS_GERAIS' },
-      { name: 'Troca de Pneus', color: '#16a34a', type: 'SERVICOS_GERAIS' },
-      { name: 'Lavagem e Polimento', color: '#0891b2', type: 'SERVICOS_GERAIS' },
-      { name: 'Funilaria', color: '#f43f5e', type: 'SERVICOS_GERAIS' },
-      { name: 'Pintura', color: '#e11d48', type: 'SERVICOS_GERAIS' },
-      { name: 'Vidros e Para-brisas', color: '#06b6d4', type: 'SERVICOS_GERAIS' },
-      { name: 'Estofamento', color: '#a855f7', type: 'SERVICOS_GERAIS' },
-      { name: 'Instalação de Acessórios', color: '#ec4899', type: 'SERVICOS_GERAIS' },
-      
-      // Outros
-      { name: 'Diagnóstico', color: '#6366f1', type: 'OUTROS' },
-      { name: 'Orçamento', color: '#64748b', type: 'OUTROS' },
-      { name: 'Garantia', color: '#0ea5e9', type: 'OUTROS' }
+      { name: 'Limpeza e Organização', color: '#0891b2', type: 'SERVICOS_GERAIS' },
+      { name: 'Manutenção de Equipamentos', color: '#0ea5e9', type: 'SERVICOS_GERAIS' },
+      { name: 'Entrega de Veículo', color: '#a855f7', type: 'SERVICOS_GERAIS' },
+      { name: 'Reunião de Equipe', color: '#7c3aed', type: 'OUTROS' },
+      { name: 'Treinamento', color: '#4f46e5', type: 'OUTROS' }
     ];
 
     const stmt = db.prepare(`
@@ -1043,6 +1038,26 @@ export function initDb() {
       entity_id TEXT NOT NULL,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (card_id) REFERENCES action_cards(id) ON DELETE CASCADE
+    )
+  `);
+
+  // Action Card History (Histórico de Movimentações)
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS action_card_history (
+      id TEXT PRIMARY KEY,
+      card_id TEXT NOT NULL,
+      board_id TEXT NOT NULL,
+      action TEXT CHECK(action IN ('CREATED', 'MOVED', 'UPDATED', 'DELETED', 'ASSIGNED', 'PRIORITY_CHANGED', 'DUE_DATE_CHANGED')) NOT NULL,
+      from_column_id TEXT,
+      to_column_id TEXT,
+      from_column_name TEXT,
+      to_column_name TEXT,
+      changed_by TEXT NOT NULL,
+      details TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (card_id) REFERENCES action_cards(id) ON DELETE CASCADE,
+      FOREIGN KEY (board_id) REFERENCES action_boards(id) ON DELETE CASCADE,
+      FOREIGN KEY (changed_by) REFERENCES users(id)
     )
   `);
 
