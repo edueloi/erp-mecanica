@@ -19,6 +19,7 @@ import settingsRoutes from "./src/backend/routes/settings";
 import cashflowRoutes from "./src/backend/routes/cashflow";
 import whatsappRoutes from "./src/backend/routes/whatsapp";
 import actionPlansRoutes from "./src/backend/routes/actionPlans";
+import checklistRoutes from "./src/backend/routes/checklists";
 
 dotenv.config();
 
@@ -55,6 +56,7 @@ async function startServer() {
   app.use("/api/cashflow", cashflowRoutes);
   app.use("/api/whatsapp", whatsappRoutes);
   app.use("/api/action-plans", actionPlansRoutes);
+  app.use("/api/checklists", checklistRoutes);
 
   // Error handling middleware
   app.use((err: any, req: any, res: any, next: any) => {

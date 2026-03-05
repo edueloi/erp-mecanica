@@ -5,7 +5,7 @@ import {
   ClipboardList, History, Camera, FileText, 
   Plus, Edit, Trash2, MessageSquare, ExternalLink,
   CheckCircle2, AlertCircle, Info, ChevronRight,
-  Printer, Share2, Settings, Wrench
+  Printer, Share2, Settings, Wrench, CheckSquare
 } from 'lucide-react';
 import api from '../services/api';
 import { motion, AnimatePresence } from 'motion/react';
@@ -18,7 +18,7 @@ function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-type VehicleTab = 'SUMMARY' | 'OS' | 'APPOINTMENTS' | 'TECH_HISTORY' | 'PHOTOS' | 'DOCUMENTS';
+type VehicleTab = 'SUMMARY' | 'OS' | 'APPOINTMENTS' | 'TECH_HISTORY' | 'CHECKLIST' | 'PHOTOS' | 'DOCUMENTS';
 
 export default function VehicleDetail() {
   const { id } = useParams();
@@ -51,6 +51,7 @@ export default function VehicleDetail() {
     { id: 'OS', label: 'Ordens de Serviço', icon: ClipboardList },
     { id: 'APPOINTMENTS', label: 'Agendamentos', icon: Clock },
     { id: 'TECH_HISTORY', label: 'Histórico Técnico', icon: Wrench },
+    { id: 'CHECKLIST', label: 'Checklist', icon: CheckSquare },
     { id: 'PHOTOS', label: 'Fotos', icon: Camera },
     { id: 'DOCUMENTS', label: 'Documentos', icon: FileText },
   ];
@@ -85,7 +86,7 @@ export default function VehicleDetail() {
       </header>
 
       {/* Tab Navigation */}
-      <div className="bg-white border-b border-slate-200 px-6 flex items-center gap-1 overflow-x-auto no-scrollbar shrink-0 mt-[25px]">
+      <div className="bg-white border-b border-slate-200 px-6 flex items-center gap-1 overflow-x-auto no-scrollbar shrink-0 mt-5">
         {tabs.map(tab => (
           <button
             key={tab.id}
@@ -105,7 +106,7 @@ export default function VehicleDetail() {
       </div>
 
       {/* Content Area */}
-      <main className="flex-1 overflow-auto p-6">
+      <main className="flex-1 overflow-auto px-6 pb-6 pt-0">
         <AnimatePresence mode="wait">
           <motion.div
             key={activeTab}
@@ -113,7 +114,7 @@ export default function VehicleDetail() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
             transition={{ duration: 0.15 }}
-            className="max-w-6xl mx-auto"
+            className="max-w-6xl mx-auto pt-6"
           >
             {activeTab === 'SUMMARY' && (
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -205,6 +206,12 @@ export default function VehicleDetail() {
                     <button className="w-full h-10 px-4 bg-white border border-slate-200 text-slate-700 rounded-lg text-xs font-bold flex items-center gap-3 hover:bg-slate-50 transition-all">
                       <Clock size={16} /> Novo Agendamento
                     </button>
+                    <button
+                      onClick={() => navigate(`/vehicles/${vehicle.id}/checklist`)}
+                      className="w-full h-10 px-4 bg-indigo-50 border border-indigo-200 text-indigo-700 rounded-lg text-xs font-bold flex items-center gap-3 hover:bg-indigo-100 transition-all"
+                    >
+                      <CheckSquare size={16} /> Novo Checklist de Inspeção
+                    </button>
                     <button className="w-full h-10 px-4 bg-white border border-slate-200 text-slate-700 rounded-lg text-xs font-bold flex items-center gap-3 hover:bg-slate-50 transition-all">
                       <History size={16} /> Histórico Completo
                     </button>
@@ -284,6 +291,37 @@ export default function VehicleDetail() {
                       </div>
                     </div>
                   ))}
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'CHECKLIST' && (
+              <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                <div className="px-6 py-5 bg-gradient-to-r from-indigo-50 to-slate-50 border-b border-slate-200 flex items-center justify-between">
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2"><CheckSquare size={16} className="text-indigo-600" /> Checklists de Inspeção</h3>
+                    <p className="text-xs text-slate-500 mt-0.5">Realize inspeções visuais completas com 80+ itens em 9 categorias</p>
+                  </div>
+                  <button
+                    onClick={() => navigate(`/vehicles/${vehicle.id}/checklist`)}
+                    className="h-9 px-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold flex items-center gap-2 transition-all shadow-sm"
+                  >
+                    <Plus size={15} /> Novo Checklist
+                  </button>
+                </div>
+                <div className="p-8 text-center">
+                  <button
+                    onClick={() => navigate(`/vehicles/${vehicle.id}/checklist`)}
+                    className="inline-flex flex-col items-center gap-4 group"
+                  >
+                    <div className="w-20 h-20 bg-indigo-50 rounded-3xl flex items-center justify-center group-hover:bg-indigo-100 transition-colors border border-indigo-100">
+                      <CheckSquare size={36} className="text-indigo-500" />
+                    </div>
+                    <div>
+                      <p className="font-bold text-slate-900">Abrir Checklists</p>
+                      <p className="text-xs text-slate-500 mt-1">Motor · Freios · Suspensão · Pneus · Elétrico · A/C · Carroceria · Interior</p>
+                    </div>
+                  </button>
                 </div>
               </div>
             )}

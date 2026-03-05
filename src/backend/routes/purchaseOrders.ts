@@ -143,10 +143,15 @@ router.post("/:id/receive", (req: AuthRequest, res) => {
     const transaction = db.transaction(() => {
       // Get order
       const order = db.prepare(`
-        SELECT * FROM purchase_orders WHERE id = ? AND tenant_id = ?
+        SELECT po.*, s.name as supplier_name
+        FROM purchase_orders po
+        JOIN suppliers s ON po.supplier_id = s.id
+        WHERE po.id = ? AND po.tenant_id = ?
       `).get(req.params.id, req.user!.tenant_id) as any;
 
       if (!order) throw new Error("Order not found");
+
+      let totalReceivedCost = 0;
 
       // Process each item
       for (const item of items) {
@@ -158,7 +163,7 @@ router.post("/:id/receive", (req: AuthRequest, res) => {
         if (!orderItem) continue;
 
         // Update received quantity
-        const newReceived = orderItem.received_quantity + item.received_quantity;
+        const newReceived = (orderItem.received_quantity || 0) + item.received_quantity;
         db.prepare(`
           UPDATE purchase_order_items 
           SET received_quantity = ? 
@@ -168,9 +173,12 @@ router.post("/:id/receive", (req: AuthRequest, res) => {
         // Update part stock
         db.prepare(`
           UPDATE parts 
-          SET stock_quantity = stock_quantity + ?, updated_at = CURRENT_TIMESTAMP 
+          SET stock_quantity = stock_quantity + ?, 
+              cost_price = ?,
+              supplier_id = ?,
+              updated_at = CURRENT_TIMESTAMP 
           WHERE id = ?
-        `).run(item.received_quantity, orderItem.part_id);
+        `).run(item.received_quantity, orderItem.unit_cost, order.supplier_id, orderItem.part_id);
 
         // Create stock movement
         db.prepare(`
@@ -181,15 +189,31 @@ router.post("/:id/receive", (req: AuthRequest, res) => {
         `).run(
           uuidv4(), req.user!.tenant_id, orderItem.part_id, 'ENTRY',
           item.received_quantity, orderItem.unit_cost, req.params.id,
-          'PURCHASE_ORDER', invoice_number, 'Recebimento de pedido de compra', req.user!.id
+          'PURCHASE_ORDER', invoice_number || order.number,
+          `Recebimento de pedido de compra ${order.number} - Fornecedor: ${order.supplier_name}`,
+          req.user!.id
         );
 
-        // Update supplier_parts
-        db.prepare(`
-          UPDATE supplier_parts 
-          SET last_cost = ?, last_purchase_date = CURRENT_TIMESTAMP 
+        // Upsert supplier_parts (link part <-> supplier with price)
+        const existingLink = db.prepare(`
+          SELECT id FROM supplier_parts 
           WHERE supplier_id = ? AND part_id = ?
-        `).run(orderItem.unit_cost, order.supplier_id, orderItem.part_id);
+        `).get(order.supplier_id, orderItem.part_id);
+
+        if (existingLink) {
+          db.prepare(`
+            UPDATE supplier_parts 
+            SET last_cost = ?, last_purchase_date = CURRENT_TIMESTAMP 
+            WHERE supplier_id = ? AND part_id = ?
+          `).run(orderItem.unit_cost, order.supplier_id, orderItem.part_id);
+        } else {
+          db.prepare(`
+            INSERT INTO supplier_parts (id, supplier_id, part_id, last_cost, last_purchase_date)
+            VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+          `).run(uuidv4(), order.supplier_id, orderItem.part_id, orderItem.unit_cost);
+        }
+
+        totalReceivedCost += item.received_quantity * orderItem.unit_cost;
       }
 
       // Check if all items received
@@ -197,8 +221,8 @@ router.post("/:id/receive", (req: AuthRequest, res) => {
         SELECT * FROM purchase_order_items WHERE purchase_order_id = ?
       `).all(req.params.id) as any[];
 
-      const allReceived = allItems.every((i: any) => i.received_quantity >= i.quantity);
-      const someReceived = allItems.some((i: any) => i.received_quantity > 0);
+      const allReceived = allItems.every((i: any) => (i.received_quantity || 0) >= i.quantity);
+      const someReceived = allItems.some((i: any) => (i.received_quantity || 0) > 0);
 
       const newStatus = allReceived ? 'RECEIVED' : (someReceived ? 'PARTIAL' : order.status);
 
@@ -207,6 +231,36 @@ router.post("/:id/receive", (req: AuthRequest, res) => {
         SET status = ?, updated_at = CURRENT_TIMESTAMP 
         WHERE id = ?
       `).run(newStatus, req.params.id);
+
+      // Register cashflow OUT transaction for the purchase
+      if (totalReceivedCost > 0) {
+        // Find the first active cash account to register the expense
+        const cashAccount = db.prepare(`
+          SELECT id FROM cash_accounts 
+          WHERE tenant_id = ? AND active = 1 
+          ORDER BY 
+            CASE type WHEN 'cash' THEN 1 WHEN 'bank' THEN 2 ELSE 3 END
+          LIMIT 1
+        `).get(req.user!.tenant_id) as any;
+
+        const accountId = cashAccount?.id || null;
+        const cashflowId = uuidv4();
+
+        db.prepare(`
+          INSERT INTO cashflow_transactions (
+            id, tenant_id, date, type, amount, category, description,
+            account_id, payment_method, status, source_type, source_id, created_by
+          ) VALUES (?, ?, CURRENT_TIMESTAMP, 'out', ?, 'Compras de Peças', ?, ?, 'Outros', 'confirmed', 'purchase_order', ?, ?)
+        `).run(
+          cashflowId,
+          req.user!.tenant_id,
+          totalReceivedCost,
+          `Compra de peças - Pedido ${order.number} - ${order.supplier_name}`,
+          accountId,
+          req.params.id,
+          req.user!.id
+        );
+      }
     });
 
     transaction();

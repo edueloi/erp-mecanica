@@ -9,6 +9,7 @@ import Clients from './pages/Clients';
 import ClientDetail from './pages/ClientDetail';
 import Vehicles from './pages/Vehicles';
 import VehicleDetail from './pages/VehicleDetail';
+import VehicleChecklist from './pages/VehicleChecklist';
 import WorkOrders from './pages/WorkOrders';
 import WorkOrderDetail from './pages/WorkOrderDetail';
 import Appointments from './pages/Appointments';
@@ -48,6 +49,8 @@ export default function App() {
         <Route path="/clients/:id" element={<PrivateRoute><ClientDetail /></PrivateRoute>} />
         <Route path="/vehicles" element={<PrivateRoute><Vehicles /></PrivateRoute>} />
         <Route path="/vehicles/:id" element={<PrivateRoute><VehicleDetail /></PrivateRoute>} />
+        <Route path="/vehicles/:vehicleId/checklist" element={<PrivateRoute><VehicleChecklist /></PrivateRoute>} />
+        <Route path="/vehicles/:vehicleId/checklist/:checklistId" element={<PrivateRoute><VehicleChecklist /></PrivateRoute>} />
         <Route path="/work-orders" element={<PrivateRoute><WorkOrders /></PrivateRoute>} />
         <Route path="/work-orders/:id" element={<PrivateRoute><WorkOrderDetail /></PrivateRoute>} />
         <Route path="/appointments" element={<PrivateRoute><Appointments /></PrivateRoute>} />

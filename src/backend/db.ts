@@ -1104,6 +1104,38 @@ export function initDb() {
     console.error("⚠️  Error adding category_id to action_boards:", e.message);
   }
 
+  // Vehicle Checklists
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS vehicle_checklists (
+      id TEXT PRIMARY KEY,
+      tenant_id TEXT NOT NULL,
+      vehicle_id TEXT NOT NULL,
+      work_order_id TEXT,
+      km INTEGER DEFAULT 0,
+      inspector_name TEXT,
+      status TEXT CHECK(status IN ('DRAFT','COMPLETED')) DEFAULT 'DRAFT',
+      general_notes TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (tenant_id) REFERENCES tenants(id),
+      FOREIGN KEY (vehicle_id) REFERENCES vehicles(id),
+      FOREIGN KEY (work_order_id) REFERENCES work_orders(id)
+    )
+  `);
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS vehicle_checklist_items (
+      id TEXT PRIMARY KEY,
+      checklist_id TEXT NOT NULL,
+      category TEXT NOT NULL,
+      item TEXT NOT NULL,
+      status TEXT CHECK(status IN ('OK','ATTENTION','CRITICAL','NA')) DEFAULT 'NA',
+      notes TEXT,
+      sort_order INTEGER DEFAULT 0,
+      FOREIGN KEY (checklist_id) REFERENCES vehicle_checklists(id) ON DELETE CASCADE
+    )
+  `);
+
   console.log("Database initialized successfully.");
 }
 

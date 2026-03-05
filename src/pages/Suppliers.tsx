@@ -393,8 +393,10 @@ export default function Suppliers() {
         invoice_number: `REC-${Date.now()}`
       });
       
-      showNotification('success', 'Sucesso', 'Estoque atualizado com o recebimento do pedido!');
-      setShowPODetail(false);
+      showNotification('success', 'Pedido Recebido!', 'Estoque atualizado · Saída registrada no Fluxo de Caixa · Fornecedor vinculado às peças');
+      // Refresh PO detail to show received status
+      const updated = await api.get(`/purchase-orders/${poId}`);
+      setSelectedPO(updated.data);
       fetchStats();
       fetchPurchaseOrders();
     } catch (err) {
@@ -402,8 +404,12 @@ export default function Suppliers() {
     }
   };
 
-  const handleDownloadPOPDF = (po: any) => {
+  const handleDownloadPOPDF = async (po: any) => {
     try {
+      // Fetch full PO details (list view doesn't include items)
+      const res = await api.get(`/purchase-orders/${po.id}`);
+      const fullPO = res.data;
+
       const doc = new jsPDF();
       const pageWidth = doc.internal.pageSize.getWidth();
       
@@ -418,9 +424,13 @@ export default function Suppliers() {
       
       doc.setFontSize(10);
       doc.setFont('helvetica', 'normal');
-      doc.text(`Nº ${po.number}`, pageWidth - 20, 20, { align: 'right' });
-      doc.text(`Data: ${formatDate(po.order_date)}`, pageWidth - 20, 28, { align: 'right' });
+      doc.text(`Nº ${fullPO.number}`, pageWidth - 20, 20, { align: 'right' });
+      doc.text(`Data: ${formatDate(fullPO.order_date)}`, pageWidth - 20, 28, { align: 'right' });
       
+      // Status badge
+      const statusText = fullPO.status === 'RECEIVED' ? 'RECEBIDO' : fullPO.status === 'DRAFT' ? 'RASCUNHO' : 'PENDENTE';
+      doc.text(`Status: ${statusText}`, pageWidth - 20, 36, { align: 'right' });
+
       // Supplier Info
       doc.setTextColor(30, 41, 59);
       doc.setFontSize(12);
@@ -429,53 +439,67 @@ export default function Suppliers() {
       
       doc.setFontSize(10);
       doc.setFont('helvetica', 'normal');
-      doc.text(po.supplier_name, 20, 62);
+      doc.text(fullPO.supplier_name, 20, 62);
       
+      if (fullPO.expected_delivery) {
+        doc.text(`Entrega prevista: ${formatDate(fullPO.expected_delivery)}`, 20, 68);
+      }
+
       // Items Table
-      autoTable(doc, {
-        startY: 75,
-        head: [['Item', 'Qtd', 'Vlr. Unit.', 'Subtotal']],
-        body: po.items.map((item: any) => [
-          item.name,
-          item.quantity,
-          `R$ ${item.unit_cost.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
-          `R$ ${item.subtotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
-        ]),
-        headStyles: { fillColor: [79, 70, 229] }, // indigo-600
-        styles: { fontSize: 9 },
-        margin: { horizontal: 20 }
-      });
+      const items = fullPO.items || [];
+      if (items.length > 0) {
+        autoTable(doc, {
+          startY: 78,
+          head: [['Item / Peça', 'Qtd', 'Vlr. Unit.', 'Subtotal']],
+          body: items.map((item: any) => [
+            item.name || item.description || 'N/A',
+            item.quantity,
+            `R$ ${(item.unit_cost || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
+            `R$ ${(item.subtotal || item.quantity * item.unit_cost || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
+          ]),
+          headStyles: { fillColor: [79, 70, 229] }, // indigo-600
+          styles: { fontSize: 9 },
+          margin: { horizontal: 20 }
+        });
+      } else {
+        doc.setFontSize(9);
+        doc.setTextColor(150, 150, 150);
+        doc.text('Nenhum item neste pedido.', 20, 85);
+      }
       
-      const finalY = (doc as any).lastAutoTable.finalY + 10;
+      const finalY = ((doc as any).lastAutoTable?.finalY ?? 85) + 10;
       
       // Summary
+      doc.setTextColor(30, 41, 59);
       doc.setFontSize(10);
       doc.setFont('helvetica', 'normal');
+
+      const subtotal = fullPO.total - (fullPO.freight || 0) + (fullPO.discount || 0);
       doc.text('Subtotal:', pageWidth - 60, finalY);
-      doc.text(`R$ ${(po.total - (po.freight || 0) + (po.discount || 0)).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, pageWidth - 20, finalY, { align: 'right' });
+      doc.text(`R$ ${subtotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, pageWidth - 20, finalY, { align: 'right' });
       
       doc.text('Frete:', pageWidth - 60, finalY + 7);
-      doc.text(`+ R$ ${(po.freight || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, pageWidth - 20, finalY + 7, { align: 'right' });
+      doc.text(`+ R$ ${(fullPO.freight || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, pageWidth - 20, finalY + 7, { align: 'right' });
       
       doc.text('Desconto:', pageWidth - 60, finalY + 14);
-      doc.text(`- R$ ${(po.discount || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, pageWidth - 20, finalY + 14, { align: 'right' });
+      doc.text(`- R$ ${(fullPO.discount || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, pageWidth - 20, finalY + 14, { align: 'right' });
       
       doc.line(pageWidth - 65, finalY + 18, pageWidth - 20, finalY + 18);
       
       doc.setFontSize(12);
       doc.setFont('helvetica', 'bold');
       doc.text('TOTAL:', pageWidth - 60, finalY + 25);
-      doc.text(`R$ ${po.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, pageWidth - 20, finalY + 25, { align: 'right' });
+      doc.text(`R$ ${(fullPO.total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, pageWidth - 20, finalY + 25, { align: 'right' });
       
-      if (po.notes) {
+      if (fullPO.notes) {
         doc.setFontSize(9);
         doc.setFont('helvetica', 'italic');
         doc.setTextColor(100, 116, 139);
         doc.text('Observações:', 20, finalY + 40);
-        doc.text(doc.splitTextToSize(po.notes, pageWidth - 40), 20, finalY + 46);
+        doc.text(doc.splitTextToSize(fullPO.notes, pageWidth - 40), 20, finalY + 46);
       }
       
-      doc.save(`Pedido_Compra_${po.number}.pdf`);
+      doc.save(`Pedido_Compra_${fullPO.number}.pdf`);
       showNotification('success', 'Sucesso', 'PDF gerado com sucesso!');
     } catch (err) {
       console.error(err);
@@ -1401,92 +1425,145 @@ export default function Suppliers() {
                 exit={{ opacity: 0, scale: 0.95, y: 20 }}
                 className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden pointer-events-auto flex flex-col"
               >
-                <div className="bg-slate-900 px-6 py-4 flex items-center justify-between">
-                  <div>
-                    <h2 className="text-lg font-bold text-white">Detalhes do Pedido {selectedPO.number}</h2>
-                    <p className="text-slate-400 text-xs">Fornecedor: {selectedPO.supplier_name}</p>
-                  </div>
-                  <button onClick={() => setShowPODetail(false)} className="text-white hover:text-slate-400 transition-colors">
-                    <X size={20} />
-                  </button>
-                </div>
+                 <div className="bg-slate-900 px-6 py-4 flex items-center justify-between">
+                   <div>
+                     <h2 className="text-lg font-bold text-white">Pedido {selectedPO.number}</h2>
+                     <div className="flex items-center gap-2 mt-1">
+                       <span className="text-slate-400 text-xs">Fornecedor:</span>
+                       <span className="text-white text-xs font-bold">{selectedPO.supplier_name}</span>
+                       <span className={`ml-2 px-2 py-0.5 rounded-full text-[9px] font-black tracking-wider ${
+                         selectedPO.status === 'RECEIVED' ? 'bg-emerald-500 text-white' :
+                         selectedPO.status === 'PARTIAL' ? 'bg-blue-500 text-white' :
+                         selectedPO.status === 'DRAFT' ? 'bg-slate-500 text-white' :
+                         'bg-amber-500 text-white'
+                       }`}>
+                         {selectedPO.status === 'RECEIVED' ? 'RECEBIDO' :
+                          selectedPO.status === 'PARTIAL' ? 'PARCIAL' :
+                          selectedPO.status === 'DRAFT' ? 'RASCUNHO' : 'PENDENTE'}
+                       </span>
+                     </div>
+                   </div>
+                   <div className="flex items-center gap-3">
+                     <button
+                       onClick={() => handleDownloadPOPDF({ id: selectedPO.id, number: selectedPO.number })}
+                       className="p-2 text-white/60 hover:text-white bg-white/10 hover:bg-white/20 rounded-lg transition-all"
+                       title="Baixar PDF"
+                     >
+                       <FileText size={18} />
+                     </button>
+                     <button onClick={() => setShowPODetail(false)} className="text-white hover:text-slate-400 transition-colors">
+                       <X size={20} />
+                     </button>
+                   </div>
+                 </div>
 
-                <div className="p-6 space-y-6">
-                  <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div className="p-3 bg-slate-50 rounded-xl">
-                      <p className="text-slate-500 text-xs font-bold uppercase mb-1">Status</p>
-                      <p className="font-bold text-slate-900 underline">{selectedPO.status}</p>
-                    </div>
-                    <div className="p-3 bg-slate-50 rounded-xl">
-                      <p className="text-slate-500 text-xs font-bold uppercase mb-1">Entrega Prevista</p>
-                      <p className="font-bold text-slate-900">{formatDate(selectedPO.expected_delivery)}</p>
-                    </div>
-                  </div>
+                 <div className="p-6 space-y-5 overflow-y-auto max-h-[75vh]">
+                   {/* Info Grid */}
+                   <div className="grid grid-cols-2 gap-3 text-sm">
+                     <div className="p-3 bg-slate-50 rounded-xl">
+                       <p className="text-slate-500 text-xs font-bold uppercase mb-1">Data do Pedido</p>
+                       <p className="font-bold text-slate-900">{formatDate(selectedPO.order_date)}</p>
+                     </div>
+                     <div className="p-3 bg-slate-50 rounded-xl">
+                       <p className="text-slate-500 text-xs font-bold uppercase mb-1">Entrega Prevista</p>
+                       <p className="font-bold text-slate-900">
+                         {selectedPO.expected_delivery ? formatDate(selectedPO.expected_delivery) : '—'}
+                       </p>
+                     </div>
+                   </div>
 
-                  <div>
-                    <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-3">Itens do Pedido</h3>
-                    <div className="border border-slate-100 rounded-xl overflow-hidden">
-                      <table className="w-full text-xs">
-                        <thead className="bg-slate-50 border-b border-slate-100">
-                          <tr>
-                            <th className="text-left px-4 py-2 text-slate-500">Produto</th>
-                            <th className="text-center px-4 py-2 text-slate-500">Qtd</th>
-                            <th className="text-right px-4 py-2 text-slate-500">Valor Unit.</th>
-                            <th className="text-right px-4 py-2 text-slate-500">Subtotal</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-50">
-                          {selectedPO.items?.map((item: any) => (
-                            <tr key={item.id}>
-                              <td className="px-4 py-3 font-medium">{item.name}</td>
-                              <td className="px-4 py-3 text-center font-bold">{item.quantity}</td>
-                              <td className="px-4 py-3 text-right text-slate-500">R$ {item.unit_cost.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
-                              <td className="px-4 py-3 text-right font-bold text-slate-900">R$ {item.subtotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
+                   {/* Received Banner */}
+                   {selectedPO.status === 'RECEIVED' && (
+                     <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 flex items-start gap-3">
+                       <CheckCircle className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
+                       <div>
+                         <p className="text-emerald-800 font-bold text-sm">Pedido recebido com sucesso</p>
+                         <p className="text-emerald-700 text-xs mt-0.5">
+                           ✅ Estoque atualizado &nbsp;·&nbsp; ✅ Fluxo de caixa registrado (saída) &nbsp;·&nbsp; ✅ Fornecedor vinculado às peças
+                         </p>
+                       </div>
+                     </div>
+                   )}
 
-                  <div className="flex flex-col items-end gap-1 pt-4 border-t border-slate-100">
-                    <div className="flex justify-between w-64 text-sm">
-                      <span className="text-slate-500">Subtotal:</span>
-                      <span className="font-bold text-slate-700">R$ {(selectedPO.total - (selectedPO.freight || 0) + (selectedPO.discount || 0)).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
-                    </div>
-                    <div className="flex justify-between w-64 text-sm">
-                      <span className="text-slate-500">Frete:</span>
-                      <span className="font-bold text-indigo-600">+ R$ {(selectedPO.freight || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
-                    </div>
-                    <div className="flex justify-between w-64 text-sm">
-                      <span className="text-slate-500">Desconto:</span>
-                      <span className="font-bold text-rose-600">- R$ {(selectedPO.discount || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
-                    </div>
-                    <div className="flex justify-between w-64 text-lg pt-2 border-t border-slate-200 mt-2">
-                      <span className="font-black text-slate-800">Total:</span>
-                      <span className="font-black text-emerald-600 underline">R$ {selectedPO.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
-                    </div>
-                  </div>
+                   {/* Items Table */}
+                   <div>
+                     <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-3">Itens do Pedido</h3>
+                     <div className="border border-slate-100 rounded-xl overflow-hidden">
+                       <table className="w-full text-xs">
+                         <thead className="bg-slate-50 border-b border-slate-100">
+                           <tr>
+                             <th className="text-left px-4 py-2 text-slate-500">Produto / Peça</th>
+                             <th className="text-center px-4 py-2 text-slate-500">Qtd</th>
+                             <th className="text-right px-4 py-2 text-slate-500">Valor Unit.</th>
+                             <th className="text-right px-4 py-2 text-slate-500">Subtotal</th>
+                           </tr>
+                         </thead>
+                         <tbody className="divide-y divide-slate-50">
+                           {selectedPO.items?.map((item: any) => (
+                             <tr key={item.id} className="hover:bg-slate-50/50">
+                               <td className="px-4 py-3">
+                                 <p className="font-bold text-slate-900">{item.name}</p>
+                                 {item.code && <p className="text-slate-400 text-[10px]">Cód: {item.code}</p>}
+                               </td>
+                               <td className="px-4 py-3 text-center font-black text-slate-800">{item.quantity}</td>
+                               <td className="px-4 py-3 text-right text-slate-500">R$ {(item.unit_cost || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+                               <td className="px-4 py-3 text-right font-bold text-slate-900">R$ {(item.subtotal || item.quantity * item.unit_cost || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+                             </tr>
+                           ))}
+                         </tbody>
+                       </table>
+                     </div>
+                   </div>
 
-                  {selectedPO.status !== 'RECEIVED' && (
-                    <div className="pt-4">
-                      <button
-                        onClick={() => handleReceivePO(selectedPO.id)}
-                        className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-black py-3 rounded-xl shadow-lg shadow-emerald-200 flex items-center justify-center gap-2 transition-all"
-                      >
-                        <Package size={20} /> REGISTRAR RECEBIMENTO E ATUALIZAR ESTOQUE
-                      </button>
-                      <p className="text-[10px] text-slate-400 text-center mt-2 italic">
-                        * Ao receber, as quantidades serão somadas automaticamente ao estoque de peças.
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </motion.div>
-            </div>
-          </>
-        )}
-      </AnimatePresence>
+                   {/* Totals */}
+                   <div className="flex flex-col items-end gap-1 pt-4 border-t border-slate-100">
+                     <div className="flex justify-between w-64 text-sm">
+                       <span className="text-slate-500">Subtotal:</span>
+                       <span className="font-bold text-slate-700">R$ {(selectedPO.total - (selectedPO.freight || 0) + (selectedPO.discount || 0)).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                     </div>
+                     {(selectedPO.freight || 0) > 0 && (
+                       <div className="flex justify-between w-64 text-sm">
+                         <span className="text-slate-500">Frete:</span>
+                         <span className="font-bold text-indigo-600">+ R$ {(selectedPO.freight || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                       </div>
+                     )}
+                     {(selectedPO.discount || 0) > 0 && (
+                       <div className="flex justify-between w-64 text-sm">
+                         <span className="text-slate-500">Desconto:</span>
+                         <span className="font-bold text-rose-600">- R$ {(selectedPO.discount || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                       </div>
+                     )}
+                     <div className="flex justify-between w-64 text-lg pt-2 border-t border-slate-200 mt-2">
+                       <span className="font-black text-slate-800">Total:</span>
+                       <span className="font-black text-emerald-600">R$ {(selectedPO.total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                     </div>
+                   </div>
+
+                   {/* Receive Button */}
+                   {selectedPO.status !== 'RECEIVED' && (
+                     <div className="pt-2">
+                       <button
+                         onClick={() => handleReceivePO(selectedPO.id)}
+                         className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-black py-3.5 rounded-xl shadow-lg shadow-emerald-200 flex items-center justify-center gap-2 transition-all"
+                       >
+                         <Package size={20} /> REGISTRAR RECEBIMENTO
+                       </button>
+                       <div className="mt-3 p-3 bg-slate-50 rounded-xl">
+                         <p className="text-[10px] text-slate-500 font-semibold uppercase tracking-wide mb-1">O que acontece ao confirmar:</p>
+                         <div className="space-y-1">
+                           <p className="text-[10px] text-slate-600">📦 Adiciona as quantidades ao estoque de cada peça</p>
+                           <p className="text-[10px] text-slate-600">💰 Registra saída automática no Fluxo de Caixa</p>
+                           <p className="text-[10px] text-slate-600">🔗 Vincula o fornecedor e o preço de custo a cada peça</p>
+                         </div>
+                       </div>
+                     </div>
+                   )}
+                 </div>
+               </motion.div>
+             </div>
+           </>
+         )}
+       </AnimatePresence>
 
       {/* Notification Toast */}
       <AnimatePresence>
