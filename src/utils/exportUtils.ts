@@ -1,13 +1,6 @@
 import * as XLSX from 'xlsx';
 import { jsPDF } from 'jspdf';
-import 'jspdf-autotable';
-
-// Extend jsPDF type to include autoTable
-declare module 'jspdf' {
-  interface jsPDF {
-    autoTable: (options: any) => jsPDF;
-  }
-}
+import autoTable from 'jspdf-autotable';
 
 /**
  * Export data to Excel file
@@ -52,7 +45,7 @@ export const exportToPDF = (
   doc.text(`Data: ${new Date().toLocaleDateString('pt-BR')}`, 14, 28);
   
   // Add table
-  doc.autoTable({
+  autoTable(doc, {
     startY: 35,
     head: [columns.map(col => col.header)],
     body: data.map(row => columns.map(col => row[col.dataKey] || '')),

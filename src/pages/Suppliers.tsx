@@ -14,15 +14,22 @@ import {
   X,
   Edit,
   Trash2,
-  ShoppingCart,
+  FilePlus,
   FileText,
   Star,
   Calendar,
   DollarSign,
   Truck,
   Clock,
+  CheckCircle,
+  Info,
+  ArrowRight,
+  ChevronDown,
+  ClipboardList,
 } from "lucide-react";
 import api from "../services/api";
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 interface Supplier {
   id: string;
@@ -67,6 +74,30 @@ export default function Suppliers() {
   const [showOrderModal, setShowOrderModal] = useState(false);
   const [selectedSupplier, setSelectedSupplier] = useState<Supplier | null>(null);
   const [loading, setLoading] = useState(true);
+  const [parts, setParts] = useState<any[]>([]);
+  const [orderData, setOrderData] = useState({
+    expected_delivery: "",
+    freight: 0,
+    discount: 0,
+    notes: "",
+    items: [] as any[],
+  });
+  const [purchaseOrders, setPurchaseOrders] = useState<any[]>([]);
+  const [showOrdersList, setShowOrdersList] = useState(false);
+  const [selectedPO, setSelectedPO] = useState<any>(null);
+  const [showPODetail, setShowPODetail] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [supplierToDelete, setSupplierToDelete] = useState<Supplier | null>(null);
+  const [notification, setNotification] = useState<{
+    show: boolean;
+    type: 'success' | 'error' | 'info';
+    title: string;
+    message: string;
+  }>({ show: false, type: 'info', title: '', message: '' });
+
+  const showNotification = (type: 'success' | 'error' | 'info', title: string, message: string) => {
+    setNotification({ show: true, type, title, message });
+  };
 
   const [formData, setFormData] = useState({
     name: "",
@@ -97,11 +128,21 @@ export default function Suppliers() {
     fetchStats();
     fetchCategories();
     fetchCities();
+    fetchPurchaseOrders();
   }, []);
 
   useEffect(() => {
     filterSuppliers();
   }, [searchTerm, selectedCategory, selectedStatus, selectedCity, showPreferredOnly, suppliers]);
+
+  useEffect(() => {
+    if (notification.show) {
+      const timer = setTimeout(() => {
+        setNotification(prev => ({ ...prev, show: false }));
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [notification.show]);
 
   const fetchSuppliers = async () => {
     try {
@@ -141,6 +182,15 @@ export default function Suppliers() {
     } catch (error) {
       console.error("Error fetching cities:", error);
       setCities([]);
+    }
+  };
+
+  const fetchPurchaseOrders = async () => {
+    try {
+      const response = await api.get("/purchase-orders");
+      setPurchaseOrders(response.data);
+    } catch (error) {
+      console.error("Error fetching POs:", error);
     }
   };
 
@@ -195,19 +245,27 @@ export default function Suppliers() {
       closeModals();
     } catch (error) {
       console.error("Error saving supplier:", error);
-      alert("Erro ao salvar fornecedor");
+      showNotification('error', 'Erro', 'Não foi possível salvar o fornecedor.');
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("Tem certeza que deseja excluir este fornecedor?")) return;
+  const handleDeleteClick = (supplier: Supplier) => {
+    setSupplierToDelete(supplier);
+    setDeleteConfirmOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!supplierToDelete) return;
 
     try {
-      await api.delete(`/suppliers/${id}`);
+      await api.delete(`/suppliers/${supplierToDelete.id}`);
       fetchSuppliers();
       fetchStats();
+      showNotification('success', 'Sucesso', 'Fornecedor excluído com sucesso.');
+      setDeleteConfirmOpen(false);
+      setSupplierToDelete(null);
     } catch (error: any) {
-      alert(error.response?.data?.error || "Erro ao excluir fornecedor");
+      showNotification('error', 'Erro', error.response?.data?.error || "Erro ao excluir fornecedor.");
     }
   };
 
@@ -241,7 +299,188 @@ export default function Suppliers() {
 
   const handleCreateOrder = (supplier: Supplier) => {
     setSelectedSupplier(supplier);
+    setOrderData({
+      expected_delivery: "",
+      freight: 0,
+      discount: 0,
+      notes: "",
+      items: [],
+    });
     setShowOrderModal(true);
+    fetchParts();
+  };
+
+  const fetchParts = async () => {
+    try {
+      const res = await api.get('/parts');
+      setParts(res.data);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleAddOrderItem = () => {
+    setOrderData({
+      ...orderData,
+      items: [...orderData.items, { part_id: "", quantity: 1, unit_cost: 0 }]
+    });
+  };
+
+  const handleRemoveOrderItem = (index: number) => {
+    const newItems = [...orderData.items];
+    newItems.splice(index, 1);
+    setOrderData({ ...orderData, items: newItems });
+  };
+
+  const handleUpdateOrderItem = (index: number, field: string, value: any) => {
+    const newItems = [...orderData.items];
+    newItems[index] = { ...newItems[index], [field]: value };
+    
+    // If part_id changed, try to auto-fill unit_cost if available in parts list
+    if (field === 'part_id') {
+      const part = parts.find(p => p.id === value);
+      if (part) {
+        newItems[index].unit_cost = part.cost_price || 0;
+      }
+    }
+    
+    setOrderData({ ...orderData, items: newItems });
+  };
+
+  const handleSubmitOrder = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedSupplier) return;
+    if (orderData.items.length === 0) {
+      showNotification('error', 'Erro', 'Adicione pelo menos um item ao pedido.');
+      return;
+    }
+
+    try {
+      await api.post('/purchase-orders', {
+        supplier_id: selectedSupplier.id,
+        ...orderData
+      });
+      showNotification('success', 'Sucesso', 'Pedido de compra criado com sucesso!');
+      setShowOrderModal(false);
+      setShowOrdersList(true);
+      fetchStats();
+      fetchPurchaseOrders();
+    } catch (err) {
+      showNotification('error', 'Erro', 'Falha ao criar pedido de compra.');
+    }
+  };
+
+  const handleViewPODetail = async (poId: string) => {
+    try {
+      const res = await api.get(`/purchase-orders/${poId}`);
+      setSelectedPO(res.data);
+      setShowPODetail(true);
+    } catch (err) {
+      showNotification('error', 'Erro', 'Falha ao carregar detalhes do pedido.');
+    }
+  };
+
+  const handleReceivePO = async (poId: string) => {
+    if (!selectedPO) return;
+    try {
+      const itemsToReceive = selectedPO.items.map((item: any) => ({
+        item_id: item.id,
+        received_quantity: item.quantity // Receiving all for simplicity in this flow
+      }));
+      
+      await api.post(`/purchase-orders/${poId}/receive`, {
+        items: itemsToReceive,
+        invoice_number: `REC-${Date.now()}`
+      });
+      
+      showNotification('success', 'Sucesso', 'Estoque atualizado com o recebimento do pedido!');
+      setShowPODetail(false);
+      fetchStats();
+      fetchPurchaseOrders();
+    } catch (err) {
+      showNotification('error', 'Erro', 'Falha ao registrar recebimento.');
+    }
+  };
+
+  const handleDownloadPOPDF = (po: any) => {
+    try {
+      const doc = new jsPDF();
+      const pageWidth = doc.internal.pageSize.getWidth();
+      
+      // Header
+      doc.setFillColor(30, 41, 59); // slate-800
+      doc.rect(0, 0, pageWidth, 40, 'F');
+      
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(22);
+      doc.setFont('helvetica', 'bold');
+      doc.text('PEDIDO DE COMPRA', 20, 25);
+      
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      doc.text(`Nº ${po.number}`, pageWidth - 20, 20, { align: 'right' });
+      doc.text(`Data: ${formatDate(po.order_date)}`, pageWidth - 20, 28, { align: 'right' });
+      
+      // Supplier Info
+      doc.setTextColor(30, 41, 59);
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
+      doc.text('FORNECEDOR', 20, 55);
+      
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      doc.text(po.supplier_name, 20, 62);
+      
+      // Items Table
+      autoTable(doc, {
+        startY: 75,
+        head: [['Item', 'Qtd', 'Vlr. Unit.', 'Subtotal']],
+        body: po.items.map((item: any) => [
+          item.name,
+          item.quantity,
+          `R$ ${item.unit_cost.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
+          `R$ ${item.subtotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
+        ]),
+        headStyles: { fillColor: [79, 70, 229] }, // indigo-600
+        styles: { fontSize: 9 },
+        margin: { horizontal: 20 }
+      });
+      
+      const finalY = (doc as any).lastAutoTable.finalY + 10;
+      
+      // Summary
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      doc.text('Subtotal:', pageWidth - 60, finalY);
+      doc.text(`R$ ${(po.total - (po.freight || 0) + (po.discount || 0)).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, pageWidth - 20, finalY, { align: 'right' });
+      
+      doc.text('Frete:', pageWidth - 60, finalY + 7);
+      doc.text(`+ R$ ${(po.freight || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, pageWidth - 20, finalY + 7, { align: 'right' });
+      
+      doc.text('Desconto:', pageWidth - 60, finalY + 14);
+      doc.text(`- R$ ${(po.discount || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, pageWidth - 20, finalY + 14, { align: 'right' });
+      
+      doc.line(pageWidth - 65, finalY + 18, pageWidth - 20, finalY + 18);
+      
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
+      doc.text('TOTAL:', pageWidth - 60, finalY + 25);
+      doc.text(`R$ ${po.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, pageWidth - 20, finalY + 25, { align: 'right' });
+      
+      if (po.notes) {
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'italic');
+        doc.setTextColor(100, 116, 139);
+        doc.text('Observações:', 20, finalY + 40);
+        doc.text(doc.splitTextToSize(po.notes, pageWidth - 40), 20, finalY + 46);
+      }
+      
+      doc.save(`Pedido_Compra_${po.number}.pdf`);
+      showNotification('success', 'Sucesso', 'PDF gerado com sucesso!');
+    } catch (err) {
+      console.error(err);
+      showNotification('error', 'Erro', 'Falha ao gerar PDF do pedido.');
+    }
   };
 
   const closeModals = () => {
@@ -295,13 +534,22 @@ export default function Suppliers() {
             <h1 className="text-2xl font-bold text-white mb-1">Fornecedores</h1>
             <p className="text-slate-300 text-sm">Gestão completa de fornecedores e compras</p>
           </div>
-          <button
-            onClick={() => setShowNewModal(true)}
-            className="h-9 px-4 bg-white text-slate-700 rounded-lg hover:bg-slate-50 transition-colors flex items-center gap-2 text-sm font-medium shadow-sm"
-          >
-            <Plus className="w-4 h-4" />
-            Novo Fornecedor
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setShowOrdersList(!showOrdersList)}
+              className="h-9 px-4 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors flex items-center gap-2 text-sm font-medium shadow-sm"
+            >
+              <ClipboardList className="w-4 h-4" />
+              {showOrdersList ? "Ver Fornecedores" : "Ver Pedidos de Compra"}
+            </button>
+            <button
+              onClick={() => setShowNewModal(true)}
+              className="h-9 px-4 bg-white text-slate-700 rounded-lg hover:bg-slate-50 transition-colors flex items-center gap-2 text-sm font-medium shadow-sm"
+            >
+              <Plus className="w-4 h-4" />
+              Novo Fornecedor
+            </button>
+          </div>
         </div>
 
         {/* Stats */}
@@ -342,17 +590,20 @@ export default function Suppliers() {
             </div>
           </div>
 
-          <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/20">
+          <button 
+            onClick={() => setShowOrdersList(true)}
+            className="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/20 hover:bg-white/20 transition-all text-left w-full"
+          >
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-orange-500/20 rounded-lg flex items-center justify-center">
-                <ShoppingCart className="w-5 h-5 text-orange-300" />
+                <Clock className="w-5 h-5 text-orange-300" />
               </div>
               <div>
-                <p className="text-slate-300 text-xs font-medium">Pedidos Abertos</p>
+                <p className="text-slate-300 text-xs font-medium">Pedidos em Aberto</p>
                 <p className="text-white text-2xl font-bold">{stats.open_orders}</p>
               </div>
             </div>
-          </div>
+          </button>
         </div>
       </div>
 
@@ -419,147 +670,175 @@ export default function Suppliers() {
         </div>
       </div>
 
-      {/* Table */}
-      <div className="flex-1 overflow-auto">
-        <table className="w-full">
-          <thead className="bg-slate-50 sticky top-0 z-10">
-            <tr>
-              <th className="text-left text-xs font-semibold text-slate-600 uppercase tracking-wider px-6 py-3">
-                Fornecedor
-              </th>
-              <th className="text-left text-xs font-semibold text-slate-600 uppercase tracking-wider px-6 py-3">
-                Contato
-              </th>
-              <th className="text-left text-xs font-semibold text-slate-600 uppercase tracking-wider px-6 py-3">
-                Localização
-              </th>
-              <th className="text-left text-xs font-semibold text-slate-600 uppercase tracking-wider px-6 py-3">
-                Categoria
-              </th>
-              <th className="text-left text-xs font-semibold text-slate-600 uppercase tracking-wider px-6 py-3">
-                Pagamento
-              </th>
-              <th className="text-left text-xs font-semibold text-slate-600 uppercase tracking-wider px-6 py-3">
-                Prazo Entrega
-              </th>
-              <th className="text-left text-xs font-semibold text-slate-600 uppercase tracking-wider px-6 py-3">
-                Último Pedido
-              </th>
-              <th className="text-left text-xs font-semibold text-slate-600 uppercase tracking-wider px-6 py-3">
-                Status
-              </th>
-              <th className="text-right text-xs font-semibold text-slate-600 uppercase tracking-wider px-6 py-3">
-                Ações
-              </th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-slate-200">
-            {filteredSuppliers.map((supplier) => (
-              <tr key={supplier.id} className="hover:bg-slate-50 transition-colors">
-                <td className="px-6 py-4">
-                  <div className="flex items-center gap-3">
-                    {supplier.is_preferred && (
-                      <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
-                    )}
-                    <div>
-                      <div className="font-medium text-slate-900">{supplier.name}</div>
-                      <div className="text-sm text-slate-500">{supplier.cnpj}</div>
-                    </div>
-                  </div>
-                </td>
-                <td className="px-6 py-4">
-                  <div className="flex flex-col gap-1">
-                    <div className="flex items-center gap-2 text-sm text-slate-600">
-                      <Phone className="w-3 h-3" />
-                      {supplier.phone}
-                    </div>
-                    <div className="flex items-center gap-2 text-sm text-slate-600">
-                      <Mail className="w-3 h-3" />
-                      {supplier.email}
-                    </div>
-                  </div>
-                </td>
-                <td className="px-6 py-4">
-                  <div className="flex items-center gap-2 text-sm text-slate-600">
-                    <MapPin className="w-3 h-3" />
-                    {supplier.city} - {supplier.state}
-                  </div>
-                </td>
-                <td className="px-6 py-4">
-                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                    {supplier.category}
-                  </span>
-                </td>
-                <td className="px-6 py-4 text-sm text-slate-600">
-                  {supplier.payment_terms || "-"}
-                </td>
-                <td className="px-6 py-4">
-                  <div className="flex items-center gap-2 text-sm text-slate-600">
-                    <Truck className="w-3 h-3" />
-                    {supplier.avg_delivery_days} dias
-                  </div>
-                </td>
-                <td className="px-6 py-4">
-                  <div className="text-sm text-slate-600">
-                    {supplier.last_order_date ? formatDate(supplier.last_order_date) : "Nunca"}
-                  </div>
-                  {supplier.open_orders ? (
-                    <div className="text-xs text-orange-600 font-medium">
-                      {supplier.open_orders} pedidos abertos
-                    </div>
-                  ) : null}
-                </td>
-                <td className="px-6 py-4">
-                  <span
-                    className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                      supplier.status === "ACTIVE"
-                        ? "bg-green-100 text-green-800"
-                        : "bg-slate-100 text-slate-800"
-                    }`}
-                  >
-                    {supplier.status === "ACTIVE" ? "Ativo" : "Inativo"}
-                  </span>
-                </td>
-                <td className="px-6 py-4">
-                  <div className="flex items-center justify-end gap-2">
-                    <button
-                      onClick={() => handleCreateOrder(supplier)}
-                      className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                      title="Criar Pedido"
-                    >
-                      <ShoppingCart className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={() => handleEdit(supplier)}
-                      className="p-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
-                      title="Editar"
-                    >
-                      <Edit className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={() => handleDelete(supplier.id)}
-                      className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                      title="Excluir"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-
-        {filteredSuppliers.length === 0 && (
-          <div className="text-center py-12">
-            <Building2 className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-            <p className="text-slate-500 font-medium">Nenhum fornecedor encontrado</p>
-            <p className="text-slate-400 text-sm mt-1">
-              Ajuste os filtros ou cadastre um novo fornecedor
-            </p>
+        {showOrdersList ? (
+          <div className="p-6">
+            <h2 className="text-lg font-bold text-slate-800 mb-4">Lista de Pedidos de Compra</h2>
+            <div className="border border-slate-200 rounded-2xl overflow-hidden">
+              <table className="w-full text-sm">
+                <thead className="bg-slate-50 border-b border-slate-200">
+                  <tr>
+                    <th className="text-left px-6 py-3 font-semibold text-slate-600">Número</th>
+                    <th className="text-left px-6 py-3 font-semibold text-slate-600">Fornecedor</th>
+                    <th className="text-left px-6 py-3 font-semibold text-slate-600">Data</th>
+                    <th className="text-right px-6 py-3 font-semibold text-slate-600">Total</th>
+                    <th className="text-center px-6 py-3 font-semibold text-slate-600">Status</th>
+                    <th className="text-right px-6 py-3 font-semibold text-slate-600">Ações</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 bg-white">
+                  {purchaseOrders.map(po => (
+                    <tr key={po.id} className="hover:bg-slate-50 transition-colors">
+                      <td className="px-6 py-4 font-bold text-indigo-600">{po.number}</td>
+                      <td className="px-6 py-4 text-slate-700">{po.supplier_name}</td>
+                      <td className="px-6 py-4 text-slate-500">{formatDate(po.order_date)}</td>
+                      <td className="px-6 py-4 text-right font-medium text-slate-900">
+                        R$ {po.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      </td>
+                      <td className="px-6 py-4 text-center">
+                        <span className={`px-2 py-1 rounded-full text-[10px] font-bold ${
+                          po.status === 'RECEIVED' ? 'bg-emerald-100 text-emerald-700' :
+                          po.status === 'DRAFT' ? 'bg-slate-100 text-slate-600' :
+                          'bg-amber-100 text-amber-700'
+                        }`}>
+                          {po.status === 'RECEIVED' ? 'RECEBIDO' : 
+                           po.status === 'DRAFT' ? 'RASCUNHO' : 'PENDENTE'}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <button 
+                            onClick={() => handleDownloadPOPDF(po)}
+                            className="text-slate-400 hover:text-rose-600 p-2 rounded-lg transition-all"
+                            title="Baixar PDF"
+                          >
+                            <FileText size={18} />
+                          </button>
+                          <button 
+                            onClick={() => handleViewPODetail(po.id)}
+                            className="text-indigo-600 hover:bg-indigo-50 p-2 rounded-lg transition-all"
+                            title="Ver Detalhes"
+                          >
+                            <ArrowRight size={18} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                  {purchaseOrders.length === 0 && (
+                    <tr>
+                      <td colSpan={6} className="px-6 py-12 text-center text-slate-400 italic">
+                        Nenhum pedido de compra encontrado.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        ) : (
+          <div className="flex-1 overflow-auto bg-slate-50/30">
+            <table className="w-full">
+              <thead className="bg-white border-b border-slate-200 sticky top-0 z-10 shadow-sm">
+                <tr>
+                  <th className="text-left px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Fornecedor</th>
+                  <th className="text-left px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Categoria</th>
+                  <th className="text-left px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Status</th>
+                  <th className="text-left px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Contato</th>
+                  <th className="text-left px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Localização</th>
+                  <th className="text-right px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Ações</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 bg-white">
+                {filteredSuppliers.map((supplier) => (
+                  <tr key={supplier.id} className="hover:bg-indigo-50/30 transition-colors group">
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center text-slate-500 group-hover:bg-white transition-colors border border-slate-100">
+                          <Building2 className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <p className="font-bold text-slate-900 group-hover:text-indigo-600 transition-colors">
+                            {supplier.name}
+                            {supplier.is_preferred && <Star className="w-3 h-3 text-yellow-500 fill-yellow-500 inline ml-1" />}
+                          </p>
+                          <p className="text-xs text-slate-500 font-medium">{supplier.trade_name || supplier.cnpj}</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-bold bg-slate-100 text-slate-700 uppercase tracking-wider">
+                        {supplier.category}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold tracking-wider ${
+                        supplier.status === 'ACTIVE' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'
+                      }`}>
+                        {supplier.status === 'ACTIVE' ? 'ATIVO' : 'INATIVO'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="space-y-1.5">
+                        <div className="flex items-center gap-2 text-xs text-slate-600 font-medium">
+                          <Phone className="w-3.5 h-3.5 text-slate-400" />
+                          {supplier.phone}
+                        </div>
+                        <div className="flex items-center gap-2 text-xs text-slate-600 font-medium">
+                          <Mail className="w-3.5 h-3.5 text-slate-400" />
+                          {supplier.email}
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-2 text-xs text-slate-600 font-medium">
+                        <MapPin className="w-3.5 h-3.5 text-slate-400" />
+                        {supplier.city} - {supplier.state}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button
+                          onClick={() => handleCreateOrder(supplier)}
+                          className="p-2 text-indigo-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
+                          title="Novo Pedido de Compra"
+                        >
+                          <FilePlus className="w-5 h-5" />
+                        </button>
+                        <button
+                          onClick={() => handleEdit(supplier)}
+                          className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all"
+                          title="Editar"
+                        >
+                          <Edit className="w-5 h-5" />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteClick(supplier)}
+                          className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all"
+                          title="Excluir"
+                        >
+                          <Trash2 className="w-5 h-5" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+                {filteredSuppliers.length === 0 && (
+                  <tr>
+                    <td colSpan={6} className="px-6 py-20 text-center">
+                      <div className="flex flex-col items-center justify-center text-slate-400">
+                        <Search className="w-12 h-12 mb-4 opacity-20" />
+                        <p className="text-lg font-medium">Nenhum fornecedor encontrado</p>
+                        <p className="text-sm">Tente ajustar seus filtros de busca</p>
+                      </div>
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
           </div>
         )}
-      </div>
+
+        {/* ... existing modal logic ... */}
 
       {/* New/Edit Modal */}
       <AnimatePresence>
@@ -887,6 +1166,361 @@ export default function Suppliers() {
               </motion.div>
             </div>
           </>
+        )}
+      </AnimatePresence>
+
+      {/* Purchase Order Modal */}
+      <AnimatePresence>
+        {showOrderModal && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[110]"
+              onClick={closeModals}
+            />
+            <div className="fixed inset-0 flex items-center justify-center z-[120] p-4 pointer-events-none">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden pointer-events-auto flex flex-col"
+              >
+                <div className="bg-gradient-to-r from-indigo-700 to-indigo-600 px-6 py-4 flex items-center justify-between">
+                  <div>
+                    <h2 className="text-lg font-semibold text-white">Criar Pedido de Compra</h2>
+                    <p className="text-indigo-100 text-xs">Fornecedor: {selectedSupplier?.name}</p>
+                  </div>
+                  <button onClick={closeModals} className="text-white/80 hover:text-white transition-colors">
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                <form onSubmit={handleSubmitOrder} className="p-6 overflow-y-auto flex-1 space-y-6">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-[10px] font-medium text-slate-500 uppercase tracking-wider mb-1">Previsão de Entrega</label>
+                      <input 
+                        type="date" 
+                        required
+                        className="w-full h-10 px-4 border border-slate-200 rounded-xl text-sm"
+                        value={orderData.expected_delivery}
+                        onChange={e => setOrderData({...orderData, expected_delivery: e.target.value})}
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wide">Itens do Pedido</h3>
+                      <button 
+                        type="button"
+                        onClick={handleAddOrderItem}
+                        className="text-indigo-600 hover:text-indigo-700 text-xs font-bold flex items-center gap-1 bg-indigo-50 px-3 py-1.5 rounded-lg transition-all"
+                      >
+                        <Plus size={14} /> Adicionar Peça
+                      </button>
+                    </div>
+
+                    <div className="border border-slate-200 rounded-xl overflow-hidden">
+                      <table className="w-full text-sm">
+                        <thead className="bg-slate-50 border-b border-slate-200">
+                          <tr>
+                            <th className="text-left px-4 py-2 font-semibold text-slate-600">Peça / Produto</th>
+                            <th className="text-center px-4 py-2 font-semibold text-slate-600 w-24">Qtd</th>
+                            <th className="text-right px-4 py-2 font-semibold text-slate-600 w-32">Custo Unit.</th>
+                            <th className="text-right px-4 py-2 font-semibold text-slate-600 w-32">Subtotal</th>
+                            <th className="w-10"></th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {orderData.items.map((item, idx) => (
+                            <tr key={idx} className="hover:bg-slate-50/50">
+                              <td className="px-4 py-3">
+                                <select 
+                                  required
+                                  className="w-full h-9 bg-transparent border-none focus:ring-0 text-sm p-0"
+                                  value={item.part_id}
+                                  onChange={e => handleUpdateOrderItem(idx, 'part_id', e.target.value)}
+                                >
+                                  <option value="">Selecione a peça...</option>
+                                  {parts.map(p => (
+                                    <option key={p.id} value={p.id}>{p.name} ({p.sku})</option>
+                                  ))}
+                                </select>
+                              </td>
+                              <td className="px-4 py-3 text-center">
+                                <input 
+                                  type="number" 
+                                  min="1"
+                                  className="w-full h-8 text-center border border-slate-200 rounded bg-white text-sm"
+                                  value={item.quantity}
+                                  onChange={e => handleUpdateOrderItem(idx, 'quantity', parseInt(e.target.value))}
+                                />
+                              </td>
+                              <td className="px-4 py-3 text-right">
+                                <input 
+                                  type="number" 
+                                  step="0.01"
+                                  className="w-full h-8 text-right border border-slate-200 rounded bg-white text-sm"
+                                  value={item.unit_cost}
+                                  onChange={e => handleUpdateOrderItem(idx, 'unit_cost', parseFloat(e.target.value))}
+                                />
+                              </td>
+                              <td className="px-4 py-3 text-right font-medium text-slate-900">
+                                R$ {(item.quantity * item.unit_cost).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                              </td>
+                              <td className="px-4 py-3 text-center">
+                                <button type="button" onClick={() => handleRemoveOrderItem(idx)} className="text-slate-400 hover:text-rose-600 transition-colors">
+                                  <Trash2 size={16} />
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                          {orderData.items.length === 0 && (
+                            <tr>
+                              <td colSpan={5} className="px-4 py-8 text-center text-slate-400 italic">Nenhum item adicionado</td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-[10px] font-medium text-slate-500 uppercase tracking-wider mb-1">Frete (R$)</label>
+                      <input 
+                        type="number" step="0.01"
+                        className="w-full h-10 px-4 border border-slate-200 rounded-xl text-sm"
+                        value={orderData.freight}
+                        onChange={e => setOrderData({...orderData, freight: parseFloat(e.target.value) || 0})}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-medium text-slate-500 uppercase tracking-wider mb-1">Desconto (R$)</label>
+                      <input 
+                        type="number" step="0.01"
+                        className="w-full h-10 px-4 border border-slate-200 rounded-xl text-sm"
+                        value={orderData.discount}
+                        onChange={e => setOrderData({...orderData, discount: parseFloat(e.target.value) || 0})}
+                      />
+                    </div>
+                    <div className="flex flex-col justify-end items-end">
+                      <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Total do Pedido</span>
+                      <span className="text-xl font-black text-slate-900">
+                        R$ {(orderData.items.reduce((sum, i) => sum + (i.quantity * i.unit_cost), 0) + orderData.freight - orderData.discount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-medium text-slate-500 uppercase tracking-wider mb-1">Observações Internas</label>
+                    <textarea 
+                      className="w-full p-4 border border-slate-200 rounded-xl text-sm min-h-[80px]"
+                      placeholder="Alguma instrução especial para o fornecedor ou setor de compras..."
+                      value={orderData.notes}
+                      onChange={e => setOrderData({...orderData, notes: e.target.value})}
+                    ></textarea>
+                  </div>
+
+                  <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
+                    <button type="button" onClick={closeModals} className="px-6 py-2.5 border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-50 transition-colors text-sm font-medium">Cancelar</button>
+                    <button type="submit" className="px-8 py-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-colors text-sm font-bold shadow-lg shadow-indigo-100">Gerar Pedido de Compra</button>
+                  </div>
+                </form>
+              </motion.div>
+            </div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* Delete Confirmation Modal */}
+      <AnimatePresence>
+        {deleteConfirmOpen && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[110]"
+              onClick={() => setDeleteConfirmOpen(false)}
+            />
+            <div className="fixed inset-0 flex items-center justify-center z-[120] p-4 pointer-events-none">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden pointer-events-auto"
+              >
+                <div className="p-6">
+                  <div className="w-12 h-12 bg-rose-100 rounded-full flex items-center justify-center mb-4">
+                    <AlertCircle className="w-6 h-6 text-rose-600" />
+                  </div>
+                  <h3 className="text-lg font-bold text-slate-900 mb-2">Excluir Fornecedor</h3>
+                  <p className="text-slate-600 text-sm mb-6">
+                    Tem certeza que deseja excluir o fornecedor <span className="font-bold text-slate-900">{supplierToDelete?.name}</span>? Esta ação não pode ser desfeita.
+                  </p>
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => setDeleteConfirmOpen(false)}
+                      className="flex-1 px-4 py-2.5 border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-50 transition-colors text-sm font-medium"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      onClick={confirmDelete}
+                      className="flex-1 px-4 py-2.5 bg-rose-600 text-white rounded-xl hover:bg-rose-700 transition-colors text-sm font-medium shadow-lg shadow-rose-200"
+                    >
+                      Excluir
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            </div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* Purchase Order Detail Modal */}
+      <AnimatePresence>
+        {showPODetail && selectedPO && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[150]"
+              onClick={() => setShowPODetail(false)}
+            />
+            <div className="fixed inset-0 flex items-center justify-center z-[160] p-4 pointer-events-none">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden pointer-events-auto flex flex-col"
+              >
+                <div className="bg-slate-900 px-6 py-4 flex items-center justify-between">
+                  <div>
+                    <h2 className="text-lg font-bold text-white">Detalhes do Pedido {selectedPO.number}</h2>
+                    <p className="text-slate-400 text-xs">Fornecedor: {selectedPO.supplier_name}</p>
+                  </div>
+                  <button onClick={() => setShowPODetail(false)} className="text-white hover:text-slate-400 transition-colors">
+                    <X size={20} />
+                  </button>
+                </div>
+
+                <div className="p-6 space-y-6">
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div className="p-3 bg-slate-50 rounded-xl">
+                      <p className="text-slate-500 text-xs font-bold uppercase mb-1">Status</p>
+                      <p className="font-bold text-slate-900 underline">{selectedPO.status}</p>
+                    </div>
+                    <div className="p-3 bg-slate-50 rounded-xl">
+                      <p className="text-slate-500 text-xs font-bold uppercase mb-1">Entrega Prevista</p>
+                      <p className="font-bold text-slate-900">{formatDate(selectedPO.expected_delivery)}</p>
+                    </div>
+                  </div>
+
+                  <div>
+                    <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-3">Itens do Pedido</h3>
+                    <div className="border border-slate-100 rounded-xl overflow-hidden">
+                      <table className="w-full text-xs">
+                        <thead className="bg-slate-50 border-b border-slate-100">
+                          <tr>
+                            <th className="text-left px-4 py-2 text-slate-500">Produto</th>
+                            <th className="text-center px-4 py-2 text-slate-500">Qtd</th>
+                            <th className="text-right px-4 py-2 text-slate-500">Valor Unit.</th>
+                            <th className="text-right px-4 py-2 text-slate-500">Subtotal</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-50">
+                          {selectedPO.items?.map((item: any) => (
+                            <tr key={item.id}>
+                              <td className="px-4 py-3 font-medium">{item.name}</td>
+                              <td className="px-4 py-3 text-center font-bold">{item.quantity}</td>
+                              <td className="px-4 py-3 text-right text-slate-500">R$ {item.unit_cost.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+                              <td className="px-4 py-3 text-right font-bold text-slate-900">R$ {item.subtotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col items-end gap-1 pt-4 border-t border-slate-100">
+                    <div className="flex justify-between w-64 text-sm">
+                      <span className="text-slate-500">Subtotal:</span>
+                      <span className="font-bold text-slate-700">R$ {(selectedPO.total - (selectedPO.freight || 0) + (selectedPO.discount || 0)).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                    </div>
+                    <div className="flex justify-between w-64 text-sm">
+                      <span className="text-slate-500">Frete:</span>
+                      <span className="font-bold text-indigo-600">+ R$ {(selectedPO.freight || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                    </div>
+                    <div className="flex justify-between w-64 text-sm">
+                      <span className="text-slate-500">Desconto:</span>
+                      <span className="font-bold text-rose-600">- R$ {(selectedPO.discount || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                    </div>
+                    <div className="flex justify-between w-64 text-lg pt-2 border-t border-slate-200 mt-2">
+                      <span className="font-black text-slate-800">Total:</span>
+                      <span className="font-black text-emerald-600 underline">R$ {selectedPO.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                    </div>
+                  </div>
+
+                  {selectedPO.status !== 'RECEIVED' && (
+                    <div className="pt-4">
+                      <button
+                        onClick={() => handleReceivePO(selectedPO.id)}
+                        className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-black py-3 rounded-xl shadow-lg shadow-emerald-200 flex items-center justify-center gap-2 transition-all"
+                      >
+                        <Package size={20} /> REGISTRAR RECEBIMENTO E ATUALIZAR ESTOQUE
+                      </button>
+                      <p className="text-[10px] text-slate-400 text-center mt-2 italic">
+                        * Ao receber, as quantidades serão somadas automaticamente ao estoque de peças.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            </div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* Notification Toast */}
+      <AnimatePresence>
+        {notification.show && (
+          <motion.div
+            initial={{ opacity: 0, y: 50, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 20, scale: 0.95 }}
+            className={`fixed bottom-6 right-6 z-[200] flex items-center gap-3 px-4 py-3 rounded-2xl shadow-2xl border ${
+              notification.type === 'success' ? 'bg-emerald-50 border-emerald-100 text-emerald-800' :
+              notification.type === 'error' ? 'bg-rose-50 border-rose-100 text-rose-800' :
+              'bg-blue-50 border-blue-100 text-blue-800'
+            }`}
+          >
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+              notification.type === 'success' ? 'bg-emerald-100' :
+              notification.type === 'error' ? 'bg-rose-100' :
+              'bg-blue-100'
+            }`}>
+              {notification.type === 'success' ? <CheckCircle className="w-5 h-5" /> :
+               notification.type === 'error' ? <AlertCircle className="w-5 h-5" /> :
+               <Info className="w-5 h-5" />}
+            </div>
+            <div className="min-w-[200px]">
+              <p className="font-bold text-sm leading-tight">{notification.title}</p>
+              <p className="text-xs opacity-80 leading-tight mt-1">{notification.message}</p>
+            </div>
+            <button 
+              onClick={() => setNotification({ ...notification, show: false })}
+              className="p-1 hover:bg-black/5 rounded-lg transition-colors ml-2"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </motion.div>
         )}
       </AnimatePresence>
     </div>

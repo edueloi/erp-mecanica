@@ -3,16 +3,14 @@ import {
   Plus, Search, ClipboardList, Filter, ChevronRight, X, User, Car, 
   FileText, AlertTriangle, Clock, Download, Calendar, Eye, Edit, 
   CheckCircle, DollarSign, Truck, Ban, MoreVertical, Send, Check,
-  Upload, Printer, ArrowUpDown, FilterX, Info, Bell
+  Upload, Printer, ArrowUpDown, FilterX, Info, Bell, Play
 } from 'lucide-react';
 import api from '../services/api';
 import { motion, AnimatePresence } from 'motion/react';
 import { Link, useNavigate } from 'react-router-dom';
 import { format, parseISO } from 'date-fns';
 import { twMerge } from 'tailwind-merge';
-// @ts-ignore
 import { jsPDF } from 'jspdf';
-// @ts-ignore
 import autoTable from 'jspdf-autotable';
 import ImportExportModal from '../components/ImportExportModal';
 
@@ -24,7 +22,7 @@ const statusConfig: any = {
   OPEN: { label: 'Aberta', color: 'bg-amber-50 text-amber-600 border-amber-100', icon: ClipboardList },
   DIAGNOSIS: { label: 'Diagnóstico', color: 'bg-blue-50 text-blue-600 border-blue-100', icon: Search },
   WAITING_APPROVAL: { label: 'Aguard. Aprovação', color: 'bg-orange-50 text-orange-600 border-orange-100', icon: Clock },
-  EXECUTING: { label: 'Em Execução', color: 'bg-purple-50 text-purple-600 border-purple-100', icon: PlayIcon },
+  EXECUTING: { label: 'Em Execução', color: 'bg-purple-50 text-purple-600 border-purple-100', icon: Play },
   FINISHED: { label: 'Finalizada', color: 'bg-emerald-50 text-emerald-600 border-emerald-100', icon: CheckCircle },
   DELIVERED: { label: 'Entregue', color: 'bg-slate-900 text-white border-slate-900', icon: Truck },
   CANCELLED: { label: 'Cancelada', color: 'bg-red-50 text-red-600 border-red-100', icon: Ban },

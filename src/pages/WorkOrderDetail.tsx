@@ -11,9 +11,7 @@ import api from '../services/api';
 import { motion, AnimatePresence } from 'motion/react';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-// @ts-ignore
 import { jsPDF } from 'jspdf';
-// @ts-ignore
 import autoTable from 'jspdf-autotable';
 
 function cn(...inputs: (string | undefined | null | false)[]) {
