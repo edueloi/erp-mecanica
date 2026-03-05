@@ -1,10 +1,10 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, Plus, CheckCircle, AlertTriangle, XCircle,
   Minus, ChevronDown, ChevronRight, FileDown, Trash2,
-  Car, Clock, User2, Gauge, Save, ClipboardCheck, History,
-  MessageSquare, ChevronUp, Loader, Shield, Wrench, AlertCircle, CheckCircle2
+  Car, Clock, User2, Gauge, Save, ClipboardCheck, History, Camera, ExternalLink, Image,
+  MessageSquare, ChevronUp, Loader, Shield, Wrench, AlertCircle, CheckCircle2, Share2, QrCode
 } from 'lucide-react';
 import api from '../services/api';
 import { motion, AnimatePresence } from 'motion/react';
@@ -23,6 +23,8 @@ interface ChecklistItem {
   item: string;
   status: ItemStatus;
   notes: string | null;
+  image_url: string | null;
+  external_link: string | null;
   sort_order: number;
 }
 
@@ -58,10 +60,14 @@ export default function VehicleChecklist() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<string | null>(null);
   const [showNewForm, setShowNewForm] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const selectedItemIdRef = useRef<string | null>(null);
   const [newForm, setNewForm] = useState({ km: '', inspector_name: '', general_notes: '' });
   const [editingNote, setEditingNote] = useState<string | null>(null);
   const [noteValue, setNoteValue] = useState('');
   const [notification, setNotification] = useState<{ show: boolean; msg: string; type: 'success' | 'error' }>({ show: false, msg: '', type: 'success' });
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [showQR, setShowQR] = useState(false);
 
   // Auto-hide notification
   useEffect(() => {
@@ -148,6 +154,39 @@ export default function VehicleChecklist() {
     }
   };
 
+  const handleUpdateItemField = async (itemId: string, field: 'image_url' | 'external_link', value: string | null) => {
+    if (!activeChecklist) return;
+    try {
+      setActiveChecklist(prev => prev ? {
+        ...prev,
+        items: prev.items.map(i => i.id === itemId ? { ...i, [field]: value } : i)
+      } : null);
+      await api.patch(`/checklists/${activeChecklist.id}/items/${itemId}`, { [field]: value });
+    } catch (err) {
+      showToast('Erro ao salvar', 'error');
+    }
+  };
+
+  const handleFileSelect = (itemId: string) => {
+    selectedItemIdRef.current = itemId;
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    const itemId = selectedItemIdRef.current;
+    if (!file || !itemId) return;
+
+    // Convert to base64
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const base64 = reader.result as string;
+      handleUpdateItemField(itemId, 'image_url', base64);
+    };
+    reader.readAsDataURL(file);
+    e.target.value = ''; // Reset for next selection
+  };
+
   const handleUpdateItem = async (itemId: string, status: ItemStatus) => {
     if (!activeChecklist) return;
     setSaving(itemId);
@@ -194,17 +233,23 @@ export default function VehicleChecklist() {
   };
 
   const handleDeleteChecklist = async (id: string) => {
-    if (!confirm('Excluir este checklist?')) return;
+    setDeleteConfirmId(id);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteConfirmId) return;
     try {
-      await api.delete(`/checklists/${id}`);
-      setChecklists(prev => prev.filter(cl => cl.id !== id));
-      if (activeChecklist?.id === id) {
+      await api.delete(`/checklists/${deleteConfirmId}`);
+      setChecklists(prev => prev.filter(cl => cl.id !== deleteConfirmId));
+      if (activeChecklist?.id === deleteConfirmId) {
         setActiveChecklist(null);
         navigate(`/vehicles/${vehicleId}`, { replace: true });
       }
       showToast('Checklist excluído');
     } catch (err) {
       showToast('Erro ao excluir', 'error');
+    } finally {
+      setDeleteConfirmId(null);
     }
   };
 
@@ -252,10 +297,14 @@ export default function VehicleChecklist() {
         head: [[{ content: cat, colSpan: 3, styles: { fillColor: [30, 41, 59], fontStyle: 'bold', fontSize: 9 } }]],
         body: catItems.map(item => {
           const cfg = STATUS_CONFIG[item.status];
+          let observations = item.notes || '';
+          if (item.image_url) observations += (observations ? ' ' : '') + '[Foto]';
+          if (item.external_link) observations += (observations ? ' ' : '') + '[Link]';
+          
           return [
             item.item,
             cfg.label,
-            item.notes || '—'
+            observations || '—'
           ];
         }),
         columnStyles: {
@@ -348,9 +397,16 @@ export default function VehicleChecklist() {
     );
   }
 
-  // =================== RENDER ===================
   return (
-    <div className="flex flex-col h-full -m-6 bg-slate-50">
+    <div className="flex flex-col h-full bg-slate-50 overflow-hidden">
+      <input 
+        type="file" 
+        ref={fileInputRef} 
+        onChange={handleFileChange} 
+        accept="image/*" 
+        capture="environment"
+        className="hidden" 
+      />
 
       {/* Header */}
       <header className="bg-white border-b border-slate-200 px-6 py-3 flex items-center justify-between sticky top-0 z-20 shadow-sm">
@@ -378,6 +434,9 @@ export default function VehicleChecklist() {
               )}
               <button onClick={handleGeneratePDF} className="h-9 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold flex items-center gap-2 transition-all">
                 <FileDown size={15} /> PDF
+              </button>
+              <button onClick={() => setShowQR(true)} className="h-9 px-4 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-xl text-xs font-bold flex items-center gap-2 transition-all border border-indigo-100">
+                <QrCode size={15} /> Link Externo
               </button>
             </>
           )}
@@ -632,21 +691,44 @@ export default function VehicleChecklist() {
                                           {(['OK', 'ATTENTION', 'CRITICAL', 'NA'] as ItemStatus[]).map(s => {
                                             const c = STATUS_CONFIG[s];
                                             const isSelected = item.status === s;
+                                            const SIcon = c.icon;
                                             return (
                                               <button
                                                 key={s}
                                                 onClick={() => handleUpdateItem(item.id, s)}
                                                 disabled={saving === item.id}
-                                                className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border transition-all ${
+                                                className={`px-3 py-1.5 rounded-xl text-[10px] font-bold border transition-all flex items-center gap-1.5 ${
                                                   isSelected
-                                                    ? `${c.bg} ${c.color} ${c.border} shadow-sm scale-110 ring-2 ring-white`
+                                                    ? `${c.bg} ${c.color} ${c.border} shadow-sm scale-105 ring-2 ring-white`
                                                     : 'bg-slate-50 text-slate-400 border-slate-200 hover:bg-slate-100'
                                                 }`}
                                               >
-                                                {c.label}
+                                                <SIcon size={12} />
+                                                <span className="hidden sm:inline">{c.label}</span>
                                               </button>
                                             );
                                           })}
+
+                                          <div className="h-4 w-px bg-slate-200 mx-1" />
+
+                                          <button
+                                            onClick={() => handleFileSelect(item.id)}
+                                            className={`p-2 rounded-xl transition-colors ${item.image_url ? 'text-blue-500 bg-blue-50' : 'text-slate-400 hover:bg-slate-100'}`}
+                                            title="Anexar Foto"
+                                          >
+                                            <Camera size={14} />
+                                          </button>
+
+                                          <button
+                                            onClick={() => {
+                                              const link = window.prompt('Link Externo:', item.external_link || '');
+                                              if (link !== null) handleUpdateItemField(item.id, 'external_link', link || null);
+                                            }}
+                                            className={`p-2 rounded-xl transition-colors ${item.external_link ? 'text-indigo-500 bg-indigo-50' : 'text-slate-400 hover:bg-slate-100'}`}
+                                            title="Link Externo"
+                                          >
+                                            <ExternalLink size={14} />
+                                          </button>
 
                                           <button
                                             onClick={() => {
@@ -693,10 +775,40 @@ export default function VehicleChecklist() {
                                       </AnimatePresence>
 
                                       {/* Existing Note */}
-                                      {item.notes && !isEditingThisNote && (
-                                        <div className="mt-2 ml-6 p-2 bg-indigo-50/50 rounded-lg border border-indigo-100/50 flex items-start gap-2">
-                                          <MessageSquare size={12} className="text-indigo-400 mt-1 shrink-0" />
-                                          <p className="text-xs text-slate-600 leading-relaxed">{item.notes}</p>
+                                      {(item.notes || item.image_url || item.external_link) && !isEditingThisNote && (
+                                        <div className="mt-3 ml-6 flex flex-wrap gap-3">
+                                          {item.notes && (
+                                            <div className="flex-1 min-w-[200px] p-2.5 bg-indigo-50/50 rounded-xl border border-indigo-100/50 flex items-start gap-2">
+                                              <MessageSquare size={12} className="text-indigo-400 mt-1 shrink-0" />
+                                              <p className="text-xs text-slate-600 leading-relaxed">{item.notes}</p>
+                                            </div>
+                                          )}
+                                          
+                                          {item.image_url && (
+                                            <a 
+                                              href={item.image_url} 
+                                              target="_blank" 
+                                              rel="noopener noreferrer"
+                                              className="group relative w-16 h-16 rounded-xl border border-blue-100 overflow-hidden shrink-0"
+                                            >
+                                              <img src={item.image_url} alt="Evidência" className="w-full h-full object-cover transition-transform group-hover:scale-110" />
+                                              <div className="absolute inset-0 bg-blue-900/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                                <Image size={14} className="text-white" />
+                                              </div>
+                                            </a>
+                                          )}
+
+                                          {item.external_link && (
+                                            <a 
+                                              href={item.external_link} 
+                                              target="_blank" 
+                                              rel="noopener noreferrer"
+                                              className="h-16 px-4 py-2 bg-slate-50 border border-slate-100 rounded-xl flex flex-col items-center justify-center gap-1 hover:bg-slate-100 transition-colors shrink-0"
+                                            >
+                                              <ExternalLink size={14} className="text-indigo-500" />
+                                              <span className="text-[9px] font-bold text-slate-400 uppercase">Link</span>
+                                            </a>
+                                          )}
                                         </div>
                                       )}
                                     </div>
@@ -827,6 +939,99 @@ export default function VehicleChecklist() {
         )}
       </AnimatePresence>
 
+      {/* QR Code / Share Modal */}
+      <AnimatePresence>
+        {showQR && activeChecklist && (
+          <>
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[100]"
+              onClick={() => setShowQR(false)}
+            />
+            <div className="fixed inset-0 flex items-center justify-center z-[101] p-4 pointer-events-none">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                className="bg-white rounded-3xl shadow-2xl w-full max-w-sm pointer-events-auto overflow-hidden text-center"
+              >
+                <div className="p-8 space-y-6">
+                  <div className="w-16 h-16 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center mx-auto">
+                    <QrCode size={32} />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-slate-900">Upload Externo</h3>
+                    <p className="text-sm text-slate-500 mt-2 px-4">Aponte a câmera para anexar fotos deste checklist pelo celular</p>
+                  </div>
+                  
+                  <div className="bg-white p-4 rounded-3xl border-2 border-slate-100 inline-block shadow-inner">
+                    <img 
+                      src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(window.location.origin + '/checklist-upload/' + activeChecklist.id)}`} 
+                      alt="QR Code" 
+                      className="w-48 h-48"
+                    />
+                  </div>
+
+                  <div className="space-y-3">
+                    <button 
+                      onClick={() => {
+                        navigator.clipboard.writeText(window.location.origin + '/checklist-upload/' + activeChecklist.id);
+                        showToast('Link copiado!');
+                      }}
+                      className="w-full h-12 bg-slate-900 text-white rounded-2xl font-bold text-sm flex items-center justify-center gap-2 hover:bg-slate-800 transition-all"
+                    >
+                      Copiar Link de Upload
+                    </button>
+                    <button onClick={() => setShowQR(false)} className="w-full text-slate-400 text-xs font-bold uppercase tracking-widest hover:text-slate-600">
+                      Fechar
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            </div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* Delete Confirmation Modal */}
+      <AnimatePresence>
+        {deleteConfirmId && (
+          <>
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[100]"
+              onClick={() => setDeleteConfirmId(null)}
+            />
+            <div className="fixed inset-0 flex items-center justify-center z-[101] p-4 pointer-events-none">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                className="bg-white rounded-3xl shadow-2xl w-full max-w-sm pointer-events-auto overflow-hidden text-center"
+              >
+                <div className="p-8 space-y-6">
+                  <div className="w-16 h-16 bg-rose-50 text-rose-600 rounded-2xl flex items-center justify-center mx-auto">
+                    <Trash2 size={32} />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-slate-900">Excluir Checklist?</h3>
+                    <p className="text-sm text-slate-500 mt-2">Esta ação não pode ser desfeita e todos os dados deste checklist serão perdidos.</p>
+                  </div>
+                  <div className="flex flex-col gap-3">
+                    <button 
+                      onClick={confirmDelete}
+                      className="w-full h-12 bg-rose-600 text-white rounded-2xl font-bold text-sm hover:bg-rose-700 transition-all shadow-lg shadow-rose-200"
+                    >
+                      Confirmar Exclusão
+                    </button>
+                    <button 
+                      onClick={() => setDeleteConfirmId(null)}
+                      className="w-full h-12 bg-slate-100 text-slate-600 rounded-2xl font-bold text-sm hover:bg-slate-200 transition-all"
+                    >
+                      Cancelar
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            </div>
+          </>
+        )}
+      </AnimatePresence>
+
       {/* Toast */}
       <AnimatePresence>
         {notification.show && (
@@ -845,3 +1050,4 @@ export default function VehicleChecklist() {
     </div>
   );
 }
+

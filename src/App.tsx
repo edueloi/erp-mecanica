@@ -10,6 +10,7 @@ import ClientDetail from './pages/ClientDetail';
 import Vehicles from './pages/Vehicles';
 import VehicleDetail from './pages/VehicleDetail';
 import VehicleChecklist from './pages/VehicleChecklist';
+import ChecklistPublicUpload from './pages/ChecklistPublicUpload';
 import WorkOrders from './pages/WorkOrders';
 import WorkOrderDetail from './pages/WorkOrderDetail';
 import Appointments from './pages/Appointments';
@@ -64,6 +65,8 @@ export default function App() {
         <Route path="/action-plans" element={<PrivateRoute><ActionPlans /></PrivateRoute>} />
         <Route path="/action-plans/:boardId" element={<PrivateRoute><ActionPlans /></PrivateRoute>} />
         <Route path="/settings/shop" element={<PrivateRoute><Settings /></PrivateRoute>} />
+        <Route path="/checklist-upload/:id" element={<ChecklistPublicUpload />} />
+
 
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>

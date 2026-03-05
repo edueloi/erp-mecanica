@@ -4,10 +4,61 @@ import db from "../db";
 import { authenticateToken, AuthRequest } from "../middleware/auth";
 
 const router = express.Router();
+
+// GET single checklist publicly (for photo upload via QR Code)
+router.get("/public/:id", (req, res) => {
+  try {
+    const checklist = db.prepare(`
+      SELECT cl.*, v.brand as vehicle_brand, v.model as vehicle_model, v.plate as vehicle_plate
+      FROM vehicle_checklists cl
+      JOIN vehicles v ON cl.vehicle_id = v.id
+      WHERE cl.id = ?
+    `).get(req.params.id) as any;
+
+    if (!checklist) return res.status(404).json({ error: "Checklist not found" });
+
+    const items = db.prepare(`
+      SELECT * FROM vehicle_checklist_items 
+      WHERE checklist_id = ?
+      ORDER BY sort_order ASC
+    `).all(req.params.id);
+
+    res.json({ ...checklist, items });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// PATCH item publicly (for photo upload via QR Code)
+router.patch("/public/:checklistId/items/:itemId", (req, res) => {
+  const { image_url } = req.body;
+  try {
+    const stmt = db.prepare(`
+      UPDATE vehicle_checklist_items 
+      SET image_url = ?, status = CASE WHEN status = 'NA' THEN 'OK' ELSE status END
+      WHERE id = ? AND checklist_id = ?
+    `);
+    
+    const result = stmt.run(image_url, req.params.itemId, req.params.checklistId);
+    if (result.changes === 0) return res.status(404).json({ error: "Item not found" });
+    
+    res.json({ success: true });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 router.use(authenticateToken);
 
 // Default checklist template items
 const DEFAULT_CHECKLIST_ITEMS = [
+  // Fotos Obrigatórias
+  { category: 'Fotos do Veículo', item: 'Frente do Veículo', sort_order: -5 },
+  { category: 'Fotos do Veículo', item: 'Traseira do Veículo', sort_order: -4 },
+  { category: 'Fotos do Veículo', item: 'Lateral Esquerda', sort_order: -3 },
+  { category: 'Fotos do Veículo', item: 'Lateral Direita', sort_order: -2 },
+  { category: 'Fotos do Veículo', item: 'Painel (KM e Luzes)', sort_order: -1 },
+
   // Documentação e Conferência
   { category: 'Documentação', item: 'CRLV / Licenciamento em dia', sort_order: 1 },
   { category: 'Documentação', item: 'CNH do proprietário / Condutor', sort_order: 2 },
