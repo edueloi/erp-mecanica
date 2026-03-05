@@ -424,7 +424,7 @@ export default function Suppliers() {
         invoice_number: `REC-${Date.now()}`
       });
       
-      showNotification('success', 'Pedido Recebido!', 'Estoque atualizado · Saída registrada no Fluxo de Caixa · Fornecedor vinculado às peças');
+      showNotification('success', 'Pedido Recebido!', '📦 Estoque atualizado · 💰 Saída registrada no Fluxo de Caixa · 🔗 Fornecedor vinculado às peças');
       // Refresh PO detail to show received status
       const updated = await api.get(`/purchase-orders/${poId}`);
       setSelectedPO(updated.data);
@@ -432,6 +432,21 @@ export default function Suppliers() {
       fetchPurchaseOrders();
     } catch (err) {
       showNotification('error', 'Erro', 'Falha ao registrar recebimento.');
+    }
+  };
+
+  const handleUpdatePOStatus = async (poId: string, status: string) => {
+    try {
+      await api.patch(`/purchase-orders/${poId}/status`, { status });
+      const msg = status === 'CONFIRMED' ? 'Pedido Confirmado! Agora ele aguarda recebimento.' : 'Status atualizado.';
+      showNotification('success', 'Sucesso', msg);
+      // Refresh
+      const updated = await api.get(`/purchase-orders/${poId}`);
+      setSelectedPO(updated.data);
+      fetchStats();
+      fetchPurchaseOrders();
+    } catch (err) {
+      showNotification('error', 'Erro', 'Falha ao atualizar status do pedido.');
     }
   };
 
