@@ -436,7 +436,7 @@ export default function VehicleChecklist() {
                 <FileDown size={15} /> PDF
               </button>
               <button onClick={() => setShowQR(true)} className="h-9 px-4 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-xl text-xs font-bold flex items-center gap-2 transition-all border border-indigo-100">
-                <QrCode size={15} /> Link Externo
+                <QrCode size={15} /> Upload p/ Celular
               </button>
             </>
           )}
@@ -720,14 +720,11 @@ export default function VehicleChecklist() {
                                           </button>
 
                                           <button
-                                            onClick={() => {
-                                              const link = window.prompt('Link Externo:', item.external_link || '');
-                                              if (link !== null) handleUpdateItemField(item.id, 'external_link', link || null);
-                                            }}
-                                            className={`p-2 rounded-xl transition-colors ${item.external_link ? 'text-indigo-500 bg-indigo-50' : 'text-slate-400 hover:bg-slate-100'}`}
-                                            title="Link Externo"
+                                            onClick={() => setShowQR(true)}
+                                            className="p-2 rounded-xl text-slate-400 hover:bg-slate-100 transition-colors"
+                                            title="Tirar foto pelo Celular (QR Code)"
                                           >
-                                            <ExternalLink size={14} />
+                                            <QrCode size={14} />
                                           </button>
 
                                           <button
@@ -765,12 +762,12 @@ export default function VehicleChecklist() {
                                                 <button onClick={() => handleSaveNote(item.id)} className="h-full px-4 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 flex items-center justify-center">
                                                   <Save size={16} />
                                                 </button>
-                                                <button onClick={() => setEditingNote(null)} className="p-3 bg-slate-100 text-slate-500 rounded-xl hover:bg-slate-200">
-                                                  ✕
-                                                </button>
+                                                  <button onClick={() => setEditingNote(null)} className="p-3 bg-slate-100 text-slate-500 rounded-xl hover:bg-slate-200">
+                                                    ✕
+                                                  </button>
+                                                </div>
                                               </div>
-                                            </div>
-                                          </motion.div>
+                                            </motion.div>
                                         )}
                                       </AnimatePresence>
 
