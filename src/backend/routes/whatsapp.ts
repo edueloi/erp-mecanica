@@ -338,6 +338,49 @@ router.post("/conversations/:id/messages", async (req: any, res: any) => {
 });
 
 // ========================================
+// MESSAGES HISTORY
+// ========================================
+
+/**
+ * GET /api/whatsapp/messages-history
+ * Retorna o histórico de todas as mensagens
+ */
+router.get("/messages-history", (req: any, res: any) => {
+  try {
+    const { search, limit = 50, offset = 0 } = req.query;
+
+    let query = `
+      SELECT 
+        m.*,
+        c.contact_name,
+        c.phone as contact_phone,
+        u.name as sender_name
+      FROM whatsapp_messages m
+      LEFT JOIN whatsapp_conversations c ON m.conversation_id = c.id
+      LEFT JOIN users u ON m.origin = 'human' AND m.direction = 'out'
+      WHERE m.tenant_id = ?
+    `;
+
+    const params: any[] = [req.user.tenant_id];
+
+    if (search) {
+      query += ` AND (c.contact_name LIKE ? OR c.phone LIKE ? OR m.body LIKE ?)`;
+      params.push(`%${search}%`, `%${search}%`, `%${search}%`);
+    }
+
+    query += ` ORDER BY m.created_at DESC LIMIT ? OFFSET ?`;
+    params.push(parseInt(limit), parseInt(offset));
+
+    const messages = db.prepare(query).all(...params);
+
+    res.json(messages);
+  } catch (error: any) {
+    console.error("Error fetching messages history:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ========================================
 // TEMPLATES
 // ========================================
 

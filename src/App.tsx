@@ -18,6 +18,7 @@ import Suppliers from './pages/Suppliers';
 import AccountsReceivable from './pages/AccountsReceivable';
 import CashFlow from './pages/CashFlow';
 import WhatsApp from './pages/WhatsApp';
+import CommunicationHistory from './pages/CommunicationHistory';
 import Settings from './pages/Settings';
 import ActionPlans from './pages/ActionPlans';
 
@@ -56,7 +57,7 @@ export default function App() {
         <Route path="/finance/receivables" element={<PrivateRoute><AccountsReceivable /></PrivateRoute>} />
         <Route path="/finance/cashflow" element={<PrivateRoute><CashFlow /></PrivateRoute>} />
         <Route path="/communication/whatsapp" element={<PrivateRoute><WhatsApp /></PrivateRoute>} />
-        <Route path="/communication/history" element={<PrivateRoute><Placeholder title="Histórico de Mensagens" /></PrivateRoute>} />
+        <Route path="/communication/history" element={<PrivateRoute><CommunicationHistory /></PrivateRoute>} />
         <Route path="/action-plans" element={<PrivateRoute><ActionPlans /></PrivateRoute>} />
         <Route path="/action-plans/:boardId" element={<PrivateRoute><ActionPlans /></PrivateRoute>} />
         <Route path="/settings/shop" element={<PrivateRoute><Settings /></PrivateRoute>} />
