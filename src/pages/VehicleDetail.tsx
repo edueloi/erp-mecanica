@@ -5,7 +5,7 @@ import {
   ClipboardList, History, Camera, FileText, 
   Plus, Edit, Trash2, MessageSquare, ExternalLink,
   CheckCircle2, AlertCircle, Info, ChevronRight,
-  Printer, Share2, Settings, Wrench, CheckSquare
+  Printer, Share2, Settings, Wrench, CheckSquare, LogIn
 } from 'lucide-react';
 import api from '../services/api';
 import { motion, AnimatePresence } from 'motion/react';
@@ -27,20 +27,32 @@ export default function VehicleDetail() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<VehicleTab>('SUMMARY');
 
-  const fetchVehicle = async () => {
+  const [checklists, setChecklists] = useState<any[]>([]);
+  const [entries, setEntries] = useState<any[]>([]);
+
+  const fetchData = async () => {
     try {
-      const res = await api.get(`/vehicles/${id}`);
-      setVehicle(res.data);
+      setLoading(true);
+      const [vRes, cRes, eRes] = await Promise.all([
+        api.get(`/vehicles/${id}`),
+        api.get(`/checklists/vehicle/${id}`),
+        api.get(`/entries/vehicle/${id}`)
+      ]);
+      setVehicle(vRes.data);
+      setChecklists(Array.isArray(cRes.data) ? cRes.data : []);
+      setEntries(Array.isArray(eRes.data) ? eRes.data : []);
     } catch (err) {
-      console.error(err);
-      navigate('/vehicles');
+      console.error('Error fetching vehicle data:', err);
+      setChecklists([]);
+      setEntries([]);
+      if (!vehicle) navigate('/vehicles');
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchVehicle();
+    fetchData();
   }, [id]);
 
   if (loading) return <div className="flex items-center justify-center h-full">Carregando...</div>;
@@ -212,6 +224,19 @@ export default function VehicleDetail() {
                     >
                       <CheckSquare size={16} /> Novo Checklist de Inspeção
                     </button>
+                    <button
+                      onClick={async () => {
+                        try {
+                          const res = await api.post('/entries', { vehicle_id: id, client_id: vehicle.client_id });
+                          navigate(`/vehicle-entries/${res.data.id}`);
+                        } catch (err) {
+                          console.error(err);
+                        }
+                      }}
+                      className="w-full h-10 px-4 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-lg text-xs font-bold flex items-center gap-3 hover:bg-emerald-100 transition-all"
+                    >
+                      <Plus size={16} /> Nova Entrada / Checklist Inicial
+                    </button>
                     <button className="w-full h-10 px-4 bg-white border border-slate-200 text-slate-700 rounded-lg text-xs font-bold flex items-center gap-3 hover:bg-slate-50 transition-all">
                       <History size={16} /> Histórico Completo
                     </button>
@@ -296,32 +321,104 @@ export default function VehicleDetail() {
             )}
 
             {activeTab === 'CHECKLIST' && (
-              <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-                <div className="px-6 py-5 bg-gradient-to-r from-indigo-50 to-slate-50 border-b border-slate-200 flex items-center justify-between">
-                  <div>
-                    <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2"><CheckSquare size={16} className="text-indigo-600" /> Checklists de Inspeção</h3>
-                    <p className="text-xs text-slate-500 mt-0.5">Realize inspeções visuais completas com 80+ itens em 9 categorias</p>
-                  </div>
-                  <button
-                    onClick={() => id && id !== 'undefined' && navigate(`/vehicles/${id}/checklist`)}
-                    className="h-9 px-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold flex items-center gap-2 transition-all shadow-sm"
-                  >
-                    <Plus size={15} /> Novo Checklist
-                  </button>
-                </div>
-                <div className="p-8 text-center">
-                  <button
-                    onClick={() => id && id !== 'undefined' && navigate(`/vehicles/${id}/checklist`)}
-                    className="inline-flex flex-col items-center gap-4 group"
-                  >
-                    <div className="w-20 h-20 bg-indigo-50 rounded-3xl flex items-center justify-center group-hover:bg-indigo-100 transition-colors border border-indigo-100">
-                      <CheckSquare size={36} className="text-indigo-500" />
-                    </div>
+              <div className="space-y-6">
+                <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                  <div className="px-6 py-5 bg-gradient-to-r from-indigo-50 to-slate-50 border-b border-slate-200 flex items-center justify-between">
                     <div>
-                      <p className="font-bold text-slate-900">Abrir Checklists</p>
-                      <p className="text-xs text-slate-500 mt-1">Motor · Freios · Suspensão · Pneus · Elétrico · A/C · Carroceria · Interior</p>
+                      <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                        <CheckSquare size={16} className="text-indigo-600" /> Checklists de Inspeção (Serviço)
+                      </h3>
+                      <p className="text-xs text-slate-500 mt-0.5">Inspeções técnicas para manutenção e revisão</p>
                     </div>
-                  </button>
+                    <button
+                      onClick={() => id && id !== 'undefined' && navigate(`/vehicles/${id}/checklist`)}
+                      className="h-9 px-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold flex items-center gap-2 transition-all shadow-sm"
+                    >
+                      <Plus size={15} /> Novo Checklist
+                    </button>
+                  </div>
+                  
+                  <div className="divide-y divide-slate-100">
+                    {Array.isArray(checklists) && checklists.map((cl) => (
+                      <div 
+                        key={cl.id} 
+                        onClick={() => navigate(`/vehicles/${id}/checklist/${cl.id}`)}
+                        className="px-6 py-4 hover:bg-slate-50 transition-colors flex items-center justify-between cursor-pointer group"
+                      >
+                         <div className="flex items-center gap-4">
+                            <div className="w-10 h-10 bg-indigo-50 text-indigo-500 rounded-lg flex items-center justify-center">
+                               <ClipboardList size={20} />
+                            </div>
+                            <div>
+                               <p className="text-sm font-bold text-slate-900">Checklist Tecnico - {cl.km?.toLocaleString()} KM</p>
+                               <p className="text-[10px] text-slate-500 uppercase font-bold">{format(new Date(cl.created_at), 'dd/MM/yyyy HH:mm')} • {cl.inspector_name || 'Técnico'}</p>
+                            </div>
+                         </div>
+                         <div className="flex items-center gap-4">
+                            <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase ${cl.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+                               {cl.status === 'COMPLETED' ? 'Finalizado' : 'Rascunho'}
+                            </span>
+                            <ChevronRight size={18} className="text-slate-300 group-hover:text-indigo-500 transition-colors" />
+                         </div>
+                      </div>
+                    ))}
+                    {checklists.length === 0 && (
+                      <div className="p-8 text-center text-slate-400 text-sm italic">Nenhum checklist de serviço realizado.</div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                  <div className="px-6 py-5 bg-gradient-to-r from-emerald-50 to-slate-50 border-b border-slate-200 flex items-center justify-between">
+                    <div>
+                      <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                        <LogIn size={16} className="text-emerald-600" /> Checklists Iniciais (Entrada)
+                      </h3>
+                      <p className="text-xs text-slate-500 mt-0.5">Fotos e dados coletados na recepção do veículo</p>
+                    </div>
+                    <button
+                      onClick={async () => {
+                        try {
+                          const res = await api.post('/entries', { vehicle_id: id, client_id: vehicle.client_id });
+                          navigate(`/vehicle-entries/${res.data.id}`);
+                        } catch (err) {
+                          console.error(err);
+                        }
+                      }}
+                      className="h-9 px-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center gap-2 transition-all shadow-sm"
+                    >
+                      <Plus size={15} /> Nova Entrada
+                    </button>
+                  </div>
+                  
+                  <div className="divide-y divide-slate-100">
+                    {Array.isArray(entries) && entries.map((entry) => (
+                      <div 
+                        key={entry.id} 
+                        onClick={() => navigate(`/vehicle-entries/${entry.id}`)}
+                        className="px-6 py-4 hover:bg-slate-50 transition-colors flex items-center justify-between cursor-pointer group"
+                      >
+                         <div className="flex items-center gap-4">
+                            <div className="w-10 h-10 bg-emerald-50 text-emerald-500 rounded-lg flex items-center justify-center">
+                               <Camera size={20} />
+                            </div>
+                            <div>
+                               <p className="text-sm font-bold text-slate-900">Entrada / Vistoria Inicial</p>
+                               <p className="text-[10px] text-slate-500 uppercase font-bold">{format(new Date(entry.created_at), 'dd/MM/yyyy HH:mm')} • {entry.responsible_name || 'Recepção'}</p>
+                            </div>
+                         </div>
+                         <div className="flex items-center gap-4">
+                            <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase ${entry.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+                               {entry.status === 'COMPLETED' ? 'Finalizado' : 'Rascunho'}
+                            </span>
+                            <ChevronRight size={18} className="text-slate-300 group-hover:text-emerald-500 transition-colors" />
+                         </div>
+                      </div>
+                    ))}
+                    {entries.length === 0 && (
+                      <div className="p-8 text-center text-slate-400 text-sm italic">Nenhum checklist de entrada realizado.</div>
+                    )}
+                  </div>
                 </div>
               </div>
             )}

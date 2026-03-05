@@ -23,6 +23,9 @@ import WhatsApp from './pages/WhatsApp';
 import CommunicationHistory from './pages/CommunicationHistory';
 import Settings from './pages/Settings';
 import ActionPlans from './pages/ActionPlans';
+import VehicleEntries from './pages/VehicleEntries';
+import VehicleEntryDetail from './pages/VehicleEntryDetail';
+import EntryPublicForm from './pages/EntryPublicForm';
 
 const Placeholder = ({ title }: { title: string }) => (
   <div className="flex flex-col items-center justify-center h-full text-slate-400 space-y-4">
@@ -69,8 +72,11 @@ export default function App() {
         <Route path="/communication/history" element={<PrivateRoute><Layout><CommunicationHistory /></Layout></PrivateRoute>} />
         <Route path="/action-plans" element={<PrivateRoute><Layout><ActionPlans /></Layout></PrivateRoute>} />
         <Route path="/action-plans/:boardId" element={<PrivateRoute><Layout><ActionPlans /></Layout></PrivateRoute>} />
+        <Route path="/vehicle-entries" element={<PrivateRoute><Layout><VehicleEntries /></Layout></PrivateRoute>} />
+        <Route path="/vehicle-entries/:id" element={<PrivateRoute><Layout><VehicleEntryDetail /></Layout></PrivateRoute>} />
         <Route path="/settings/shop" element={<PrivateRoute><Layout><Settings /></Layout></PrivateRoute>} />
         <Route path="/checklist-upload/:token" element={<ChecklistPublicUpload />} />
+        <Route path="/entry-upload/:token" element={<EntryPublicForm />} />
 
 
         <Route path="*" element={<Navigate to="/" />} />

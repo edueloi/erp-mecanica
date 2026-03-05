@@ -1125,10 +1125,71 @@ export function initDb() {
     )
   `);
 
+  // Vehicle Entries (Initial Checklist) -- MUST be created BEFORE vehicle_checklist_items
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS vehicle_entries (
+      id TEXT PRIMARY KEY,
+      tenant_id TEXT NOT NULL,
+      client_id TEXT,
+      vehicle_id TEXT,
+      responsible_name TEXT,
+      entry_date TEXT,
+      entry_time TEXT,
+      arrived_by_tow_truck BOOLEAN DEFAULT 0,
+      fuel_level TEXT, -- EMPTY, RESERVE, 1/4, 1/2, 3/4, FULL
+      
+      -- Customer fields (captured if new or for record)
+      customer_name TEXT,
+      customer_document TEXT,
+      customer_phone TEXT,
+      customer_zip_code TEXT,
+      customer_state TEXT,
+      customer_city TEXT,
+      customer_neighborhood TEXT,
+      customer_street TEXT,
+      customer_number TEXT,
+      
+      -- Vehicle fields (captured if new or for record)
+      vehicle_plate TEXT,
+      vehicle_chassis TEXT,
+      vehicle_brand TEXT,
+      vehicle_model TEXT,
+      vehicle_year TEXT,
+      vehicle_color TEXT,
+      vehicle_fuel_type TEXT,
+      vehicle_gearbox TEXT,
+      
+      -- Checks
+      doc_in_vehicle BOOLEAN DEFAULT 0,
+      doors_count INTEGER,
+      dashboard_light_on BOOLEAN DEFAULT 0,
+      
+      -- Confirmation & Auth
+      photos_confirmed BOOLEAN DEFAULT 0,
+      image_auth BOOLEAN DEFAULT 0,
+      
+      -- Service Info
+      requested_service TEXT,
+      last_revision_km INTEGER,
+      last_revision_date TEXT,
+      
+      status TEXT CHECK(status IN ('DRAFT', 'COMPLETED')) DEFAULT 'DRAFT',
+      public_token TEXT,
+      token_expires_at DATETIME,
+      
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (tenant_id) REFERENCES tenants(id),
+      FOREIGN KEY (client_id) REFERENCES clients(id),
+      FOREIGN KEY (vehicle_id) REFERENCES vehicles(id)
+    )
+  `);
+
   db.exec(`
     CREATE TABLE IF NOT EXISTS vehicle_checklist_items (
       id TEXT PRIMARY KEY,
-      checklist_id TEXT NOT NULL,
+      checklist_id TEXT,
+      entry_id TEXT,
       category TEXT NOT NULL,
       item TEXT NOT NULL,
       status TEXT CHECK(status IN ('OK','ATTENTION','CRITICAL','NA')) DEFAULT 'NA',
@@ -1136,7 +1197,8 @@ export function initDb() {
       image_url TEXT,
       external_link TEXT,
       sort_order INTEGER DEFAULT 0,
-      FOREIGN KEY (checklist_id) REFERENCES vehicle_checklists(id) ON DELETE CASCADE
+      FOREIGN KEY (checklist_id) REFERENCES vehicle_checklists(id) ON DELETE CASCADE,
+      FOREIGN KEY (entry_id) REFERENCES vehicle_entries(id) ON DELETE CASCADE
     )
   `);
 
@@ -1146,6 +1208,7 @@ export function initDb() {
     { table: 'vehicle_checklists', col: 'token_expires_at', type: 'DATETIME' },
     { table: 'vehicle_checklist_items', col: 'image_url', type: 'TEXT' },
     { table: 'vehicle_checklist_items', col: 'external_link', type: 'TEXT' },
+    { table: 'vehicle_checklist_items', col: 'entry_id', type: 'TEXT' },
   ];
 
   for (const m of migrations) {
@@ -1158,7 +1221,112 @@ export function initDb() {
     } catch (e) {}
   }
 
+  // Migration: Ensure vehicle_entries table exists (fix for old DBs where creation order was wrong)
+  try {
+    const tableExists = db.prepare(`
+      SELECT COUNT(*) as count FROM sqlite_master 
+      WHERE type='table' AND name='vehicle_entries'
+    `).get() as any;
+
+    if (tableExists.count === 0) {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS vehicle_entries (
+          id TEXT PRIMARY KEY,
+          tenant_id TEXT NOT NULL,
+          client_id TEXT,
+          vehicle_id TEXT,
+          responsible_name TEXT,
+          entry_date TEXT,
+          entry_time TEXT,
+          arrived_by_tow_truck BOOLEAN DEFAULT 0,
+          fuel_level TEXT,
+          customer_name TEXT,
+          customer_document TEXT,
+          customer_phone TEXT,
+          customer_zip_code TEXT,
+          customer_state TEXT,
+          customer_city TEXT,
+          customer_neighborhood TEXT,
+          customer_street TEXT,
+          customer_number TEXT,
+          vehicle_plate TEXT,
+          vehicle_chassis TEXT,
+          vehicle_brand TEXT,
+          vehicle_model TEXT,
+          vehicle_year TEXT,
+          vehicle_color TEXT,
+          vehicle_fuel_type TEXT,
+          vehicle_gearbox TEXT,
+          doc_in_vehicle BOOLEAN DEFAULT 0,
+          doors_count INTEGER,
+          dashboard_light_on BOOLEAN DEFAULT 0,
+          photos_confirmed BOOLEAN DEFAULT 0,
+          image_auth BOOLEAN DEFAULT 0,
+          requested_service TEXT,
+          last_revision_km INTEGER,
+          last_revision_date TEXT,
+          status TEXT CHECK(status IN ('DRAFT', 'COMPLETED')) DEFAULT 'DRAFT',
+          public_token TEXT,
+          token_expires_at DATETIME,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (tenant_id) REFERENCES tenants(id),
+          FOREIGN KEY (client_id) REFERENCES clients(id),
+          FOREIGN KEY (vehicle_id) REFERENCES vehicles(id)
+        )
+      `);
+      console.log("✅ Created vehicle_entries table via migration");
+    }
+  } catch (e: any) {
+    console.error("⚠️  Error creating vehicle_entries table:", e.message);
+  }
+
+  // Migration: Fix vehicle_checklist_items - remove NOT NULL from checklist_id
+  // (needed because entry items use entry_id, not checklist_id)
+  try {
+    const col = db.prepare(`
+      SELECT notnull FROM pragma_table_info('vehicle_checklist_items') WHERE name='checklist_id'
+    `).get() as any;
+
+    if (col && col.notnull === 1) {
+      console.log("🔧 Migrating vehicle_checklist_items to remove NOT NULL from checklist_id...");
+      db.exec(`
+        BEGIN TRANSACTION;
+
+        CREATE TABLE vehicle_checklist_items_new (
+          id TEXT PRIMARY KEY,
+          checklist_id TEXT,
+          entry_id TEXT,
+          category TEXT NOT NULL,
+          item TEXT NOT NULL,
+          status TEXT CHECK(status IN ('OK','ATTENTION','CRITICAL','NA')) DEFAULT 'NA',
+          notes TEXT,
+          image_url TEXT,
+          external_link TEXT,
+          sort_order INTEGER DEFAULT 0,
+          FOREIGN KEY (checklist_id) REFERENCES vehicle_checklists(id) ON DELETE CASCADE,
+          FOREIGN KEY (entry_id) REFERENCES vehicle_entries(id) ON DELETE CASCADE
+        );
+
+        INSERT INTO vehicle_checklist_items_new 
+          SELECT id, checklist_id, entry_id, category, item, status, notes, image_url, external_link, sort_order
+          FROM vehicle_checklist_items;
+
+        DROP TABLE vehicle_checklist_items;
+
+        ALTER TABLE vehicle_checklist_items_new RENAME TO vehicle_checklist_items;
+
+        COMMIT;
+      `);
+      console.log("✅ vehicle_checklist_items migrated successfully");
+    }
+  } catch (e: any) {
+    console.error("⚠️  Error migrating vehicle_checklist_items:", e.message);
+    try { db.exec("ROLLBACK;"); } catch {}
+  }
+
   console.log("Database initialized successfully.");
 }
+
 
 export default db;

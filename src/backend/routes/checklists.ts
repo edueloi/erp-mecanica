@@ -12,7 +12,7 @@ router.get("/public/:token", (req, res) => {
       SELECT cl.*, v.brand as vehicle_brand, v.model as vehicle_model, v.plate as vehicle_plate
       FROM vehicle_checklists cl
       JOIN vehicles v ON cl.vehicle_id = v.id
-      WHERE cl.public_token = ? AND cl.token_expires_at > DATETIME('now')
+      WHERE cl.public_token = ? AND cl.token_expires_at > CURRENT_TIMESTAMP
     `).get(req.params.token) as any;
 
     if (!checklist) return res.status(404).json({ error: "Link expirado ou inválido" });
@@ -35,7 +35,7 @@ router.patch("/public/:token/items/:itemId", (req, res) => {
   try {
     const checklist = db.prepare(`
       SELECT id FROM vehicle_checklists 
-      WHERE public_token = ? AND token_expires_at > DATETIME('now')
+      WHERE public_token = ? AND token_expires_at > CURRENT_TIMESTAMP
     `).get(req.params.token) as any;
 
     if (!checklist) return res.status(404).json({ error: "Link expirado" });
@@ -187,7 +187,8 @@ router.post("/:id/token", (req: AuthRequest, res) => {
   console.log('Generating token for checklist:', req.params.id);
   try {
     const token = uuidv4();
-    const expiresAt = new Date(Date.now() + 10 * 60000).toISOString(); // 10 minutes
+    // 60 minutes from now (ISO format with space for SQLite compatibility)
+    const expiresAt = new Date(Date.now() + 60 * 60000).toISOString().replace('T', ' ').replace('Z', ''); 
 
     const result = db.prepare(`
       UPDATE vehicle_checklists 

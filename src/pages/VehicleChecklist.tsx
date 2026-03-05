@@ -68,6 +68,7 @@ export default function VehicleChecklist() {
   const [notification, setNotification] = useState<{ show: boolean; msg: string; type: 'success' | 'error' }>({ show: false, msg: '', type: 'success' });
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [showQR, setShowQR] = useState(false);
+  const [showGallery, setShowGallery] = useState(false);
   const [publicToken, setPublicToken] = useState<string | null>(null);
   const [tokenExpiresAt, setTokenExpiresAt] = useState<string | null>(null);
   const [tokenCountdown, setTokenCountdown] = useState<number>(0);
@@ -125,7 +126,7 @@ export default function VehicleChecklist() {
       const res = await api.post(`/checklists/${activeChecklist.id}/token`);
       setPublicToken(res.data.token);
       setTokenExpiresAt(res.data.expiresAt);
-      setTokenCountdown(600); // 10 minutes
+      setTokenCountdown(3600); // 60 minutes
     } catch (err) {
       showToast('Erro ao gerar link de acesso', 'error');
     }
@@ -474,8 +475,14 @@ export default function VehicleChecklist() {
               <button onClick={handleGeneratePDF} className="h-9 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold flex items-center gap-2 transition-all">
                 <FileDown size={15} /> PDF
               </button>
-              <button onClick={() => setShowQR(true)} className="h-9 px-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold flex items-center gap-2 transition-all shadow-lg shadow-indigo-200">
+                <button onClick={() => setShowQR(true)} className="h-9 px-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold flex items-center gap-2 transition-all shadow-lg shadow-indigo-200">
                 <Smartphone size={15} /> Upload p/ Celular
+              </button>
+              <button 
+                onClick={() => setShowGallery(true)}
+                className="h-9 px-4 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl text-xs font-bold flex items-center gap-2 transition-all"
+              >
+                <Image size={15} /> Galeria de Fotos
               </button>
             </>
           )}
@@ -1093,7 +1100,71 @@ export default function VehicleChecklist() {
         )}
       </AnimatePresence>
 
+      {/* Gallery Modal */}
+      <AnimatePresence>
+        {showGallery && activeChecklist && (
+          <>
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/60 backdrop-blur-md z-[110]"
+              onClick={() => setShowGallery(false)}
+            />
+            <div className="fixed inset-0 flex items-center justify-center z-[111] p-4 lg:p-8 pointer-events-none">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 20 }}
+                className="bg-white rounded-3xl shadow-2xl w-full max-w-5xl h-[85vh] pointer-events-auto overflow-hidden flex flex-col"
+              >
+                <div className="bg-slate-900 px-6 py-5 flex items-center justify-between shrink-0">
+                  <div className="flex items-center gap-4">
+                    <div className="w-10 h-10 bg-indigo-500 rounded-xl flex items-center justify-center text-white">
+                      <Image size={24} />
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-black text-white tracking-tight">Galeria de Inspeção</h3>
+                      <p className="text-xs text-slate-400 font-bold uppercase tracking-widest">{activeChecklist.items.filter(i => i.image_url).length} fotos registradas</p>
+                    </div>
+                  </div>
+                  <button onClick={() => setShowGallery(false)} className="w-10 h-10 flex items-center justify-center text-slate-400 hover:text-white bg-white/10 hover:bg-white/20 rounded-xl transition-all font-bold">✕</button>
+                </div>
+                
+                <div className="flex-1 overflow-y-auto p-6 lg:p-10 bg-slate-50">
+                  {activeChecklist.items.filter(i => i.image_url).length === 0 ? (
+                    <div className="h-full flex flex-col items-center justify-center text-slate-400 space-y-4">
+                      <div className="w-20 h-20 bg-white rounded-3xl flex items-center justify-center shadow-sm border border-slate-100">
+                        <Camera size={40} className="opacity-20" />
+                      </div>
+                      <p className="font-bold">Nenhuma foto enviada ainda.</p>
+                      <p className="text-sm max-w-xs text-center leading-relaxed">As fotos tiradas pelo celular ou anexadas manualmente aparecerão aqui automaticamente.</p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                      {activeChecklist.items.filter(i => i.image_url).map(item => (
+                        <motion.div 
+                          key={item.id}
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          className="group relative bg-white rounded-3xl overflow-hidden shadow-md border-2 border-white hover:border-indigo-500 transition-all aspect-square cursor-zoom-in"
+                        >
+                          <img src={item.image_url!} alt={item.item} className="w-full h-full object-cover" />
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity p-4 flex flex-col justify-end">
+                            <p className="text-white text-[10px] font-black uppercase tracking-widest leading-tight">{item.category}</p>
+                            <p className="text-white text-xs font-bold leading-tight mt-1">{item.item}</p>
+                          </div>
+                          <div className={`absolute top-3 right-3 px-2 py-1 rounded-lg text-[9px] font-black backdrop-blur-md shadow-sm border ${STATUS_CONFIG[item.status].bg} ${STATUS_CONFIG[item.status].color} ${STATUS_CONFIG[item.status].border}`}>
+                            {STATUS_CONFIG[item.status].label}
+                          </div>
+                        </motion.div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            </div>
+          </>
+        )}
+      </AnimatePresence>
+
       {/* Toast */}
+
       <AnimatePresence>
         {notification.show && (
           <motion.div
