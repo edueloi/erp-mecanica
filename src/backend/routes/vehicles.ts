@@ -26,6 +26,26 @@ router.get("/", (req: AuthRequest, res) => {
   res.json(vehicles);
 });
 
+// GET single vehicle
+router.get("/:id", (req: AuthRequest, res) => {
+  try {
+    const vehicle = db.prepare(`
+      SELECT v.*, c.name as client_name 
+      FROM vehicles v 
+      JOIN clients c ON v.client_id = c.id 
+      WHERE v.id = ? AND v.tenant_id = ?
+    `).get(req.params.id, req.user!.tenant_id);
+
+    if (!vehicle) {
+      return res.status(404).json({ error: "Veículo não encontrado" });
+    }
+
+    res.json(vehicle);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 router.post("/", (req: AuthRequest, res) => {
   const { client_id, plate, brand, model, year, color, vin, fuel_type, km } = req.body;
   const id = uuidv4();

@@ -207,7 +207,7 @@ export default function VehicleDetail() {
                       <Clock size={16} /> Novo Agendamento
                     </button>
                     <button
-                      onClick={() => navigate(`/vehicles/${vehicle.id}/checklist`)}
+                      onClick={() => id && id !== 'undefined' && navigate(`/vehicles/${id}/checklist`)}
                       className="w-full h-10 px-4 bg-indigo-50 border border-indigo-200 text-indigo-700 rounded-lg text-xs font-bold flex items-center gap-3 hover:bg-indigo-100 transition-all"
                     >
                       <CheckSquare size={16} /> Novo Checklist de Inspeção
@@ -303,7 +303,7 @@ export default function VehicleDetail() {
                     <p className="text-xs text-slate-500 mt-0.5">Realize inspeções visuais completas com 80+ itens em 9 categorias</p>
                   </div>
                   <button
-                    onClick={() => navigate(`/vehicles/${vehicle.id}/checklist`)}
+                    onClick={() => id && id !== 'undefined' && navigate(`/vehicles/${id}/checklist`)}
                     className="h-9 px-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold flex items-center gap-2 transition-all shadow-sm"
                   >
                     <Plus size={15} /> Novo Checklist
@@ -311,7 +311,7 @@ export default function VehicleDetail() {
                 </div>
                 <div className="p-8 text-center">
                   <button
-                    onClick={() => navigate(`/vehicles/${vehicle.id}/checklist`)}
+                    onClick={() => id && id !== 'undefined' && navigate(`/vehicles/${id}/checklist`)}
                     className="inline-flex flex-col items-center gap-4 group"
                   >
                     <div className="w-20 h-20 bg-indigo-50 rounded-3xl flex items-center justify-center group-hover:bg-indigo-100 transition-colors border border-indigo-100">

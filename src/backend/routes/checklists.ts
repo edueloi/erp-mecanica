@@ -8,85 +8,98 @@ router.use(authenticateToken);
 
 // Default checklist template items
 const DEFAULT_CHECKLIST_ITEMS = [
-  // Documentação
+  // Documentação e Conferência
   { category: 'Documentação', item: 'CRLV / Licenciamento em dia', sort_order: 1 },
-  { category: 'Documentação', item: 'CNH do proprietário', sort_order: 2 },
-  { category: 'Documentação', item: 'Seguro obrigatório (DPVAT)', sort_order: 3 },
+  { category: 'Documentação', item: 'CNH do proprietário / Condutor', sort_order: 2 },
+  { category: 'Documentação', item: 'Manual do Proprietário / Chave reserva', sort_order: 3 },
+  { category: 'Documentação', item: 'Seguro obrigatório (DPVAT)', sort_order: 4 },
 
-  // Motor
-  { category: 'Motor', item: 'Nível de óleo do motor', sort_order: 10 },
-  { category: 'Motor', item: 'Nível do líquido de arrefecimento', sort_order: 11 },
-  { category: 'Motor', item: 'Correias / Tensores', sort_order: 12 },
-  { category: 'Motor', item: 'Vazamentos (óleo, água, combustível)', sort_order: 13 },
-  { category: 'Motor', item: 'Filtro de ar', sort_order: 14 },
-  { category: 'Motor', item: 'Velas de ignição', sort_order: 15 },
-  { category: 'Motor', item: 'Tampa de óleo / Junta', sort_order: 16 },
-  { category: 'Motor', item: 'Radiador (estado geral)', sort_order: 17 },
+  // Equipamentos de Segurança
+  { category: 'Equipamentos', item: 'Triângulo de sinalização', sort_order: 5 },
+  { category: 'Equipamentos', item: 'Luzes do painel / Avisos sonoros', sort_order: 6 },
+  { category: 'Equipamentos', item: 'Cintos de segurança (engates e recuo)', sort_order: 7 },
+  { category: 'Equipamentos', item: 'Extintor de incêndio (validade)', sort_order: 8 },
+  { category: 'Equipamentos', item: 'Macaco / Chave de roda', sort_order: 9 },
+
+  // Motor e Fluidos
+  { category: 'Motor e Fluidos', item: 'Nível de óleo do motor', sort_order: 10 },
+  { category: 'Motor e Fluidos', item: 'Nível do líquido de arrefecimento (estado)', sort_order: 11 },
+  { category: 'Motor e Fluidos', item: 'Nível de fluido de freio', sort_order: 12 },
+  { category: 'Motor e Fluidos', item: 'Nível de fluido da direção hidráulica', sort_order: 13 },
+  { category: 'Motor e Fluidos', item: 'Nível de fluido do limpador de para-brisa', sort_order: 14 },
+  { category: 'Motor e Fluidos', item: 'Vazamentos visíveis (óleo, água, combustível)', sort_order: 15 },
+  { category: 'Motor e Fluidos', item: 'Estado das correias / Tensores', sort_order: 16 },
+  { category: 'Motor e Fluidos', item: 'Filtro de ar / Filtro de combustível', sort_order: 17 },
+  { category: 'Motor e Fluidos', item: 'Estado do radiador / Mangueiras', sort_order: 18 },
+  { category: 'Motor e Fluidos', item: 'Coxins do motor e câmbio', sort_order: 19 },
 
   // Transmissão
-  { category: 'Transmissão', item: 'Nível do óleo do câmbio', sort_order: 20 },
-  { category: 'Transmissão', item: 'Embreagem (folga e desgaste)', sort_order: 21 },
-  { category: 'Transmissão', item: 'Semiarvoredas / Homocinéticas', sort_order: 22 },
-  { category: 'Transmissão', item: 'Caixa de direção', sort_order: 23 },
+  { category: 'Transmissão', item: 'Nível do óleo do câmbio (se aplicável)', sort_order: 20 },
+  { category: 'Transmissão', item: 'Embreagem (pedal, folga e desgaste)', sort_order: 21 },
+  { category: 'Transmissão', item: 'Coifas de semieixo / Homocinéticas', sort_order: 22 },
+  { category: 'Transmissão', item: 'Engates das marchas / Alavanca', sort_order: 23 },
 
   // Freios
   { category: 'Freios', item: 'Pastilhas dianteiras', sort_order: 30 },
-  { category: 'Freios', item: 'Pastilhas traseiras / Lonas', sort_order: 31 },
-  { category: 'Freios', item: 'Discos / Tambores', sort_order: 32 },
-  { category: 'Freios', item: 'Nível do fluido de freio', sort_order: 33 },
+  { category: 'Freios', item: 'Pastilhas traseiras / Lonas / Tambores', sort_order: 31 },
+  { category: 'Freios', item: 'Estado dos discos de freio', sort_order: 32 },
+  { category: 'Freios', item: 'Mangueiras e tubulações (vazamentos)', sort_order: 33 },
   { category: 'Freios', item: 'Freio de mão / Estacionamento', sort_order: 34 },
-  { category: 'Freios', item: 'Mangueiras e tubulações', sort_order: 35 },
+  { category: 'Freios', item: 'Pedal de freio (pressão e retorno)', sort_order: 35 },
 
   // Suspensão e Direção
-  { category: 'Suspensão e Direção', item: 'Amortecedores dianteiros', sort_order: 40 },
-  { category: 'Suspensão e Direção', item: 'Amortecedores traseiros', sort_order: 41 },
-  { category: 'Suspensão e Direção', item: 'Molas', sort_order: 42 },
-  { category: 'Suspensão e Direção', item: 'Buchas da bandeja', sort_order: 43 },
-  { category: 'Suspensão e Direção', item: 'Pivôs / Terminais de direção', sort_order: 44 },
-  { category: 'Suspensão e Direção', item: 'Caixa de direção (vazamento)', sort_order: 45 },
-  { category: 'Suspensão e Direção', item: 'Alinhamento e balanceamento', sort_order: 46 },
+  { category: 'Suspensão e Direção', item: 'Amortecedores (vazamentos e ruídos)', sort_order: 40 },
+  { category: 'Suspensão e Direção', item: 'Buchas de bandeja / Balança', sort_order: 41 },
+  { category: 'Suspensão e Direção', item: 'Pivôs / Terminais de direção', sort_order: 42 },
+  { category: 'Suspensão e Direção', item: 'Barra estabilizadora / Bieletas', sort_order: 43 },
+  { category: 'Suspensão e Direção', item: 'Caixa de direção (vazamento / folga)', sort_order: 44 },
+  { category: 'Suspensão e Direção', item: 'Molas / Batentes', sort_order: 45 },
 
   // Pneus e Rodas
-  { category: 'Pneus e Rodas', item: 'Pneu dianteiro direito', sort_order: 50 },
-  { category: 'Pneus e Rodas', item: 'Pneu dianteiro esquerdo', sort_order: 51 },
-  { category: 'Pneus e Rodas', item: 'Pneu traseiro direito', sort_order: 52 },
-  { category: 'Pneus e Rodas', item: 'Pneu traseiro esquerdo', sort_order: 53 },
-  { category: 'Pneus e Rodas', item: 'Estepe', sort_order: 54 },
-  { category: 'Pneus e Rodas', item: 'Calibragem geral', sort_order: 55 },
-  { category: 'Pneus e Rodas', item: 'Parafusos das rodas', sort_order: 56 },
+  { category: 'Pneus e Rodas', item: 'Pneu dianteiro direito (desgaste TWI)', sort_order: 50 },
+  { category: 'Pneus e Rodas', item: 'Pneu dianteiro esquerdo (desgaste TWI)', sort_order: 51 },
+  { category: 'Pneus e Rodas', item: 'Pneu traseiro direito (desgaste TWI)', sort_order: 52 },
+  { category: 'Pneus e Rodas', item: 'Pneu traseiro esquerdo (desgaste TWI)', sort_order: 53 },
+  { category: 'Pneus e Rodas', item: 'Estepe (estado e calibragem)', sort_order: 54 },
+  { category: 'Pneus e Rodas', item: 'Calibragem geral (incluindo estepe)', sort_order: 55 },
+  { category: 'Pneus e Rodas', item: 'Estado das rodas / Parafusos', sort_order: 56 },
 
   // Elétrico
-  { category: 'Elétrico', item: 'Bateria (carga e fixação)', sort_order: 60 },
-  { category: 'Elétrico', item: 'Alternador', sort_order: 61 },
-  { category: 'Elétrico', item: 'Motor de partida', sort_order: 62 },
-  { category: 'Elétrico', item: 'Iluminação dianteira (faróis / DRLs)', sort_order: 63 },
-  { category: 'Elétrico', item: 'Iluminação traseira (lanternas / stop)', sort_order: 64 },
-  { category: 'Elétrico', item: 'Setas / Pisca-alerta', sort_order: 65 },
-  { category: 'Elétrico', item: 'Luz de ré', sort_order: 66 },
-  { category: 'Elétrico', item: 'Buzina', sort_order: 67 },
-  { category: 'Elétrico', item: 'Sensor de estacionamento', sort_order: 68 },
+  { category: 'Elétrico', item: 'Bateria (voltagem e fixação)', sort_order: 60 },
+  { category: 'Elétrico', item: 'Funcionamento do alternador', sort_order: 61 },
+  { category: 'Elétrico', item: 'Luzes de farol (alto e baixo)', sort_order: 62 },
+  { category: 'Elétrico', item: 'Lanternas traseiras / Placa', sort_order: 63 },
+  { category: 'Elétrico', item: 'Setas / Pisca-alerta / Luz de ré', sort_order: 64 },
+  { category: 'Elétrico', item: 'Luz de freio (incluindo brake-light)', sort_order: 65 },
+  { category: 'Elétrico', item: 'Buzina', sort_order: 66 },
+  { category: 'Elétrico', item: 'Painel (relógios e luzes espia)', sort_order: 67 },
+  { category: 'Elétrico', item: 'Vidros elétricos / Travas', sort_order: 68 },
 
-  // Ar-condicionado
-  { category: 'Ar-condicionado', item: 'Funcionamento geral do A/C', sort_order: 70 },
-  { category: 'Ar-condicionado', item: 'Filtro de cabine / Ar interno', sort_order: 71 },
-  { category: 'Ar-condicionado', item: 'Compressor de A/C', sort_order: 72 },
-  { category: 'Ar-condicionado', item: 'Nível de gás refrigerante', sort_order: 73 },
+  // Ar-condicionado e Ventilação
+  { category: 'Ar-condicionado', item: 'Eficiência de resfriamento', sort_order: 70 },
+  { category: 'Ar-condicionado', item: 'Filtro de cabine (higienização)', sort_order: 71 },
+  { category: 'Ar-condicionado', item: 'Ruídos no compressor / Polia', sort_order: 72 },
+  { category: 'Ar-condicionado', item: 'Direcionadores de ar / Desembaçador', sort_order: 73 },
 
-  // Carroceria e Lataria
-  { category: 'Carroceria e Lataria', item: 'Estado geral da lataria', sort_order: 80 },
-  { category: 'Carroceria e Lataria', item: 'Para-choque dianteiro', sort_order: 81 },
-  { category: 'Carroceria e Lataria', item: 'Para-choque traseiro', sort_order: 82 },
-  { category: 'Carroceria e Lataria', item: 'Vidros e Parabrisa', sort_order: 83 },
-  { category: 'Carroceria e Lataria', item: 'Limpadores de para-brisa', sort_order: 84 },
-  { category: 'Carroceria e Lataria', item: 'Fechaduras e maçanetas', sort_order: 85 },
-  { category: 'Carroceria e Lataria', item: 'Espelhos retrovisores', sort_order: 86 },
+  // Carroceria e Vidros
+  { category: 'Carroceria', item: 'Estado geral da pintura e lataria', sort_order: 80 },
+  { category: 'Carroceria', item: 'Para-choques dianteiro e traseiro', sort_order: 81 },
+  { category: 'Carroceria', item: 'Parabrisa (trincas e transparência)', sort_order: 82 },
+  { category: 'Carroceria', item: 'Limpadores / Palhetas (estado)', sort_order: 83 },
+  { category: 'Carroceria', item: 'Retrovisores (ajuste e integridade)', sort_order: 84 },
+  { category: 'Carroceria', item: 'Escapamento (ruído e fixação)', sort_order: 85 },
 
-  // Interior / Habitáculo
-  { category: 'Interior', item: 'Painel de instrumentos (luzes de aviso)', sort_order: 90 },
-  { category: 'Interior', item: 'Cinto de segurança (todos os bancos)', sort_order: 91 },
-  { category: 'Interior', item: 'Airbags (luz de indicação)', sort_order: 92 },
-  { category: 'Interior', item: 'Volante e coluna', sort_order: 93 },
-  { category: 'Interior', item: 'Pedais (freio, acelerador, embreagem)', sort_order: 94 },
+  // Interior
+  { category: 'Interior', item: 'Estado dos bancos / Estofamento', sort_order: 90 },
+  { category: 'Interior', item: 'Tapetes / Carpetes', sort_order: 91 },
+  { category: 'Interior', item: 'Forros de porta / Teto', sort_order: 92 },
+  { category: 'Interior', item: 'Higienização interna', sort_order: 93 },
+
+  // Teste de Rodagem
+  { category: 'Teste de Rodagem', item: 'Comportamento na partida', sort_order: 100 },
+  { category: 'Teste de Rodagem', item: 'Barulhos internos / Grilos', sort_order: 101 },
+  { category: 'Teste de Rodagem', item: 'Estabilidade em linha reta', sort_order: 102 },
+  { category: 'Teste de Rodagem', item: 'Freios em operação (vibração)', sort_order: 103 },
 ];
 
 // GET all checklists for a vehicle
@@ -135,6 +148,10 @@ router.get("/:id", (req: AuthRequest, res) => {
 // POST create a new checklist
 router.post("/", (req: AuthRequest, res) => {
   const { vehicle_id, work_order_id, km, inspector_name, general_notes } = req.body;
+
+  if (!vehicle_id || vehicle_id === 'undefined') {
+    return res.status(400).json({ error: "ID do veículo é obrigatório e deve ser válido" });
+  }
 
   const id = uuidv4();
 

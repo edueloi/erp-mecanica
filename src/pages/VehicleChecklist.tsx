@@ -3,8 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, Plus, CheckCircle, AlertTriangle, XCircle,
   Minus, ChevronDown, ChevronRight, FileDown, Trash2,
-  Car, Clock, User2, Gauge, Save, ClipboardCheck,
-  MessageSquare, ChevronUp, Loader
+  Car, Clock, User2, Gauge, Save, ClipboardCheck, History,
+  MessageSquare, ChevronUp, Loader, Shield, Wrench, AlertCircle, CheckCircle2
 } from 'lucide-react';
 import api from '../services/api';
 import { motion, AnimatePresence } from 'motion/react';
@@ -76,24 +76,31 @@ export default function VehicleChecklist() {
   };
 
   const fetchData = useCallback(async () => {
+    if (!vehicleId || vehicleId === 'undefined') {
+      showToast('Veículo não identificado', 'error');
+      setLoading(false);
+      return;
+    }
     try {
       const [vRes, clRes] = await Promise.all([
         api.get(`/vehicles/${vehicleId}`),
         api.get(`/checklists/vehicle/${vehicleId}`)
       ]);
       setVehicle(vRes.data);
-      // Guard: API may return error object if server hasn't restarted yet
-      setChecklists(Array.isArray(clRes.data) ? clRes.data : []);
+      const cls = Array.isArray(clRes.data) ? clRes.data : [];
+      setChecklists(cls);
 
       // If checklistId param -> load it
       if (checklistId) {
         const clDetail = await api.get(`/checklists/${checklistId}`);
         if (clDetail.data && Array.isArray(clDetail.data.items)) {
           setActiveChecklist(clDetail.data);
-          // Expand all categories by default
           const cats = new Set<string>(clDetail.data.items.map((i: ChecklistItem) => i.category));
           setExpandedCategories(cats);
         }
+      } else if (cls.length > 0) {
+        // If no checklistId in URL, but we have checklists, open the most recent one
+        openChecklist(cls[0].id);
       }
     } catch (err) {
       console.error('Checklist fetch error:', err);
@@ -107,6 +114,10 @@ export default function VehicleChecklist() {
 
   // --------------- Actions ---------------
   const handleCreateChecklist = async () => {
+    if (!vehicleId || vehicleId === 'undefined') {
+      showToast('Veículo não identificado', 'error');
+      return;
+    }
     try {
       const res = await api.post('/checklists', {
         vehicle_id: vehicleId,
@@ -324,6 +335,19 @@ export default function VehicleChecklist() {
     </div>
   );
 
+  if (!vehicleId || vehicleId === 'undefined') {
+    return (
+      <div className="flex flex-col items-center justify-center h-full text-slate-400 p-8">
+        <AlertCircle size={48} className="mb-4 text-rose-500" />
+        <h3 className="text-xl font-bold text-slate-700 mb-2">Veículo não identificado</h3>
+        <p className="text-sm text-center max-w-xs mb-6">Não foi possível carregar as informações do veículo. Por favor, volte à lista de veículos e tente novamente.</p>
+        <button onClick={() => navigate('/vehicles')} className="h-10 px-6 bg-slate-900 text-white rounded-xl text-sm font-bold transition-all shadow-sm">
+          Voltar para Veículos
+        </button>
+      </div>
+    );
+  }
+
   // =================== RENDER ===================
   return (
     <div className="flex flex-col h-full -m-6 bg-slate-50">
@@ -357,7 +381,11 @@ export default function VehicleChecklist() {
               </button>
             </>
           )}
-          <button onClick={() => setShowNewForm(true)} className="h-9 px-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold flex items-center gap-2 transition-all shadow-sm">
+          <button
+            disabled={!vehicleId || vehicleId === 'undefined'}
+            onClick={() => setShowNewForm(true)}
+            className="h-9 px-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold flex items-center gap-2 transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+          >
             <Plus size={15} /> Novo Checklist
           </button>
         </div>
@@ -381,10 +409,10 @@ export default function VehicleChecklist() {
               checklists.map(cl => {
                 const isActive = activeChecklist?.id === cl.id;
                 return (
-                  <button
+                  <div
                     key={cl.id}
                     onClick={() => openChecklist(cl.id)}
-                    className={`w-full text-left px-4 py-3.5 border-b border-slate-50 hover:bg-slate-50 transition-colors flex items-start justify-between gap-2 group ${isActive ? 'bg-indigo-50 border-l-4 border-l-indigo-500' : ''}`}
+                    className={`w-full text-left px-4 py-3.5 border-b border-slate-50 hover:bg-slate-50 transition-colors flex items-start justify-between gap-2 group cursor-pointer ${isActive ? 'bg-indigo-50 border-l-4 border-l-indigo-500' : ''}`}
                   >
                     <div className="min-w-0">
                       <div className="flex items-center gap-2 mb-1">
@@ -408,7 +436,7 @@ export default function VehicleChecklist() {
                     >
                       <Trash2 size={13} />
                     </button>
-                  </button>
+                  </div>
                 );
               })
             )}
@@ -426,7 +454,11 @@ export default function VehicleChecklist() {
                 </div>
                 <h3 className="text-xl font-bold text-slate-700 mb-2">Selecione ou crie um checklist</h3>
                 <p className="text-sm text-center max-w-xs">Use a lista à esquerda para abrir um checklist existente, ou clique em "Novo Checklist" para criar um.</p>
-                <button onClick={() => setShowNewForm(true)} className="mt-6 h-10 px-6 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-bold flex items-center gap-2 transition-all shadow-sm">
+                <button
+                  disabled={!vehicleId || vehicleId === 'undefined'}
+                  onClick={() => setShowNewForm(true)}
+                  className="mt-6 h-10 px-6 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-bold flex items-center gap-2 transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                >
                   <Plus size={16} /> Novo Checklist
                 </button>
               </motion.div>
@@ -464,18 +496,53 @@ export default function VehicleChecklist() {
                   {/* Summary */}
                   {(() => {
                     const s = getSummary(activeChecklist.items);
-                    const pct = Math.round((s.ok / (s.total - s.na || 1)) * 100);
+                    const ratedTotal = s.total - s.na || 1;
+                    const pct = Math.round((s.ok / ratedTotal) * 100);
+                    const attentionPct = Math.round((s.attention / ratedTotal) * 100);
+                    const criticalPct = Math.round((s.critical / ratedTotal) * 100);
+                    
                     return (
-                      <div className="mt-3 flex items-center gap-4">
-                        <div className="flex-1 bg-slate-100 rounded-full h-2 overflow-hidden">
-                          <div className="h-full bg-gradient-to-r from-emerald-400 to-emerald-600 transition-all duration-500" style={{ width: `${pct}%` }} />
+                      <div className="mt-4 p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                        <div className="flex items-center justify-between mb-2 px-1">
+                          <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Progresso da Inspeção</span>
+                          <span className="text-sm font-black text-slate-900">{pct}% <span className="text-[10px] text-slate-400 font-bold uppercase ml-1">em perfeitas condições</span></span>
                         </div>
-                        <div className="flex items-center gap-3 shrink-0">
-                          <span className="text-xs font-bold text-emerald-600">✅ {s.ok} OK</span>
-                          <span className="text-xs font-bold text-amber-600">⚠️ {s.attention}</span>
-                          <span className="text-xs font-bold text-rose-600">🔴 {s.critical}</span>
-                          <span className="text-xs text-slate-400">— {s.na} N/A</span>
-                          <span className="text-xs font-black text-slate-700 bg-slate-100 px-2 py-0.5 rounded-full">{pct}%</span>
+                        <div className="flex h-3 bg-slate-200 rounded-full overflow-hidden shadow-inner">
+                          <motion.div 
+                            initial={{ width: 0 }} 
+                            animate={{ width: `${pct}%` }} 
+                            className="bg-emerald-500 h-full border-r border-white/20" 
+                          />
+                          <motion.div 
+                            initial={{ width: 0 }} 
+                            animate={{ width: `${attentionPct}%` }} 
+                            className="bg-amber-500 h-full border-r border-white/20" 
+                          />
+                          <motion.div 
+                            initial={{ width: 0 }} 
+                            animate={{ width: `${criticalPct}%` }} 
+                            className="bg-rose-500 h-full" 
+                          />
+                        </div>
+                        <div className="mt-4 flex items-center justify-between">
+                          <div className="flex items-center gap-6">
+                            <div className="flex flex-col">
+                              <span className="text-[10px] font-bold text-emerald-600 uppercase">Aprovados</span>
+                              <span className="text-sm font-black text-slate-800">{s.ok}</span>
+                            </div>
+                            <div className="flex flex-col border-l border-slate-200 pl-4">
+                              <span className="text-[10px] font-bold text-amber-600 uppercase">Atenção</span>
+                              <span className="text-sm font-black text-slate-800">{s.attention}</span>
+                            </div>
+                            <div className="flex flex-col border-l border-slate-200 pl-4">
+                              <span className="text-[10px] font-bold text-rose-600 uppercase">Críticos</span>
+                              <span className="text-sm font-black text-slate-800">{s.critical}</span>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                             <span className="text-[10px] font-bold text-slate-400 uppercase block">Total de Itens</span>
+                             <span className="text-sm font-black text-slate-400">{s.total}</span>
+                          </div>
                         </div>
                       </div>
                     );
@@ -490,22 +557,50 @@ export default function VehicleChecklist() {
                     const critCount = catItems.filter(i => i.status === 'CRITICAL').length;
                     const attCount = catItems.filter(i => i.status === 'ATTENTION').length;
                     const okCount = catItems.filter(i => i.status === 'OK').length;
+                    const catSummary = getSummary(catItems);
+                    const catPct = Math.round((catSummary.ok / (catSummary.total - catSummary.na || 1)) * 100);
+                    
+                    const CATEGORY_ICONS: Record<string, any> = {
+                      'Documentação': History,
+                      'Equipamentos': Shield,
+                      'Motor e Fluidos': Gauge,
+                      'Transmissão': Wrench,
+                      'Freios': AlertCircle,
+                      'Suspensão e Direção': Car,
+                      'Pneus e Rodas': CheckCircle2,
+                      'Elétrico': Clock,
+                      'Ar-condicionado': Gauge,
+                      'Carroceria': Car,
+                      'Interior': User2,
+                      'Teste de Rodagem': ClipboardCheck,
+                    };
+                    const Icon = CATEGORY_ICONS[cat] || ClipboardCheck;
 
                     return (
-                      <div key={cat} className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                      <div key={cat} className={`bg-white rounded-2xl border transition-all shadow-sm overflow-hidden ${isExpanded ? 'border-indigo-200 ring-2 ring-indigo-50 shadow-md' : 'border-slate-200 hover:border-slate-300'}`}>
                         <button
                           onClick={() => toggleCategory(cat)}
                           className="w-full flex items-center justify-between px-5 py-4 hover:bg-slate-50 transition-colors"
                         >
-                          <div className="flex items-center gap-3">
-                            <span className="font-bold text-slate-900 text-sm">{cat}</span>
-                            <span className="text-[10px] text-slate-400">{catItems.length} itens</span>
+                          <div className="flex items-center gap-4">
+                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${isExpanded ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-500'}`}>
+                              <Icon size={20} />
+                            </div>
+                            <div className="text-left">
+                              <span className="font-bold text-slate-900 text-sm block">{cat}</span>
+                              <div className="flex items-center gap-2 mt-0.5">
+                                <div className="w-16 h-1 bg-slate-100 rounded-full overflow-hidden">
+                                  <div className="h-full bg-emerald-500 transition-all" style={{ width: `${catPct}%` }} />
+                                </div>
+                                <span className="text-[10px] text-slate-400 font-bold">{catPct}% concluído</span>
+                              </div>
+                            </div>
                           </div>
                           <div className="flex items-center gap-2">
                             {critCount > 0 && <span className="text-[10px] font-black px-2 py-0.5 bg-rose-100 text-rose-700 rounded-full">🔴 {critCount}</span>}
                             {attCount > 0 && <span className="text-[10px] font-black px-2 py-0.5 bg-amber-100 text-amber-700 rounded-full">⚠️ {attCount}</span>}
                             {okCount > 0 && <span className="text-[10px] font-black px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded-full">✅ {okCount}</span>}
-                            {isExpanded ? <ChevronUp size={16} className="text-slate-400" /> : <ChevronRight size={16} className="text-slate-400" />}
+                            {isExpanded ? <ChevronUp size={16} className="text-indigo-400" /> : <ChevronRight size={16} className="text-slate-400" />}
                           </div>
                         </button>
 
@@ -544,7 +639,7 @@ export default function VehicleChecklist() {
                                                 disabled={saving === item.id}
                                                 className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border transition-all ${
                                                   isSelected
-                                                    ? `${c.bg} ${c.color} ${c.border} shadow-sm scale-105`
+                                                    ? `${c.bg} ${c.color} ${c.border} shadow-sm scale-110 ring-2 ring-white`
                                                     : 'bg-slate-50 text-slate-400 border-slate-200 hover:bg-slate-100'
                                                 }`}
                                               >
@@ -553,13 +648,12 @@ export default function VehicleChecklist() {
                                             );
                                           })}
 
-                                          {/* Note button */}
                                           <button
                                             onClick={() => {
                                               if (isEditingThisNote) { setEditingNote(null); }
                                               else { setEditingNote(item.id); setNoteValue(item.notes || ''); }
                                             }}
-                                            className={`p-1.5 rounded-lg transition-colors ${item.notes ? 'text-indigo-500 bg-indigo-50' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'}`}
+                                            className={`p-1.5 rounded-lg transition-colors ${item.notes ? 'text-indigo-500 bg-indigo-50 shadow-sm' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'}`}
                                             title="Adicionar observação"
                                           >
                                             <MessageSquare size={14} />
@@ -581,15 +675,15 @@ export default function VehicleChecklist() {
                                                 autoFocus
                                                 value={noteValue}
                                                 onChange={e => setNoteValue(e.target.value)}
-                                                placeholder="Observação sobre este item..."
-                                                className="flex-1 text-xs border border-slate-200 rounded-xl p-2.5 resize-none focus:outline-none focus:ring-2 focus:ring-indigo-300 bg-slate-50"
-                                                rows={2}
+                                                placeholder="Observação detalhada..."
+                                                className="flex-1 text-sm border border-slate-200 rounded-xl p-3 resize-none focus:outline-none focus:ring-2 focus:ring-indigo-300 bg-white"
+                                                rows={3}
                                               />
-                                              <div className="flex flex-col gap-1.5">
-                                                <button onClick={() => handleSaveNote(item.id)} className="px-3 py-1.5 bg-indigo-600 text-white text-[10px] font-bold rounded-lg hover:bg-indigo-700">
-                                                  <Save size={12} />
+                                              <div className="flex flex-col gap-2">
+                                                <button onClick={() => handleSaveNote(item.id)} className="h-full px-4 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 flex items-center justify-center">
+                                                  <Save size={16} />
                                                 </button>
-                                                <button onClick={() => setEditingNote(null)} className="px-3 py-1.5 bg-slate-100 text-slate-600 text-[10px] font-bold rounded-lg hover:bg-slate-200">
+                                                <button onClick={() => setEditingNote(null)} className="p-3 bg-slate-100 text-slate-500 rounded-xl hover:bg-slate-200">
                                                   ✕
                                                 </button>
                                               </div>
@@ -598,11 +692,11 @@ export default function VehicleChecklist() {
                                         )}
                                       </AnimatePresence>
 
-                                      {/* Existing Note Display */}
+                                      {/* Existing Note */}
                                       {item.notes && !isEditingThisNote && (
-                                        <div className="mt-2 ml-6 flex items-start gap-1.5">
-                                          <MessageSquare size={11} className="text-indigo-400 mt-0.5 shrink-0" />
-                                          <p className="text-xs text-slate-500 italic leading-relaxed">{item.notes}</p>
+                                        <div className="mt-2 ml-6 p-2 bg-indigo-50/50 rounded-lg border border-indigo-100/50 flex items-start gap-2">
+                                          <MessageSquare size={12} className="text-indigo-400 mt-1 shrink-0" />
+                                          <p className="text-xs text-slate-600 leading-relaxed">{item.notes}</p>
                                         </div>
                                       )}
                                     </div>
@@ -615,30 +709,45 @@ export default function VehicleChecklist() {
                       </div>
                     );
                   })}
+                </div>
 
-                  {/* General Notes */}
-                  <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
-                    <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Observações Gerais</h3>
+                {/* General Notes */}
+                <div className="px-6 pb-20 max-w-4xl mx-auto space-y-6">
+                  <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-6">
+                    <div className="flex items-center gap-2 mb-4">
+                      <MessageSquare className="text-slate-400" size={18} />
+                      <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest">Observações Gerais da Inspeção</h3>
+                    </div>
                     <textarea
                       defaultValue={activeChecklist.general_notes || ''}
                       onBlur={async (e) => {
                         await api.patch(`/checklists/${activeChecklist.id}`, { general_notes: e.target.value });
                         setActiveChecklist(prev => prev ? { ...prev, general_notes: e.target.value } : null);
                       }}
-                      placeholder="Adicione observações gerais sobre o veículo..."
-                      className="w-full text-sm border border-slate-200 rounded-xl p-3 resize-none focus:outline-none focus:ring-2 focus:ring-indigo-300 bg-slate-50 text-slate-700"
-                      rows={4}
+                      placeholder="Relate aqui o estado geral de conservação, recomendações ao cliente e outras informações relevantes..."
+                      className="w-full text-sm border border-slate-200 rounded-2xl p-4 resize-none focus:outline-none focus:ring-2 focus:ring-indigo-300 bg-slate-50 text-slate-700"
+                      rows={5}
                     />
                   </div>
 
-                  {/* Finish Button */}
-                  {activeChecklist.status !== 'COMPLETED' && (
+                  {/* Finalization Button */}
+                  {activeChecklist.status !== 'COMPLETED' ? (
                     <button
                       onClick={handleFinishChecklist}
-                      className="w-full h-12 bg-emerald-600 hover:bg-emerald-700 text-white font-black rounded-2xl flex items-center justify-center gap-3 transition-all shadow-lg shadow-emerald-200 text-sm"
+                      className="w-full h-14 bg-emerald-600 hover:bg-emerald-700 text-white font-black rounded-2xl flex items-center justify-center gap-3 transition-all shadow-lg hover:shadow-emerald-200 text-sm tracking-wide"
                     >
-                      <ClipboardCheck size={20} /> FINALIZAR CHECKLIST E GERAR RELATÓRIO
+                      <ClipboardCheck size={22} /> FINALIZAR INSPEÇÃO E GERAR LAUDO TÉCNICO
                     </button>
+                  ) : (
+                    <div className="p-6 bg-emerald-50 rounded-2xl border border-emerald-100 flex flex-col items-center gap-3">
+                      <div className="w-12 h-12 bg-emerald-500 rounded-full flex items-center justify-center text-white shadow-sm">
+                        <CheckCircle size={24} />
+                      </div>
+                      <div className="text-center">
+                        <p className="text-sm font-bold text-emerald-900">Inspeção Concluída</p>
+                        <p className="text-xs text-emerald-600">Este checklist foi finalizado e está disponível para consulta e geração de PDF.</p>
+                      </div>
+                    </div>
                   )}
                 </div>
               </motion.div>
