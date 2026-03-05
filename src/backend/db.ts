@@ -978,6 +978,33 @@ export function initDb() {
     )
   `);
 
+  // Migration: Add client_id and work_order_id to action_cards
+  try {
+    const checkClientId = db.prepare(`
+      SELECT COUNT(*) as count 
+      FROM pragma_table_info('action_cards') 
+      WHERE name='client_id'
+    `).get() as any;
+
+    if (checkClientId.count === 0) {
+      db.exec(`ALTER TABLE action_cards ADD COLUMN client_id TEXT REFERENCES clients(id)`);
+      console.log("✅ Added client_id column to action_cards");
+    }
+
+    const checkWorkOrderId = db.prepare(`
+      SELECT COUNT(*) as count 
+      FROM pragma_table_info('action_cards') 
+      WHERE name='work_order_id'
+    `).get() as any;
+
+    if (checkWorkOrderId.count === 0) {
+      db.exec(`ALTER TABLE action_cards ADD COLUMN work_order_id TEXT REFERENCES work_orders(id)`);
+      console.log("✅ Added work_order_id column to action_cards");
+    }
+  } catch (e: any) {
+    console.error("⚠️  Error adding columns to action_cards:", e.message);
+  }
+
   console.log("Database initialized successfully.");
 }
 

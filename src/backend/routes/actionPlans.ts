@@ -44,9 +44,15 @@ router.get("/boards/:id", (req: AuthRequest, res) => {
   `).all(id);
   
   const cards = db.prepare(`
-    SELECT c.*, u.name as assigned_name
+    SELECT 
+      c.*, 
+      u.name as assigned_name,
+      cl.name as client_name,
+      wo.number as work_order_number
     FROM action_cards c
     LEFT JOIN users u ON c.assigned_to = u.id
+    LEFT JOIN clients cl ON c.client_id = cl.id
+    LEFT JOIN work_orders wo ON c.work_order_id = wo.id
     WHERE c.board_id = ?
     ORDER BY c.position ASC
   `).all(id);
@@ -233,7 +239,7 @@ router.delete("/columns/:id", (req: AuthRequest, res) => {
 
 // Create card
 router.post("/cards", (req: AuthRequest, res) => {
-  const { column_id, board_id, title, description, priority, due_date, assigned_to, tags, links } = req.body;
+  const { column_id, board_id, title, description, priority, due_date, assigned_to, tags, links, client_id, work_order_id } = req.body;
   const id = uuidv4();
   
   try {
@@ -245,9 +251,9 @@ router.post("/cards", (req: AuthRequest, res) => {
     const position = (maxPos?.max ?? -1) + 1;
     
     db.prepare(`
-      INSERT INTO action_cards (id, column_id, board_id, title, description, priority, due_date, assigned_to, position, tags, created_by)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(id, column_id, board_id, title, description, priority || 'MEDIUM', due_date, assigned_to, position, JSON.stringify(tags || []), req.user!.id);
+      INSERT INTO action_cards (id, column_id, board_id, title, description, priority, due_date, assigned_to, position, tags, client_id, work_order_id, created_by)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(id, column_id, board_id, title, description, priority || 'MEDIUM', due_date, assigned_to, position, JSON.stringify(tags || []), client_id, work_order_id, req.user!.id);
     
     // Add links if provided
     if (links && Array.isArray(links)) {
@@ -262,9 +268,15 @@ router.post("/cards", (req: AuthRequest, res) => {
     }
     
     const card = db.prepare(`
-      SELECT c.*, u.name as assigned_name
+      SELECT 
+        c.*, 
+        u.name as assigned_name,
+        cl.name as client_name,
+        wo.number as work_order_number
       FROM action_cards c
       LEFT JOIN users u ON c.assigned_to = u.id
+      LEFT JOIN clients cl ON c.client_id = cl.id
+      LEFT JOIN work_orders wo ON c.work_order_id = wo.id
       WHERE c.id = ?
     `).get(id);
     
@@ -283,7 +295,7 @@ router.post("/cards", (req: AuthRequest, res) => {
 // Update card
 router.put("/cards/:id", (req: AuthRequest, res) => {
   const { id } = req.params;
-  const { title, description, priority, due_date, assigned_to, tags } = req.body;
+  const { title, description, priority, due_date, assigned_to, tags, client_id, work_order_id } = req.body;
   
   try {
     db.prepare(`
@@ -295,14 +307,22 @@ router.put("/cards/:id", (req: AuthRequest, res) => {
         due_date = COALESCE(?, due_date),
         assigned_to = COALESCE(?, assigned_to),
         tags = COALESCE(?, tags),
+        client_id = COALESCE(?, client_id),
+        work_order_id = COALESCE(?, work_order_id),
         updated_at = CURRENT_TIMESTAMP
       WHERE id = ?
-    `).run(title, description, priority, due_date, assigned_to, tags ? JSON.stringify(tags) : null, id);
+    `).run(title, description, priority, due_date, assigned_to, tags ? JSON.stringify(tags) : null, client_id, work_order_id, id);
     
     const card = db.prepare(`
-      SELECT c.*, u.name as assigned_name
+      SELECT 
+        c.*, 
+        u.name as assigned_name,
+        cl.name as client_name,
+        wo.number as work_order_number
       FROM action_cards c
       LEFT JOIN users u ON c.assigned_to = u.id
+      LEFT JOIN clients cl ON c.client_id = cl.id
+      LEFT JOIN work_orders wo ON c.work_order_id = wo.id
       WHERE c.id = ?
     `).get(id);
     

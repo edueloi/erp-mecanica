@@ -38,6 +38,10 @@ interface Card {
   tags: string[];
   links: CardLink[];
   created_at: string;
+  client_id?: string;
+  client_name?: string;
+  work_order_id?: string;
+  work_order_number?: string;
 }
 
 interface CardLink {
@@ -45,6 +49,15 @@ interface CardLink {
   card_id: string;
   entity_type: 'CLIENT' | 'VEHICLE' | 'WORK_ORDER' | 'SERVICE' | 'PART' | 'APPOINTMENT';
   entity_id: string;
+  entity_name?: string;
+}
+
+interface EntityData {
+  id: string;
+  name?: string;
+  plate?: string;
+  number?: string;
+  description?: string;
 }
 
 interface BoardWithColumns extends Board {
@@ -74,10 +87,17 @@ export default function ActionPlans() {
   const [showNewBoardModal, setShowNewBoardModal] = useState(false);
   const [showNewCardModal, setShowNewCardModal] = useState(false);
   const [showNewColumnModal, setShowNewColumnModal] = useState(false);
+  const [showCardDetailModal, setShowCardDetailModal] = useState(false);
+  const [selectedCard, setSelectedCard] = useState<Card | null>(null);
   const [selectedColumnForCard, setSelectedColumnForCard] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [draggedCard, setDraggedCard] = useState<Card | null>(null);
   const [draggedOverColumn, setDraggedOverColumn] = useState<string | null>(null);
+
+  // Data for selects
+  const [clients, setClients] = useState<any[]>([]);
+  const [workOrders, setWorkOrders] = useState<any[]>([]);
+  const [users, setUsers] = useState<any[]>([]);
 
   const api = axios.create({
     baseURL: '/api',
@@ -86,6 +106,9 @@ export default function ActionPlans() {
 
   useEffect(() => {
     loadBoards();
+    loadClients();
+    loadWorkOrders();
+    loadUsers();
   }, []);
 
   useEffect(() => {
@@ -93,6 +116,33 @@ export default function ActionPlans() {
       loadBoard(boardId);
     }
   }, [boardId]);
+
+  const loadClients = async () => {
+    try {
+      const response = await api.get('/clients');
+      setClients(Array.isArray(response.data) ? response.data : []);
+    } catch (error) {
+      console.error('Error loading clients:', error);
+    }
+  };
+
+  const loadWorkOrders = async () => {
+    try {
+      const response = await api.get('/work-orders');
+      setWorkOrders(Array.isArray(response.data) ? response.data : []);
+    } catch (error) {
+      console.error('Error loading work orders:', error);
+    }
+  };
+
+  const loadUsers = async () => {
+    try {
+      const response = await api.get('/users');
+      setUsers(Array.isArray(response.data) ? response.data : []);
+    } catch (error) {
+      console.error('Error loading users:', error);
+    }
+  };
 
   const loadBoards = async () => {
     try {
@@ -164,7 +214,7 @@ export default function ActionPlans() {
     }
   };
 
-  const createCard = async (data: { title: string; description: string; priority: string }) => {
+  const createCard = async (data: any) => {
     if (!currentBoard || !selectedColumnForCard) return;
     try {
       await api.post('/action-plans/cards', {
@@ -188,6 +238,26 @@ export default function ActionPlans() {
     } catch (error) {
       console.error('Error deleting card:', error);
     }
+  };
+
+  const isCardOverdue = (due_date?: string) => {
+    if (!due_date) return false;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const dueDate = new Date(due_date);
+    dueDate.setHours(0, 0, 0, 0);
+    return dueDate < today;
+  };
+
+  const getDaysUntilDue = (due_date?: string) => {
+    if (!due_date) return null;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const dueDate = new Date(due_date);
+    dueDate.setHours(0, 0, 0, 0);
+    const diffTime = dueDate.getTime() - today.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays;
   };
 
   const handleDragStart = (e: React.DragEvent, card: Card) => {
@@ -416,68 +486,115 @@ export default function ActionPlans() {
                     <p className="text-[10px] mt-1">Arraste cards ou crie um novo</p>
                   </div>
                 ) : (
-                  column.cards.map(card => (
-                    <div
-                      key={card.id}
-                      draggable
-                      onDragStart={(e) => handleDragStart(e, card)}
-                      className="bg-white p-3 rounded-lg border border-slate-200 cursor-move hover:border-slate-300 hover:shadow-sm transition-all group"
-                    >
-                      <div className="flex items-start justify-between gap-2 mb-2">
-                        <h4 className="font-semibold text-slate-900 text-sm flex-1 leading-snug">{card.title}</h4>
-                        <button
-                          onClick={() => deleteCard(card.id)}
-                          className="p-1 -mr-1 -mt-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded opacity-0 group-hover:opacity-100 transition-all"
-                        >
-                          <Trash2 size={13} />
-                        </button>
-                      </div>
-                      
-                      {card.description && (
-                        <p className="text-slate-600 text-xs mb-2.5 line-clamp-2 leading-relaxed">{card.description}</p>
-                      )}
+                  column.cards.map(card => {
+                    const isOverdue = isCardOverdue(card.due_date);
+                    const daysUntil = getDaysUntilDue(card.due_date);
+                    
+                    return (
+                      <div
+                        key={card.id}
+                        draggable
+                        onDragStart={(e) => handleDragStart(e, card)}
+                        onClick={() => {
+                          setSelectedCard(card);
+                          setShowCardDetailModal(true);
+                        }}
+                        className={`bg-white p-3 rounded-lg border cursor-pointer hover:shadow-md transition-all group ${
+                          isOverdue ? 'border-red-300 bg-red-50/30' : 'border-slate-200'
+                        }`}
+                      >
+                        {/* Overdue Alert */}
+                        {isOverdue && (
+                          <div className="flex items-center gap-1 text-[10px] text-red-600 bg-red-100 px-2 py-1 rounded mb-2 font-bold">
+                            <AlertCircle size={11} />
+                            Atrasado {daysUntil ? `há ${Math.abs(daysUntil)} dia${Math.abs(daysUntil) > 1 ? 's' : ''}` : ''}
+                          </div>
+                        )}
 
-                      <div className="flex items-center gap-1.5 flex-wrap mb-2">
-                        <span className={`text-[10px] px-2 py-0.5 rounded-md font-bold ${priorityColors[card.priority]}`}>
-                          {priorityLabels[card.priority]}
-                        </span>
+                        <div className="flex items-start justify-between gap-2 mb-2">
+                          <h4 className="font-semibold text-slate-900 text-sm flex-1 leading-snug">{card.title}</h4>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              deleteCard(card.id);
+                            }}
+                            className="p-1 -mr-1 -mt-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded opacity-0 group-hover:opacity-100 transition-all"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        </div>
                         
-                        {card.due_date && (
-                          <div className="flex items-center gap-1 text-[10px] text-slate-600 bg-slate-50 px-2 py-0.5 rounded-md">
-                            <Clock size={10} />
-                            {new Date(card.due_date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
+                        {card.description && (
+                          <p className="text-slate-600 text-xs mb-2.5 line-clamp-2 leading-relaxed">{card.description}</p>
+                        )}
+
+                        {/* Cliente e OS */}
+                        {(card.client_name || card.work_order_number) && (
+                          <div className="space-y-1 mb-2.5">
+                            {card.client_name && (
+                              <div className="flex items-center gap-1.5 text-[10px] text-slate-700">
+                                <User size={10} className="text-slate-500" />
+                                <span className="font-medium">{card.client_name}</span>
+                              </div>
+                            )}
+                            {card.work_order_number && (
+                              <div className="flex items-center gap-1.5 text-[10px] text-slate-700">
+                                <Tag size={10} className="text-slate-500" />
+                                <span className="font-medium">OS #{card.work_order_number}</span>
+                              </div>
+                            )}
                           </div>
                         )}
 
-                        {card.links && card.links.length > 0 && (
-                          <div className="flex items-center gap-1 text-[10px] text-slate-600 bg-slate-50 px-2 py-0.5 rounded-md">
-                            <LinkIcon size={10} />
-                            {card.links.length}
-                          </div>
-                        )}
-                      </div>
+                        <div className="flex items-center gap-1.5 flex-wrap mb-2">
+                          <span className={`text-[10px] px-2 py-0.5 rounded-md font-bold ${priorityColors[card.priority]}`}>
+                            {priorityLabels[card.priority]}
+                          </span>
+                          
+                          {card.due_date && !isOverdue && (
+                            <div className={`flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-md font-medium ${
+                              daysUntil !== null && daysUntil <= 3 
+                                ? 'bg-yellow-100 text-yellow-700' 
+                                : 'bg-slate-50 text-slate-600'
+                            }`}>
+                              <Clock size={10} />
+                              {new Date(card.due_date).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
+                              {daysUntil !== null && daysUntil >= 0 && daysUntil <= 7 && (
+                                <span className="ml-0.5">({daysUntil}d)</span>
+                              )}
+                            </div>
+                          )}
 
-                      {card.tags && card.tags.length > 0 && (
-                        <div className="flex flex-wrap gap-1 mb-2">
-                          {card.tags.slice(0, 3).map((tag, idx) => (
-                            <span key={idx} className="text-[10px] bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded">
-                              {tag}
-                            </span>
-                          ))}
-                          {card.tags.length > 3 && (
-                            <span className="text-[10px] text-slate-500">+{card.tags.length - 3}</span>
+                          {card.links && card.links.length > 0 && (
+                            <div className="flex items-center gap-1 text-[10px] text-slate-600 bg-slate-50 px-2 py-0.5 rounded-md">
+                              <LinkIcon size={10} />
+                              {card.links.length}
+                            </div>
                           )}
                         </div>
-                      )}
 
-                      {card.assigned_name && (
-                        <div className="flex items-center gap-1.5 text-[10px] text-slate-600 pt-2 border-t border-slate-100">
-                          <User size={11} />
-                          <span className="font-medium">{card.assigned_name}</span>
-                        </div>
-                      )}
-                    </div>
-                  ))
+                        {card.tags && card.tags.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mb-2">
+                            {card.tags.slice(0, 3).map((tag, idx) => (
+                              <span key={idx} className="text-[10px] bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded">
+                                {tag}
+                              </span>
+                            ))}
+                            {card.tags.length > 3 && (
+                              <span className="text-[10px] text-slate-500">+{card.tags.length - 3}</span>
+                            )}
+                          </div>
+                        )}
+
+                        {card.assigned_name && (
+                          <div className="flex items-center gap-1.5 text-[10px] text-slate-600 pt-2 border-t border-slate-100">
+                            <User size={11} />
+                            <span className="font-medium">{card.assigned_name}</span>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })
                 )}
               </div>
             </div>
@@ -518,6 +635,9 @@ export default function ActionPlans() {
               setSelectedColumnForCard('');
             }}
             onSave={createCard}
+            clients={clients}
+            workOrders={workOrders}
+            users={users}
           />
         )}
       </AnimatePresence>
@@ -698,15 +818,49 @@ function NewColumnModal({ onClose, onSave }: { onClose: () => void; onSave: (dat
 }
 
 // New Card Modal Component
-function NewCardModal({ onClose, onSave }: { onClose: () => void; onSave: (data: any) => void }) {
+function NewCardModal({ onClose, onSave, clients, workOrders, users }: { 
+  onClose: () => void; 
+  onSave: (data: any) => void;
+  clients: any[];
+  workOrders: any[];
+  users: any[];
+}) {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [priority, setPriority] = useState('MEDIUM');
+  const [dueDate, setDueDate] = useState('');
+  const [clientId, setClientId] = useState('');
+  const [workOrderId, setWorkOrderId] = useState('');
+  const [assignedTo, setAssignedTo] = useState('');
+  const [tags, setTags] = useState('');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) return;
-    onSave({ title, description, priority });
+    
+    const tagArray = tags.split(',').map(t => t.trim()).filter(t => t);
+    
+    onSave({ 
+      title, 
+      description, 
+      priority,
+      due_date: dueDate || null,
+      client_id: clientId || null,
+      work_order_id: workOrderId || null,
+      assigned_to: assignedTo || null,
+      tags: tagArray
+    });
+  };
+
+  // Quando seleciona uma OS, preenche automaticamente o cliente
+  const handleWorkOrderChange = (woId: string) => {
+    setWorkOrderId(woId);
+    if (woId) {
+      const wo = workOrders.find(w => w.id === woId);
+      if (wo && wo.client_id) {
+        setClientId(wo.client_id);
+      }
+    }
   };
 
   return (
@@ -715,7 +869,7 @@ function NewCardModal({ onClose, onSave }: { onClose: () => void; onSave: (data:
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.95 }}
-        className="bg-white rounded-xl p-6 w-full max-w-md shadow-xl"
+        className="bg-white rounded-xl p-6 w-full max-w-2xl shadow-xl max-h-[90vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-5">
@@ -727,40 +881,108 @@ function NewCardModal({ onClose, onSave }: { onClose: () => void; onSave: (data:
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">Título</label>
+            <label className="block text-sm font-medium text-slate-700 mb-2">Título *</label>
             <input
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              className="w-full px-4 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-              placeholder="Digite o título do card..."
+              className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-slate-900 focus:border-slate-900"
+              placeholder="Ex: Aguardando aprovação do cliente"
               autoFocus
+              required
             />
           </div>
 
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-2">Prioridade</label>
+              <select
+                value={priority}
+                onChange={(e) => setPriority(e.target.value)}
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-slate-900 focus:border-slate-900"
+              >
+                <option value="LOW">Baixa</option>
+                <option value="MEDIUM">Média</option>
+                <option value="HIGH">Alta</option>
+                <option value="URGENT">Urgente</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-2">Data de Vencimento</label>
+              <input
+                type="date"
+                value={dueDate}
+                onChange={(e) => setDueDate(e.target.value)}
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-slate-900 focus:border-slate-900"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-2">Ordem de Serviço</label>
+              <select
+                value={workOrderId}
+                onChange={(e) => handleWorkOrderChange(e.target.value)}
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-slate-900 focus:border-slate-900"
+              >
+                <option value="">Nenhuma</option>
+                {workOrders.map(wo => (
+                  <option key={wo.id} value={wo.id}>OS #{wo.number} - {wo.client_name || 'Cliente'}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-2">Cliente</label>
+              <select
+                value={clientId}
+                onChange={(e) => setClientId(e.target.value)}
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-slate-900 focus:border-slate-900"
+              >
+                <option value="">Nenhum</option>
+                {clients.map(client => (
+                  <option key={client.id} value={client.id}>{client.name}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">Descrição (opcional)</label>
+            <label className="block text-sm font-medium text-slate-700 mb-2">Responsável</label>
+            <select
+              value={assignedTo}
+              onChange={(e) => setAssignedTo(e.target.value)}
+              className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-slate-900 focus:border-slate-900"
+            >
+              <option value="">Nenhum</option>
+              {users.map(user => (
+                <option key={user.id} value={user.id}>{user.name}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-2">Descrição</label>
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              className="w-full px-4 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-              placeholder="Adicione detalhes..."
+              className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-slate-900 focus:border-slate-900"
+              placeholder="Adicione detalhes sobre este card..."
               rows={3}
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">Prioridade</label>
-            <select
-              value={priority}
-              onChange={(e) => setPriority(e.target.value)}
-              className="w-full px-4 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-            >
-              <option value="LOW">Baixa</option>
-              <option value="MEDIUM">Média</option>
-              <option value="HIGH">Alta</option>
-              <option value="URGENT">Urgente</option>
-            </select>
+            <label className="block text-sm font-medium text-slate-700 mb-2">Tags (separadas por vírgula)</label>
+            <input
+              type="text"
+              value={tags}
+              onChange={(e) => setTags(e.target.value)}
+              className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-slate-900 focus:border-slate-900"
+              placeholder="Ex: urgente, aprovação, pagamento"
+            />
           </div>
 
           <div className="flex gap-2.5 pt-5">
