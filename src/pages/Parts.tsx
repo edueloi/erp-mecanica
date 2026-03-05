@@ -14,7 +14,11 @@ import {
   Edit,
   Trash2,
   History,
-  X
+  X,
+  Info,
+  Calendar,
+  Building2,
+  Phone
 } from "lucide-react";
 import api from "../services/api";
 
@@ -78,7 +82,9 @@ export default function Parts() {
   const [showEntryModal, setShowEntryModal] = useState(false);
   const [showExitModal, setShowExitModal] = useState(false);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
+  const [showDetailModal, setShowDetailModal] = useState(false);
   const [selectedPart, setSelectedPart] = useState<Part | null>(null);
+  const [partDetails, setPartDetails] = useState<any>(null);
   const [movements, setMovements] = useState<StockMovement[]>([]);
 
   // Form states
@@ -222,6 +228,21 @@ export default function Parts() {
     }
   };
 
+  const openDetails = async (part: Part) => {
+    setSelectedPart(part);
+    try {
+      const [partRes, movRes] = await Promise.all([
+        api.get(`/parts/${part.id}`),
+        api.get(`/parts/${part.id}/movements`)
+      ]);
+      setPartDetails(partRes.data);
+      setMovements(movRes.data);
+      setShowDetailModal(true);
+    } catch (error) {
+      console.error("Error loading details:", error);
+    }
+  };
+
   const resetForm = () => {
     setFormData({
       name: "",
@@ -267,7 +288,7 @@ export default function Parts() {
   };
 
   return (
-    <div className="flex flex-col h-full -m-6">
+    <div className="flex flex-col h-[calc(100vh-64px)] bg-slate-50 overflow-hidden lg:-mx-5 lg:mt-0 lg:mb-0 -mx-4 -mt-4 -mb-4 min-w-0">
       {/* Header */}
       <header className="bg-white border-b border-slate-200 px-6 py-3 flex items-center justify-between sticky top-0 z-30">
         <div className="flex items-center gap-4 flex-1">
@@ -388,7 +409,7 @@ export default function Parts() {
       </div>
 
       {/* Table Content */}
-      <div className="flex-1 overflow-auto bg-white">
+      <div className="flex-1 overflow-auto bg-white min-h-0 min-w-0 w-full relative pb-5">
         <table className="w-full text-left border-collapse min-w-[1200px]">
           <thead className="sticky top-0 bg-slate-50 z-20 shadow-[inset_0_-1px_0_rgba(0,0,0,0.1)]">
             <tr>
@@ -452,6 +473,13 @@ export default function Parts() {
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-center gap-1">
                         <button
+                          onClick={() => openDetails(part)}
+                          className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded transition-colors"
+                          title="Detalhes da Peça"
+                        >
+                          <Info size={16} />
+                        </button>
+                        <button
                           onClick={() => { setSelectedPart(part); setShowEntryModal(true); }}
                           className="p-1.5 text-green-600 hover:bg-green-50 rounded transition-colors"
                           title="Entrada"
@@ -488,6 +516,161 @@ export default function Parts() {
           </tbody>
         </table>
       </div>
+
+      {/* Part Detail Modal */}
+      <AnimatePresence>
+        {showDetailModal && partDetails && (
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white w-full max-w-2xl rounded-2xl shadow-2xl flex flex-col max-h-[90vh]"
+            >
+              <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50 shrink-0">
+                <div>
+                  <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                    <Info size={18} className="text-indigo-600" />
+                    Detalhes da Peça: {partDetails.name}
+                  </h2>
+                  <p className="text-[10px] text-slate-500 font-medium tracking-wide uppercase">CÓD: {partDetails.code} {partDetails.supplier_code && `| FORN: ${partDetails.supplier_code}`}</p>
+                </div>
+                <button onClick={() => setShowDetailModal(false)} className="text-slate-400 hover:text-slate-900 p-2 hover:bg-slate-200 rounded-full transition-all">
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className="p-6 overflow-y-auto w-full space-y-6">
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Custo Médio</p>
+                    <p className="text-lg font-black text-rose-600">{formatCurrency(partDetails.cost_price)}</p>
+                  </div>
+                  <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Preço Venda</p>
+                    <p className="text-lg font-black text-emerald-600">{formatCurrency(partDetails.sale_price)}</p>
+                  </div>
+                  <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Margem</p>
+                    <p className="text-lg font-black text-indigo-600">
+                      {partDetails.sale_price > 0 ? ((partDetails.sale_price - partDetails.cost_price) / partDetails.sale_price * 100).toFixed(1) : 0}%
+                    </p>
+                  </div>
+                  <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Estoque</p>
+                    <p className={`text-lg font-black ${partDetails.stock_quantity <= partDetails.min_stock ? 'text-rose-600' : 'text-slate-900'}`}>{partDetails.stock_quantity} un.</p>
+                  </div>
+                </div>
+
+                {partDetails.supplier_name && (
+                  <div>
+                    <h3 className="text-xs font-bold text-slate-900 uppercase tracking-widest mb-3 flex items-center gap-2">
+                      <Building2 size={14} className="text-indigo-500" />
+                      Dados do Fornecedor Preferencial
+                    </h3>
+                    <div className="border border-indigo-100 bg-indigo-50/30 rounded-xl p-4 grid grid-cols-2 gap-4">
+                      <div>
+                        <p className="text-[10px] font-semibold text-slate-500 uppercase">Fornecedor</p>
+                        <p className="text-sm font-bold text-slate-900">{partDetails.supplier_name}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-semibold text-slate-500 uppercase">Telefone / WhatsApp</p>
+                        <p className="text-sm font-bold text-slate-900 flex items-center gap-1">
+                          <Phone size={12} className="text-slate-400" />
+                          {partDetails.supplier_phone || '-'}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-semibold text-slate-500 uppercase">Última Compra</p>
+                        <p className="text-sm font-bold text-slate-900 flex items-center gap-1">
+                          <Calendar size={12} className="text-slate-400" />
+                          {partDetails.last_purchase_date ? new Date(partDetails.last_purchase_date).toLocaleDateString("pt-BR") : 'Nunca ou não registrado'}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-semibold text-slate-500 uppercase">Custo na Última Compra</p>
+                        <p className="text-sm font-bold text-slate-900">
+                          {partDetails.last_cost ? formatCurrency(partDetails.last_cost) : '-'}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-[10px] font-semibold text-slate-500 uppercase">Categoria</p>
+                    <p className="text-sm font-bold text-slate-900">{partDetails.category || '-'}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-semibold text-slate-500 uppercase">Marca</p>
+                    <p className="text-sm font-bold text-slate-900">{partDetails.brand || '-'}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-semibold text-slate-500 uppercase">Localização</p>
+                    <p className="text-sm font-bold text-slate-900">{partDetails.location || '-'}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-semibold text-slate-500 uppercase">Compatibilidade</p>
+                    <p className="text-sm font-medium text-slate-700">{partDetails.compatibility || '-'}</p>
+                  </div>
+                  <div className="col-span-2">
+                    <p className="text-[10px] font-semibold text-slate-500 uppercase">Observações</p>
+                    <p className="text-sm font-medium text-slate-700 whitespace-pre-line">{partDetails.notes || '-'}</p>
+                  </div>
+                </div>
+
+                <div>
+                   <h3 className="text-xs font-bold text-slate-900 uppercase tracking-widest mb-3 flex items-center gap-2 mt-2">
+                     <History size={14} className="text-slate-500" />
+                     Últimas Movimentações Relacionadas
+                   </h3>
+                   {movements.length > 0 ? (
+                     <div className="border border-slate-100 rounded-xl overflow-hidden bg-white">
+                        <table className="w-full text-xs">
+                           <thead className="bg-slate-50 text-slate-500 border-b border-slate-100">
+                              <tr>
+                                <th className="px-3 py-2 text-left font-bold w-12">Data</th>
+                                <th className="px-3 py-2 text-left font-bold">Tipo</th>
+                                <th className="px-3 py-2 text-center font-bold">Qtd</th>
+                                <th className="px-3 py-2 text-right font-bold hidden sm:table-cell">NF/OS</th>
+                              </tr>
+                           </thead>
+                           <tbody className="divide-y divide-slate-50">
+                             {movements.slice(0, 5).map(m => (
+                               <tr key={m.id} className="hover:bg-slate-50/50">
+                                  <td className="px-3 py-2 text-slate-600 whitespace-nowrap">{new Date(m.created_at).toLocaleDateString("pt-BR", {day:'2-digit', month:'2-digit', year:'2-digit'})}</td>
+                                  <td className="px-3 py-2">
+                                    <span className={`font-bold ${movementTypes[m.type].color}`}>{movementTypes[m.type].label}</span>
+                                    <span className="block text-[9px] text-slate-400 mt-0.5">{m.reason || '-'}</span>
+                                  </td>
+                                  <td className={`px-3 py-2 text-center font-bold ${['ENTRY', 'ADJUSTMENT'].includes(m.type) ? 'text-green-600' : 'text-rose-600'}`}>
+                                    {['ENTRY', 'ADJUSTMENT'].includes(m.type) ? '+' : '-'}{m.quantity}
+                                  </td>
+                                  <td className="px-3 py-2 text-right font-mono text-slate-500 hidden sm:table-cell">{m.invoice_number || '-'}</td>
+                               </tr>
+                             ))}
+                           </tbody>
+                        </table>
+                     </div>
+                   ) : (
+                     <p className="text-sm text-slate-500 italic p-4 bg-slate-50 rounded-xl text-center">Nenhuma movimentação registrada.</p>
+                   )}
+                </div>
+
+              </div>
+
+              <div className="p-6 border-t border-slate-100 flex gap-3 shrink-0 bg-slate-50/50 rounded-b-2xl">
+                <button
+                  onClick={() => setShowDetailModal(false)}
+                  className="w-full py-3 border border-slate-200 bg-white rounded-xl text-sm font-bold text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition-all shadow-sm"
+                >
+                  Fechar
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
         {/* New Part Modal */}
         <AnimatePresence>
           {showNewPartModal && (

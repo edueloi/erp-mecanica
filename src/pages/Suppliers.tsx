@@ -582,7 +582,7 @@ export default function Suppliers() {
   }
 
   return (
-    <div className="flex flex-col h-full -m-6">
+    <div className="flex flex-col h-[calc(100vh-64px)] bg-slate-50 overflow-hidden lg:-mx-5 lg:mt-0 lg:mb-0 -mx-4 -mt-4 -mb-4 min-w-0">
       {/* Header */}
       <div className="bg-gradient-to-r from-slate-800 to-slate-700 px-6 py-8 border-b border-slate-200">
         <div className="flex items-center justify-between mb-6">
@@ -729,8 +729,8 @@ export default function Suppliers() {
         {showOrdersList ? (
           <div className="p-6">
             <h2 className="text-lg font-bold text-slate-800 mb-4">Lista de Pedidos de Compra</h2>
-            <div className="border border-slate-200 rounded-2xl overflow-hidden">
-              <table className="w-full text-sm">
+            <div className="border border-slate-200 rounded-2xl overflow-x-auto w-full pb-5">
+              <table className="w-full text-sm min-w-[900px]">
                 <thead className="bg-slate-50 border-b border-slate-200">
                   <tr>
                     <th className="text-left px-6 py-3 font-semibold text-slate-600">Número</th>
@@ -792,8 +792,8 @@ export default function Suppliers() {
             </div>
           </div>
         ) : (
-          <div className="flex-1 overflow-auto bg-slate-50/30">
-            <table className="w-full">
+          <div className="flex-1 overflow-auto bg-slate-50/30 min-h-0 min-w-0 w-full relative pb-5">
+            <table className="w-full min-w-[1000px]">
               <thead className="bg-white border-b border-slate-200 sticky top-0 z-10 shadow-sm">
                 <tr>
                   <th className="text-left px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Fornecedor</th>

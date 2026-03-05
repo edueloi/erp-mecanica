@@ -110,8 +110,11 @@ router.get("/brands", (req: AuthRequest, res) => {
 router.get("/:id", (req: AuthRequest, res) => {
   try {
     const part = db.prepare(`
-      SELECT * FROM parts 
-      WHERE id = ? AND tenant_id = ?
+      SELECT p.*, s.name as supplier_name, s.phone as supplier_phone, sp.last_purchase_date, sp.last_cost
+      FROM parts p
+      LEFT JOIN suppliers s ON p.supplier_id = s.id
+      LEFT JOIN supplier_parts sp ON p.id = sp.part_id AND s.id = sp.supplier_id
+      WHERE p.id = ? AND p.tenant_id = ?
     `).get(req.params.id, req.user!.tenant_id);
 
     if (!part) return res.status(404).json({ error: "Part not found" });
