@@ -21,7 +21,8 @@ import {
   ChevronDown,
   Plus,
   History,
-  Store
+  Store,
+  Target
 } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../services/authStore';
@@ -53,6 +54,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         { icon: LayoutDashboard, label: 'Dashboard', path: '/' },
         { icon: Calendar, label: 'Agendamentos', path: '/appointments' },
         { icon: ClipboardList, label: 'Ordens de Serviço', path: '/work-orders' },
+        { icon: Target, label: 'Plano de Ação', path: '/action-plans' },
       ]
     },
     {
