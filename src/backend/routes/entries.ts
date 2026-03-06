@@ -38,8 +38,27 @@ router.patch("/public/:token", (req, res) => {
 
     if (!entry) return res.status(404).json({ error: "Link expirado" });
 
-    const fields = Object.keys(data).map(key => `${key} = COALESCE(?, ${key})`).join(', ');
-    const values = Object.values(data);
+    // Convert values to SQLite-compatible types
+    const sanitizedData: Record<string, any> = {};
+    for (const [key, value] of Object.entries(data)) {
+      if (value === null || value === undefined) {
+        sanitizedData[key] = null;
+      } else if (typeof value === 'boolean') {
+        sanitizedData[key] = value ? 1 : 0;
+      } else if (typeof value === 'object') {
+        console.warn(`Skipping object field: ${key}`, value);
+        continue;
+      } else {
+        sanitizedData[key] = value;
+      }
+    }
+
+    if (Object.keys(sanitizedData).length === 0) {
+      return res.json({ success: true });
+    }
+
+    const fields = Object.keys(sanitizedData).map(key => `${key} = COALESCE(?, ${key})`).join(', ');
+    const values = Object.values(sanitizedData);
     
     db.prepare(`
       UPDATE vehicle_entries 
@@ -49,6 +68,7 @@ router.patch("/public/:token", (req, res) => {
     
     res.json({ success: true });
   } catch (error: any) {
+    console.error("❌ PATCH /entries/public/:token error:", error.message);
     res.status(500).json({ error: error.message });
   }
 });
@@ -198,14 +218,62 @@ router.get("/:id", (req: AuthRequest, res) => {
 router.patch("/:id", (req: AuthRequest, res) => {
   const data = req.body;
   try {
-    const fields = Object.keys(data).map(key => `${key} = ?`).join(', ');
-    const values = Object.values(data);
+    if (Object.keys(data).length === 0) {
+      return res.json({ success: true });
+    }
+    
+    // Convert values to SQLite-compatible types
+    const sanitizedData: Record<string, any> = {};
+    for (const [key, value] of Object.entries(data)) {
+      if (value === null || value === undefined) {
+        sanitizedData[key] = null;
+      } else if (typeof value === 'boolean') {
+        sanitizedData[key] = value ? 1 : 0;
+      } else if (typeof value === 'object') {
+        // Skip objects that aren't null
+        console.warn(`Skipping object field: ${key}`, value);
+        continue;
+      } else {
+        sanitizedData[key] = value;
+      }
+    }
+    
+    if (Object.keys(sanitizedData).length === 0) {
+      return res.json({ success: true });
+    }
+    
+    const fields = Object.keys(sanitizedData).map(key => `${key} = ?`).join(', ');
+    const values = Object.values(sanitizedData);
     
     db.prepare(`
       UPDATE vehicle_entries 
       SET ${fields}, updated_at = CURRENT_TIMESTAMP
       WHERE id = ? AND tenant_id = ?
     `).run(...values, req.params.id, req.user!.tenant_id);
+    
+    res.json({ success: true });
+  } catch (error: any) {
+    console.error("❌ PATCH /entries/:id error:", error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// PATCH update item photo (authenticated - admin)
+router.patch("/:id/items/:itemId", (req: AuthRequest, res) => {
+  const { image_url } = req.body;
+  try {
+    // Verify the entry belongs to this tenant
+    const entry = db.prepare(`
+      SELECT id FROM vehicle_entries WHERE id = ? AND tenant_id = ?
+    `).get(req.params.id, req.user!.tenant_id) as any;
+
+    if (!entry) return res.status(404).json({ error: "Entrada não encontrada" });
+
+    db.prepare(`
+      UPDATE vehicle_checklist_items 
+      SET image_url = ?, status = CASE WHEN ? IS NULL THEN 'NA' ELSE 'OK' END
+      WHERE id = ? AND entry_id = ?
+    `).run(image_url, image_url, req.params.itemId, req.params.id);
     
     res.json({ success: true });
   } catch (error: any) {

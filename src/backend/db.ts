@@ -1325,6 +1325,45 @@ export function initDb() {
     try { db.exec("ROLLBACK;"); } catch {}
   }
 
+  // Migration: Add vehicle_km to vehicle_entries if missing
+  try {
+    const checkVehicleKm = db.prepare(`
+      SELECT COUNT(*) as count FROM pragma_table_info('vehicle_entries') WHERE name='vehicle_km'
+    `).get() as any;
+    if (checkVehicleKm.count === 0) {
+      db.exec(`ALTER TABLE vehicle_entries ADD COLUMN vehicle_km INTEGER`);
+      console.log("✅ Added vehicle_km to vehicle_entries");
+    }
+  } catch (e: any) {
+    console.error("⚠️  Error adding vehicle_km:", e.message);
+  }
+
+  // Migration: Add tow_truck_driver_name to vehicle_entries if missing
+  try {
+    const checkTowDriver = db.prepare(`
+      SELECT COUNT(*) as count FROM pragma_table_info('vehicle_entries') WHERE name='tow_truck_driver_name'
+    `).get() as any;
+    if (checkTowDriver.count === 0) {
+      db.exec(`ALTER TABLE vehicle_entries ADD COLUMN tow_truck_driver_name TEXT`);
+      console.log("✅ Added tow_truck_driver_name to vehicle_entries");
+    }
+  } catch (e: any) {
+    console.error("⚠️  Error adding tow_truck_driver_name:", e.message);
+  }
+
+  // Migration: Add diagnostic_requested to vehicle_entries if missing
+  try {
+    const checkDiag = db.prepare(`
+      SELECT COUNT(*) as count FROM pragma_table_info('vehicle_entries') WHERE name='diagnostic_requested'
+    `).get() as any;
+    if (checkDiag.count === 0) {
+      db.exec(`ALTER TABLE vehicle_entries ADD COLUMN diagnostic_requested BOOLEAN DEFAULT 0`);
+      console.log("✅ Added diagnostic_requested to vehicle_entries");
+    }
+  } catch (e: any) {
+    console.error("⚠️  Error adding diagnostic_requested:", e.message);
+  }
+
   console.log("Database initialized successfully.");
 }
 

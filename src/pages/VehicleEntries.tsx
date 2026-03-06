@@ -10,20 +10,27 @@ import {
   Clock, 
   ChevronRight, 
   Filter,
-  MoreVertical,
   Trash2,
   FileText,
-  Smartphone
+  Smartphone,
+  ExternalLink,
+  CheckCircle2,
+  AlertCircle
 } from 'lucide-react';
 import api from '../services/api';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { motion, AnimatePresence } from 'motion/react';
 
+function cn(...inputs: any[]) {
+  return inputs.filter(Boolean).join(' ');
+}
+
 export default function VehicleEntries() {
   const [entries, setEntries] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -50,128 +57,219 @@ export default function VehicleEntries() {
     }
   };
 
-  const filteredEntries = entries.filter(e => 
-    e.customer_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    e.vehicle_plate?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    e.responsible_name?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredEntries = entries.filter(e => {
+    const matchSearch =
+      e.customer_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      e.vehicle_plate?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      e.responsible_name?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchStatus = statusFilter === '' || e.status === statusFilter;
+    return matchSearch && matchStatus;
+  });
 
   return (
-    <div className="p-4 lg:p-8 max-w-7xl mx-auto space-y-8">
-      <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-black text-slate-900 tracking-tight italic">
-            CHECKLIST <span className="text-indigo-600">INICIAL</span>
-          </h1>
-          <p className="text-slate-500 font-medium mt-1">Gestão de entradas e inspeção de chegada de veículos.</p>
-        </div>
-        <button 
-          onClick={handleCreate}
-          className="bg-indigo-600 text-white px-6 py-3 rounded-2xl font-black text-sm uppercase tracking-wider flex items-center justify-center gap-2 shadow-xl shadow-indigo-100 hover:bg-indigo-700 transition-all hover:scale-105 active:scale-95"
-        >
-          <Plus size={20} /> Nova Entrada
-        </button>
-      </header>
-
-      <div className="bg-white rounded-[32px] shadow-xl shadow-slate-200/50 border border-slate-100 overflow-hidden">
-        <div className="p-6 border-b border-slate-50 bg-slate-50/30 flex flex-col md:flex-row md:items-center gap-4">
-          <div className="relative flex-1">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-            <input 
-              type="text" 
-              placeholder="Buscar por placa, cliente ou responsável..." 
-              className="w-full pl-12 pr-4 py-3 bg-white border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-4 focus:ring-indigo-50 transition-all"
+    <div className="flex flex-col h-full -m-6">
+      {/* Header - Compact */}
+      <header className="bg-white border-b border-slate-200 px-6 py-3 flex items-center justify-between sticky top-0 z-30">
+        <div className="flex items-center gap-4 flex-1">
+          <div>
+            <h1 className="text-lg font-bold text-slate-900 leading-tight">Checklist de Entrada</h1>
+            <p className="text-[10px] text-slate-500 font-medium uppercase tracking-wider whitespace-nowrap">Inspeção e recepção de veículos</p>
+          </div>
+          <div className="h-6 w-px bg-slate-200 hidden md:block" />
+          <div className="relative flex-1 max-w-md hidden md:block">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+            <input
+              type="text"
+              placeholder="Buscar por placa, cliente ou responsável..."
+              className="w-full pl-9 pr-4 py-1.5 bg-slate-50 border-transparent rounded-lg text-sm focus:ring-slate-900 focus:bg-white transition-all outline-none"
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={e => setSearchTerm(e.target.value)}
             />
           </div>
-          <button className="flex items-center justify-center gap-2 px-6 py-3 border border-slate-200 rounded-2xl text-sm font-bold text-slate-600 hover:bg-slate-50 transition-all">
-            <Filter size={18} /> Filtros
-          </button>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-slate-50/50">
-              <tr>
-                <th className="px-6 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Data / Hora</th>
-                <th className="px-6 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Veículo</th>
-                <th className="px-6 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Cliente</th>
-                <th className="px-6 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Status</th>
-                <th className="px-6 py-4 text-left text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Responsável</th>
-                <th className="px-6 py-4 text-right text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Ações</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-50">
-              {loading ? (
-                <tr>
-                  <td colSpan={6} className="px-6 py-20 text-center">
-                    <div className="flex flex-col items-center gap-2">
-                       <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
-                       <span className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-2">Carregando Entradas...</span>
-                    </div>
-                  </td>
-                </tr>
-              ) : filteredEntries.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="px-6 py-20 text-center">
-                    <div className="flex flex-col items-center gap-4 grayscale opacity-40">
-                       <ClipboardCheck size={64} />
-                       <p className="text-sm font-bold text-slate-500 uppercase tracking-widest">Nenhuma entrada encontrada</p>
-                    </div>
-                  </td>
-                </tr>
-              ) : (
-                filteredEntries.map((entry) => (
-                  <tr 
-                    key={entry.id} 
-                    className="hover:bg-slate-50/80 transition-colors cursor-pointer group"
-                    onClick={() => navigate(`/vehicle-entries/${entry.id}`)}
-                  >
-                    <td className="px-6 py-5 whitespace-nowrap">
-                      <div className="flex flex-col">
-                        <span className="text-sm font-bold text-slate-900">{entry.entry_date ? format(new Date(entry.entry_date), 'dd/MM/yyyy') : format(new Date(entry.created_at), 'dd/MM/yyyy')}</span>
-                        <span className="text-[10px] text-slate-400 font-black uppercase">{entry.entry_time || format(new Date(entry.created_at), 'HH:mm')}</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-5 whitespace-nowrap">
-                      <div className="flex items-center gap-3 text-sm font-bold text-slate-900 capitalize">
-                         <div className="w-12 h-8 bg-slate-900 rounded-lg flex items-center justify-center text-white font-mono text-xs shadow-sm">
-                            {entry.vehicle_plate?.toUpperCase() || '---'}
-                         </div>
-                         <div className="flex flex-col">
-                            <span>{entry.vehicle_brand || '---'}</span>
-                            <span className="text-[10px] text-slate-400 font-bold uppercase">{entry.vehicle_model || '---'}</span>
-                         </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-5 whitespace-nowrap text-sm font-bold text-slate-700">
-                      <div className="flex items-center gap-2">
-                        <User size={14} className="text-slate-300" />
-                        {entry.customer_name || '---'}
-                      </div>
-                    </td>
-                    <td className="px-6 py-5 whitespace-nowrap">
-                      <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${
-                        entry.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
-                      }`}>
-                        {entry.status === 'COMPLETED' ? 'Finalizado' : 'Rascunho'}
-                      </span>
-                    </td>
-                    <td className="px-6 py-5 whitespace-nowrap text-sm font-bold text-slate-600">
-                      {entry.responsible_name || '---'}
-                    </td>
-                    <td className="px-6 py-5 whitespace-nowrap text-right">
-                      <button className="p-2 hover:bg-white rounded-xl text-slate-400 hover:text-indigo-600 transition-all border border-transparent hover:border-slate-100 shadow-sm">
-                        <ChevronRight size={20} />
-                      </button>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleCreate}
+            className="h-9 px-4 bg-slate-900 text-white rounded-lg text-xs font-bold flex items-center gap-2 hover:bg-slate-800 transition-all shadow-sm whitespace-nowrap"
+          >
+            <Plus size={16} /> Nova Entrada
+          </button>
         </div>
+      </header>
+
+      {/* Mobile Search */}
+      <div className="md:hidden bg-white border-b border-slate-200 px-6 py-2">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+          <input
+            type="text"
+            placeholder="Buscar entradas..."
+            className="w-full pl-9 pr-4 py-2 bg-slate-50 border-transparent rounded-lg text-sm outline-none"
+            value={searchTerm}
+            onChange={e => setSearchTerm(e.target.value)}
+          />
+        </div>
+      </div>
+
+      {/* Filters */}
+      <div className="bg-white border-b border-slate-200 px-6 py-2 flex items-center gap-4 overflow-x-auto no-scrollbar shrink-0 mt-[25px]">
+        <div className="flex items-center gap-2 shrink-0">
+          <Filter size={14} className="text-slate-400" />
+          <select
+            className="bg-transparent border-none focus:ring-0 text-xs font-bold text-slate-600 p-0 pr-6 outline-none"
+            value={statusFilter}
+            onChange={e => setStatusFilter(e.target.value)}
+          >
+            <option value="">Status: Todos</option>
+            <option value="COMPLETED">Finalizado</option>
+            <option value="DRAFT">Rascunho</option>
+          </select>
+        </div>
+
+        <div className="h-4 w-px bg-slate-200 shrink-0" />
+
+        <div className="flex items-center gap-2 shrink-0">
+          {[
+            { id: 'COMPLETED', label: 'Finalizados', color: 'bg-emerald-50 text-emerald-600 border-emerald-100' },
+            { id: 'DRAFT', label: 'Rascunhos', color: 'bg-amber-50 text-amber-600 border-amber-100' },
+          ].map(filter => (
+            <button
+              key={filter.id}
+              onClick={() => setStatusFilter(statusFilter === filter.id ? '' : filter.id)}
+              className={cn(
+                'px-2 py-1 rounded-md text-[10px] font-bold transition-all border uppercase tracking-tight whitespace-nowrap',
+                statusFilter === filter.id
+                  ? 'bg-slate-900 text-white border-slate-900'
+                  : `${filter.color}`
+              )}
+            >
+              {filter.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Table */}
+      <div className="flex-1 overflow-auto bg-white">
+        <table className="w-full text-left border-collapse min-w-[900px]">
+          <thead className="sticky top-0 bg-slate-50 z-20 shadow-[inset_0_-1px_0_rgba(0,0,0,0.1)]">
+            <tr>
+              <th className="px-6 py-2.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Data / Hora</th>
+              <th className="px-4 py-2.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Veículo</th>
+              <th className="px-4 py-2.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Cliente</th>
+              <th className="px-4 py-2.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Responsável</th>
+              <th className="px-4 py-2.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Fotos</th>
+              <th className="px-4 py-2.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Status</th>
+              <th className="px-6 py-2.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider text-right">Ações</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {loading ? (
+              <tr>
+                <td colSpan={7} className="px-6 py-12 text-center text-slate-400 text-sm italic">
+                  Carregando entradas...
+                </td>
+              </tr>
+            ) : filteredEntries.length === 0 ? (
+              <tr>
+                <td colSpan={7} className="px-6 py-12 text-center text-slate-400 text-sm italic">
+                  Nenhuma entrada encontrada.
+                </td>
+              </tr>
+            ) : (
+              filteredEntries.map((entry) => (
+                <tr
+                  key={entry.id}
+                  className="hover:bg-slate-50/80 transition-colors group cursor-pointer"
+                  onClick={() => navigate(`/vehicle-entries/${entry.id}`)}
+                >
+                  {/* Data / Hora */}
+                  <td className="px-6 py-2">
+                    <div className="flex flex-col">
+                      <span className="text-xs font-bold text-slate-900">
+                        {entry.entry_date
+                          ? format(new Date(entry.entry_date), 'dd/MM/yyyy')
+                          : format(new Date(entry.created_at), 'dd/MM/yyyy')}
+                      </span>
+                      <span className="text-[10px] text-slate-400 font-medium">
+                        {entry.entry_time || format(new Date(entry.created_at), 'HH:mm')}
+                      </span>
+                    </div>
+                  </td>
+
+                  {/* Veículo */}
+                  <td className="px-4 py-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-bold bg-slate-900 text-white px-2 py-1 rounded font-mono tracking-wider">
+                        {entry.vehicle_plate?.toUpperCase() || '---'}
+                      </span>
+                      <div className="flex flex-col min-w-0">
+                        <span className="text-xs font-bold text-slate-900 truncate">{entry.vehicle_brand || '---'}</span>
+                        <span className="text-[10px] text-slate-400 truncate">{entry.vehicle_model || '---'}</span>
+                      </div>
+                    </div>
+                  </td>
+
+                  {/* Cliente */}
+                  <td className="px-4 py-2">
+                    <div className="flex items-center gap-1.5">
+                      <User size={12} className="text-slate-300 shrink-0" />
+                      <span className="text-xs font-bold text-slate-700 truncate">
+                        {entry.customer_name || '---'}
+                      </span>
+                    </div>
+                  </td>
+
+                  {/* Responsável */}
+                  <td className="px-4 py-2">
+                    <span className="text-xs text-slate-600">{entry.responsible_name || '---'}</span>
+                  </td>
+
+                  {/* Fotos */}
+                  <td className="px-4 py-2">
+                    {entry.items && entry.items.length > 0 ? (
+                      <span className="text-xs font-bold text-slate-600">
+                        {entry.items.filter((i: any) => i.image_url).length}
+                        <span className="text-slate-400 font-normal">/{entry.items.length}</span>
+                      </span>
+                    ) : (
+                      <span className="text-xs text-slate-400">---</span>
+                    )}
+                  </td>
+
+                  {/* Status */}
+                  <td className="px-4 py-2">
+                    <span className={cn(
+                      'px-2 py-0.5 rounded text-[10px] font-bold border uppercase tracking-tight',
+                      entry.status === 'COMPLETED'
+                        ? 'bg-emerald-50 text-emerald-600 border-emerald-100'
+                        : 'bg-amber-50 text-amber-600 border-amber-100'
+                    )}>
+                      {entry.status === 'COMPLETED' ? 'Finalizado' : 'Rascunho'}
+                    </span>
+                  </td>
+
+                  {/* Ações */}
+                  <td className="px-6 py-2 text-right">
+                    <div
+                      className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                      onClick={e => e.stopPropagation()}
+                    >
+                      <button
+                        onClick={() => navigate(`/vehicle-entries/${entry.id}`)}
+                        className="p-1.5 text-slate-400 hover:text-slate-900 hover:bg-slate-200 rounded transition-all"
+                        title="Ver Detalhes"
+                      >
+                        <ExternalLink size={14} />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
       </div>
     </div>
   );
