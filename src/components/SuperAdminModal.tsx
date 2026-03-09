@@ -119,7 +119,7 @@ export default function SuperAdminModal({
             </div>
 
             {/* Content */}
-            <form onSubmit={onSubmit} className="overflow-y-auto p-6 space-y-8">
+            <form onSubmit={onSubmit} className="overflow-y-auto p-4 sm:p-6 space-y-8">
               {/* Logo Section */}
               <div className="space-y-4">
                 <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
@@ -422,12 +422,11 @@ export default function SuperAdminModal({
               </div>
             </form>
 
-            {/* Footer */}
-            <div className="p-6 border-t border-slate-100 flex items-center gap-3 bg-white sticky bottom-0">
+            <div className="p-4 sm:p-6 border-t border-slate-100 flex flex-col sm:items-center sm:flex-row gap-2 sm:gap-3 bg-white sticky bottom-0">
               <button
                 type="button"
                 onClick={onClose}
-                className="flex-1 h-12 bg-slate-50 text-slate-600 rounded-xl font-bold text-sm hover:bg-slate-100 transition-all border border-slate-200"
+                className="w-full sm:flex-1 h-12 bg-slate-50 text-slate-600 rounded-xl font-bold text-sm hover:bg-slate-100 transition-all border border-slate-200"
               >
                 Cancelar
               </button>
@@ -435,7 +434,7 @@ export default function SuperAdminModal({
                 onClick={onSubmit}
                 disabled={saving}
                 className={cn(
-                  "flex-[2] h-12 text-white rounded-xl font-bold text-sm shadow-lg transition-all disabled:opacity-50 flex items-center justify-center gap-2",
+                  "w-full sm:flex-[2] h-12 text-white rounded-xl font-bold text-sm shadow-lg transition-all disabled:opacity-50 flex items-center justify-center gap-2",
                   editingTenant 
                     ? "bg-amber-600 shadow-amber-600/20 hover:bg-amber-700" 
                     : "bg-emerald-600 shadow-emerald-600/20 hover:bg-emerald-700"

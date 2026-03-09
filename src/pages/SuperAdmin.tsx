@@ -643,12 +643,12 @@ export default function SuperAdmin() {
           </div>
         </header>
 
-        <div className="flex-1 overflow-y-auto p-4 lg:p-6 custom-scrollbar">
+        <div className="flex-1 overflow-y-auto p-3 sm:p-4 lg:p-6 custom-scrollbar">
           <div className="max-w-7xl mx-auto space-y-6 pb-20">
             {activeTab === 'dashboard' && (
               <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
                 {/* Header Stats Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
                   {[
                     { label: 'Receita Mensal (MRR)', value: `R$ ${stats.totalMRR.toLocaleString('pt-BR')}`, sub: `${stats.revenueGrowth >= 0 ? '+' : ''}${stats.revenueGrowth.toFixed(1)}% vs mês ant.`, icon: DollarSign, color: 'emerald', trend: stats.revenueGrowth >= 0 ? 'up' : 'down' },
                     { label: 'Workshops Ativos', value: stats.activeTenantsCount, sub: `${tenants.length} total cadastrados`, icon: Building2, color: 'blue', trend: 'up' },
@@ -660,7 +660,7 @@ export default function SuperAdmin() {
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: i * 0.1 }}
-                        className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm relative overflow-hidden group hover:shadow-xl hover:shadow-slate-200/50 transition-all"
+                        className="bg-white p-5 sm:p-6 rounded-[2rem] border border-slate-200 shadow-sm relative overflow-hidden group hover:shadow-xl hover:shadow-slate-200/50 transition-all"
                     >
                       <div className="flex items-start justify-between">
                         <div className={cn("w-12 h-12 rounded-2xl flex items-center justify-center mb-4 transition-transform group-hover:scale-110", 
@@ -681,7 +681,7 @@ export default function SuperAdmin() {
                         </div>
                       </div>
                       <p className="text-slate-400 text-[10px] font-black uppercase tracking-[0.15em] mb-1">{stat.label}</p>
-                      <h3 className="text-3xl font-black text-slate-900 tracking-tight">{stat.value}</h3>
+                      <h3 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">{stat.value}</h3>
                       <p className="text-[10px] text-slate-400 font-bold mt-2 uppercase flex items-center gap-1 group-hover:text-slate-600 transition-colors">
                           <Activity size={10} /> {stat.sub}
                       </p>
@@ -704,7 +704,7 @@ export default function SuperAdmin() {
                             <span className="px-3 py-1 bg-slate-100 rounded-lg text-slate-500">6 Meses</span>
                         </div>
                     </div>
-                    <div className="h-[300px] w-full">
+                    <div className="h-[250px] sm:h-[300px] w-full">
                         <ResponsiveContainer width="100%" height="100%">
                             <AreaChart data={stats.monthlyData}>
                                 <defs>
@@ -728,12 +728,12 @@ export default function SuperAdmin() {
                   </div>
 
                   {/* Distribution Chart (Pie) */}
-                  <div className="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-sm flex flex-col">
+                  <div className="bg-white p-6 sm:p-8 rounded-[2.5rem] border border-slate-200 shadow-sm flex flex-col">
                     <h3 className="font-black text-slate-900 uppercase italic flex items-center gap-2 mb-2">
                         <PieChartIcon className="text-blue-500" size={20} /> Status de Oficinas
                     </h3>
                     <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-6 border-b border-slate-100 pb-4">Distribuição de base ativa</p>
-                    <div className="flex-1 min-h-[220px]">
+                    <div className="flex-1 min-h-[180px] sm:min-h-[220px]">
                         <ResponsiveContainer width="100%" height="100%">
                             <PieChart>
                                 <Pie
@@ -845,9 +845,9 @@ export default function SuperAdmin() {
                   </button>
                 </div>
                 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                   {filteredTenants.map((t) => (
-                    <div key={t.id} className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm relative group hover:border-emerald-200 transition-all flex flex-col h-full">
+                    <div key={t.id} className="bg-white p-5 sm:p-6 rounded-[2rem] border border-slate-200 shadow-sm relative group hover:border-emerald-200 transition-all flex flex-col h-full">
                       <div className="flex items-start justify-between mb-6">
                         <div className="flex items-center gap-4 min-w-0">
                           <div className="w-14 h-14 bg-slate-50 rounded-2xl flex items-center justify-center shrink-0 border border-slate-100 shadow-inner overflow-hidden">
@@ -1002,9 +1002,9 @@ export default function SuperAdmin() {
                   </button>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                     {permissionProfiles.map((profile) => (
-                        <div key={profile.id} className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm hover:border-emerald-200 transition-all group">
+                        <div key={profile.id} className="bg-white p-5 sm:p-6 rounded-3xl border border-slate-200 shadow-sm hover:border-emerald-200 transition-all group">
                             <div className="flex items-start justify-between mb-4">
                                 <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center">
                                     <Key size={24} />
@@ -1049,9 +1049,9 @@ export default function SuperAdmin() {
                   </button>
                 </div>
                 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                   {plans.map((p) => (
-                    <div key={p.id} className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm relative overflow-hidden group hover:border-blue-200 transition-all">
+                    <div key={p.id} className="bg-white p-5 sm:p-6 rounded-[2rem] border border-slate-200 shadow-sm relative overflow-hidden group hover:border-blue-200 transition-all">
                       <div className="absolute top-0 right-0 p-6">
                         <div className={cn("px-3 py-1 rounded-xl text-[9px] font-black uppercase border", p.active ? "bg-emerald-50 text-emerald-600 border-emerald-100" : "bg-slate-50 text-slate-400 border-slate-100")}>
                           {p.active ? "Ativo" : "Inativo"}
@@ -1129,9 +1129,9 @@ export default function SuperAdmin() {
                     </div>
                   </div>
                 ) : (
-                  <form onSubmit={handleProfileSubmit} className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    <div className="lg:col-span-1 space-y-6">
-                      <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm text-center">
+                  <form onSubmit={handleProfileSubmit} className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
+                    <div className="lg:col-span-1 space-y-4 sm:space-y-6">
+                      <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-sm text-center">
                         <div className="relative inline-block mb-4">
                           <div className="w-32 h-32 rounded-[2.5rem] bg-slate-100 border-4 border-white shadow-xl flex items-center justify-center overflow-hidden">
                             {profileForm.photo_url ? (
@@ -1298,6 +1298,15 @@ export default function SuperAdmin() {
                         </div>
                       </div>
                     </div>
+                    <div className="lg:col-span-3 mt-8 flex justify-end">
+                      <button 
+                        type="submit"
+                        disabled={saving}
+                        className="w-full sm:w-auto h-14 px-10 bg-emerald-600 text-white rounded-2xl font-black text-sm uppercase shadow-xl shadow-emerald-500/20 hover:bg-emerald-700 transition-all flex items-center justify-center gap-2"
+                      >
+                        {saving ? 'Salvando...' : 'Salvar Alterações'}
+                      </button>
+                    </div>
                   </form>
                 )}
               </motion.div>
@@ -1375,7 +1384,7 @@ export default function SuperAdmin() {
           {showTeamModal && (
             <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
               <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} className="bg-white w-full max-w-lg rounded-[2.5rem] shadow-2xl overflow-hidden relative">
-                <div className="bg-slate-900 p-8 text-white relative flex items-center justify-between overflow-hidden">
+                <div className="bg-slate-900 p-6 sm:p-8 text-white relative flex items-center justify-between overflow-hidden">
                   <div className="relative z-10">
                     <h3 className="font-black uppercase tracking-[0.2em] text-xs opacity-70 mb-1">Gerenciar Acessos</h3>
                     <h2 className="text-2xl font-black uppercase tracking-tight">{editingMember ? 'Editar Colaborador' : 'Novo Colaborador'}</h2>
@@ -1384,7 +1393,7 @@ export default function SuperAdmin() {
                   <Briefcase size={120} className="absolute -right-10 -bottom-10 text-white/5 rotate-12" />
                 </div>
                 
-                <form onSubmit={handleTeamSubmit} className="p-8 space-y-6">
+                <form onSubmit={handleTeamSubmit} className="p-6 sm:p-8 space-y-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-1">
                       <label className="text-[10px] font-black text-slate-400 uppercase ml-1 tracking-widest">Identificação</label>
@@ -1511,7 +1520,7 @@ export default function SuperAdmin() {
           {showPermissionsModal && (
             <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
               <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} className="bg-white w-full max-w-2xl rounded-[2.5rem] shadow-2xl overflow-hidden relative">
-                <div className="bg-emerald-600 p-8 text-white relative flex items-center justify-between">
+                <div className="bg-emerald-600 p-6 sm:p-8 text-white relative flex items-center justify-between">
                   <div>
                     <h3 className="font-black uppercase tracking-[0.2em] text-[10px] opacity-70 mb-1">Configurações de Segurança</h3>
                     <h2 className="text-2xl font-black uppercase tracking-tight">{editingProfile ? 'Editar Perfil' : 'Novo Perfil de Acesso'}</h2>
@@ -1519,7 +1528,7 @@ export default function SuperAdmin() {
                   <button onClick={() => setShowPermissionsModal(false)} className="w-10 h-10 rounded-2xl bg-white/10 flex items-center justify-center hover:bg-white/20 transition-all group"><X size={20} /></button>
                 </div>
                 
-                <form onSubmit={handlePermissionsSubmit} className="p-8 space-y-6">
+                <form onSubmit={handlePermissionsSubmit} className="p-6 sm:p-8 space-y-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-1">
                       <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Nome do Perfil</label>

@@ -126,7 +126,7 @@ export default function PricingPlansModal({ isOpen, onClose }: PricingPlansModal
             </div>
 
             {/* Content */}
-            <div className="flex-1 overflow-y-auto p-6">
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6">
               {showForm ? (
                 <form onSubmit={handleSubmit} className="space-y-6">
                   <div className="bg-slate-50 rounded-2xl p-6 border border-slate-100 space-y-4">
@@ -278,10 +278,10 @@ export default function PricingPlansModal({ isOpen, onClose }: PricingPlansModal
               )}
             </div>
 
-            <div className="p-6 border-t border-slate-100 bg-slate-50/50">
+            <div className="p-4 sm:p-6 border-t border-slate-100 bg-slate-50/50">
               <button
                 onClick={onClose}
-                className="w-full h-12 bg-slate-900 text-white rounded-xl font-bold text-sm hover:bg-slate-800 transition-all"
+                className="w-full h-12 bg-slate-900 text-white rounded-xl font-bold text-sm hover:bg-slate-800 transition-all shadow-md"
               >
                 Fechar
               </button>
