@@ -184,6 +184,7 @@ export default function SuperAdmin() {
       setUser(updatedUser);
       
       showToast("Perfil atualizado com sucesso!");
+      loadData();
     } catch (err: any) {
       showToast(err.response?.data?.error || "Erro ao atualizar perfil", "error");
     } finally {
@@ -588,8 +589,12 @@ export default function SuperAdmin() {
       )}>
         <div className="p-6 flex items-center justify-between lg:justify-start gap-3 border-b border-slate-800 lg:border-none mb-4 lg:mb-8">
           <div className="flex items-center gap-3">
-            <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center shadow-lg shrink-0", isVendedor ? "bg-blue-500" : "bg-emerald-500")}>
-              {isVendedor ? <TrendingUp className="text-white" size={22} /> : <Shield className="text-white" size={22} />}
+            <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center shadow-lg shrink-0 overflow-hidden border-2 border-white/10", isVendedor ? "bg-blue-500" : "bg-emerald-500")}>
+              {user?.photo_url ? (
+                <img src={user.photo_url} alt={user.name} className="w-full h-full object-cover" />
+              ) : (
+                isVendedor ? <TrendingUp className="text-white" size={22} /> : <Shield className="text-white" size={22} />
+              )}
             </div>
             <div className="overflow-hidden">
               <h1 className="font-black text-base leading-none tracking-tight uppercase italic">MecaERP</h1>
@@ -627,6 +632,19 @@ export default function SuperAdmin() {
         </div>
 
         <div className="mt-auto p-4 border-t border-slate-800">
+           <div className="flex items-center gap-3 px-4 py-3 mb-2">
+              <div className="w-8 h-8 rounded-lg bg-slate-800 border border-slate-700 overflow-hidden flex items-center justify-center">
+                 {user?.photo_url ? (
+                    <img src={user.photo_url} alt={user.name} className="w-full h-full object-cover" />
+                 ) : (
+                    <UserCircle size={20} className="text-slate-500" />
+                 )}
+              </div>
+              <div className="overflow-hidden">
+                 <p className="text-[10px] font-black text-white uppercase truncate">{user?.name}</p>
+                 <p className="text-[8px] font-bold text-slate-500 truncate">{user?.email}</p>
+              </div>
+           </div>
           <button onClick={() => { logout(); navigate('/login'); }} className="flex items-center gap-3 w-full px-4 py-3 text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded-xl transition-all font-bold text-xs uppercase tracking-widest"><LogOut size={18} /><span>Sair</span></button>
         </div>
       </aside>
@@ -641,6 +659,23 @@ export default function SuperAdmin() {
               <span className={cn("italic font-black", isVendedor ? "text-blue-600" : "text-emerald-600")}>{isVendedor ? 'Sales' : 'Root'}</span>
               <ChevronRight size={10} /><span className="text-slate-900">{activeTab}</span>
             </div>
+          </div>
+
+          <div className="flex items-center gap-4">
+             <div className="hidden sm:flex flex-col items-end">
+                <span className="text-[10px] font-black text-slate-900 uppercase italic leading-none">{user?.name} {user?.surname}</span>
+                <span className="text-[8px] font-black text-slate-400 uppercase tracking-[0.2em] mt-0.5">{user?.role}</span>
+             </div>
+             <button 
+                onClick={() => navigate('/superadmin/profile')}
+                className="w-10 h-10 rounded-2xl bg-slate-100 flex items-center justify-center overflow-hidden border-2 border-white shadow-sm hover:border-emerald-500 transition-all"
+             >
+                {user?.photo_url ? (
+                   <img src={user.photo_url} alt={user.name} className="w-full h-full object-cover" />
+                ) : (
+                   <UserCircle className="text-slate-300" size={24} />
+                )}
+             </button>
           </div>
         </header>
 
@@ -968,7 +1003,15 @@ export default function SuperAdmin() {
                                         m.role === 'SUPER_ADMIN' ? "bg-emerald-50" : "bg-blue-50"
                                     )}>
                                         <div className="w-full h-full rounded-[2rem] overflow-hidden bg-slate-100 flex items-center justify-center">
-                                            {m.photo_url ? (
+                                            {m.id === user?.id ? (
+                                                user?.photo_url ? (
+                                                    <img src={user.photo_url} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
+                                                ) : (
+                                                    <div className="w-full h-full flex items-center justify-center bg-emerald-50 text-emerald-500">
+                                                        <Shield size={40} />
+                                                    </div>
+                                                )
+                                            ) : m.photo_url ? (
                                                 <img src={m.photo_url} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
                                             ) : (
                                                 <div className={cn("w-full h-full flex items-center justify-center", m.role === 'SUPER_ADMIN' ? 'bg-emerald-50 text-emerald-500' : 'bg-blue-50 text-blue-500')}>
@@ -1683,6 +1726,28 @@ export default function SuperAdmin() {
         loading={saving} 
       />
       <TenantUsersModal isOpen={usersModal.isOpen} onClose={() => setUsersModal({ isOpen: false, tenant: null })} tenant={usersModal.tenant} />
+
+      <AnimatePresence>
+        {toast && (
+          <motion.div 
+            initial={{ opacity: 0, y: 50, scale: 0.9 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.2 } }}
+            className={cn(
+                "fixed bottom-8 right-8 z-[500] px-6 py-4 rounded-[1.5rem] shadow-2xl flex items-center gap-3 backdrop-blur-xl border-2",
+                toast.type === 'success' ? 'bg-emerald-500/90 text-white border-emerald-400/20' : 'bg-red-500/90 text-white border-red-400/20'
+            )}
+          >
+            <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
+              {toast.type === 'success' ? <CheckCircle className="w-5 h-5" /> : <AlertCircle className="w-5 h-5" />}
+            </div>
+            <div className="flex flex-col">
+                <span className="text-[10px] font-black uppercase tracking-widest opacity-70 leading-none">Notificação</span>
+                <span className="font-black text-sm uppercase italic tracking-tight">{toast.message}</span>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
