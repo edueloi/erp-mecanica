@@ -44,7 +44,7 @@ const SuperAdminRoute = ({ children }: { children: React.ReactNode }) => {
   const user = useAuthStore(state => state.user);
   const isAuthenticated = useAuthStore(state => state.isAuthenticated);
   
-  if (!isAuthenticated || user?.role !== 'SUPER_ADMIN') {
+  if (!isAuthenticated || (user?.role !== 'SUPER_ADMIN' && user?.role !== 'VENDEDOR')) {
     return <Navigate to="/login" />;
   }
   
@@ -89,7 +89,7 @@ function AppContent() {
         <Route path="/checklist-upload/:token" element={<ChecklistPublicUpload />} />
         <Route path="/entry-upload/:token" element={<EntryPublicForm />} />
 
-        <Route path="/superadmin" element={<SuperAdminRoute><SuperAdmin /></SuperAdminRoute>} />
+        <Route path="/superadmin/:tab?" element={<SuperAdminRoute><SuperAdmin /></SuperAdminRoute>} />
 
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
