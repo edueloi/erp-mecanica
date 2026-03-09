@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Building2, Users, Phone, FileText, Mail, Lock, Shield, User, Eye, EyeOff, DollarSign, Calendar, Package, MapPin, Edit2 } from 'lucide-react';
+import { X, Building2, Users, Phone, FileText, Mail, Lock, Shield, User, Eye, EyeOff, DollarSign, Calendar, Package, MapPin, Edit2, Upload, Trash2, Key } from 'lucide-react';
 import { twMerge } from 'tailwind-merge';
 import { maskPhone, maskDocument } from '../utils/maskUtils';
 import api from '../services/api';
@@ -30,6 +31,7 @@ export default function SuperAdminModal({
 }: SuperAdminModalProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [plans, setPlans] = useState<any[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -40,7 +42,6 @@ export default function SuperAdminModal({
   const loadPlans = async () => {
     try {
       const res = await api.get("/superadmin/plans");
-      // Ensure we always have an array
       setPlans(Array.isArray(res.data) ? res.data : []);
     } catch (err) {
       console.error("Error loading plans:", err);
@@ -59,6 +60,17 @@ export default function SuperAdminModal({
       });
     } else {
       setForm({ ...form, plan_id: "" });
+    }
+  };
+
+  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setForm({ ...form, logo_url: reader.result as string });
+      };
+      reader.readAsDataURL(file);
     }
   };
 
@@ -91,7 +103,7 @@ export default function SuperAdminModal({
                 </div>
                 <div>
                   <h3 className="text-lg font-bold text-slate-900">
-                    {editingTenant ? 'Editar Oficina' : 'Nova Oficina'}
+                    {editingTenant ? 'Configurar Oficina' : 'Nova Oficina'}
                   </h3>
                   <p className="text-xs text-slate-500 font-medium">
                     {editingTenant ? `Editando: ${editingTenant.name}` : 'Cadastre uma nova oficina no sistema'}
@@ -108,6 +120,52 @@ export default function SuperAdminModal({
 
             {/* Content */}
             <form onSubmit={onSubmit} className="overflow-y-auto p-6 space-y-8">
+              {/* Logo Section */}
+              <div className="space-y-4">
+                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                  <Upload size={12} className="text-blue-500" /> Identidade Visual
+                </h4>
+                
+                <div className="flex items-center gap-6 p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                  <div className="relative group">
+                    <div className="w-20 h-20 bg-white rounded-2xl border border-slate-200 flex items-center justify-center overflow-hidden shadow-sm">
+                      {form.logo_url ? (
+                        <img src={form.logo_url} alt="Logo Preview" className="w-full h-full object-contain p-2" />
+                      ) : (
+                        <Building2 size={28} className="text-slate-300" />
+                      )}
+                    </div>
+                    {form.logo_url && (
+                      <button
+                        type="button"
+                        onClick={() => setForm({ ...form, logo_url: "" })}
+                        className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center shadow-lg opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <Trash2 size={12} />
+                      </button>
+                    )}
+                  </div>
+                  
+                  <div className="flex-1 space-y-2">
+                    <p className="text-sm font-bold text-slate-700 leading-none">Logo da Oficina</p>
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-xl text-xs font-bold hover:bg-slate-50 transition-all shadow-sm flex items-center gap-2 mt-2"
+                    >
+                      <Upload size={14} /> Selecionar Foto
+                    </button>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={handleLogoUpload}
+                    />
+                  </div>
+                </div>
+              </div>
+
               {/* Plan & Billing */}
               <div className="space-y-4">
                 <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
@@ -125,7 +183,7 @@ export default function SuperAdminModal({
                         className="w-full h-11 bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-4 text-sm font-medium focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all appearance-none"
                       >
                         <option value="">Personalizado (Sem plano fixo)</option>
-                        {Array.isArray(plans) && plans.map(p => (
+                        {plans.map(p => (
                           <option key={p.id} value={p.id}>
                             {p.name} - R$ {p.monthly_value.toLocaleString('pt-BR')} ({p.user_limit} users)
                           </option>
@@ -158,7 +216,7 @@ export default function SuperAdminModal({
                         max="31"
                         value={form.due_day}
                         onChange={(e) => setForm({...form, due_day: parseInt(e.target.value)})}
-                        className="w-full h-11 bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-4 text-sm font-medium focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 outline-none transition-all"
+                        className="w-full h-11 bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-4 text-sm font-medium focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
                       />
                     </div>
                   </div>
@@ -184,7 +242,72 @@ export default function SuperAdminModal({
                 </div>
               </div>
 
-              {/* Workshop Data - Always editable */}
+              {/* Admin Info */}
+              <div className="space-y-4 pt-4 border-t border-slate-50">
+                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                  <User size={12} className={editingTenant ? "text-amber-500" : "text-purple-500"} /> 
+                  {editingTenant ? "Administrador da Oficina" : "Administrador Inicial"}
+                </h4>
+                
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1 ml-1">Nome do Responsável</label>
+                    <div className="relative">
+                      <User className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                      <input
+                        required
+                        type="text"
+                        value={form.admin_name}
+                        onChange={(e) => setForm({...form, admin_name: e.target.value})}
+                        placeholder="Nome do Admin"
+                        className="w-full h-11 bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-4 text-sm font-medium focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1 ml-1">E-mail de Acesso</label>
+                      <div className="relative">
+                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                        <input
+                          required
+                          type="email"
+                          value={form.admin_email}
+                          onChange={(e) => setForm({...form, admin_email: e.target.value})}
+                          placeholder="admin@email.com"
+                          className="w-full h-11 bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-4 text-sm font-medium focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 mb-1 ml-1">
+                        {editingTenant ? "Nova Senha (deixe em branco para manter)" : "Senha de Acesso"}
+                      </label>
+                      <div className="relative">
+                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                        <input
+                          required={!editingTenant}
+                          type={showPassword ? "text" : "password"}
+                          value={form.admin_password}
+                          onChange={(e) => setForm({...form, admin_password: e.target.value})}
+                          placeholder={editingTenant ? "••••••••" : "Defina a senha"}
+                          className="w-full h-11 bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-10 text-sm font-medium focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                        >
+                          {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Workshop Data */}
               <div className="space-y-4 pt-4 border-t border-slate-50">
                 <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
                   <Building2 size={12} className="text-blue-500" /> Dados da Oficina
@@ -250,70 +373,6 @@ export default function SuperAdminModal({
                   </div>
                 </div>
               </div>
-
-              {/* Initial Admin - Only for new registrations */}
-              {!editingTenant && (
-                <div className="space-y-4 pt-4 border-t border-slate-50">
-                  <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                    <User size={12} className="text-purple-500" /> Administrador Inicial
-                  </h4>
-                  
-                  <div className="space-y-3">
-                    <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-1 ml-1">Nome do Responsável</label>
-                      <div className="relative">
-                        <User className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                        <input
-                          required
-                          type="text"
-                          value={form.admin_name}
-                          onChange={(e) => setForm({...form, admin_name: e.target.value})}
-                          placeholder="Nome do Admin"
-                          className="w-full h-11 bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-4 text-sm font-medium focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 outline-none transition-all"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-xs font-bold text-slate-700 mb-1 ml-1">E-mail de Acesso</label>
-                        <div className="relative">
-                          <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                          <input
-                            required
-                            type="email"
-                            value={form.admin_email}
-                            onChange={(e) => setForm({...form, admin_email: e.target.value})}
-                            placeholder="admin@email.com"
-                            className="w-full h-11 bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-4 text-sm font-medium focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 outline-none transition-all"
-                          />
-                        </div>
-                      </div>
-                      <div>
-                        <label className="block text-xs font-bold text-slate-700 mb-1 ml-1">Senha Provisória</label>
-                        <div className="relative">
-                          <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                          <input
-                            required
-                            type={showPassword ? "text" : "password"}
-                            value={form.admin_password}
-                            onChange={(e) => setForm({...form, admin_password: e.target.value})}
-                            placeholder="••••••••"
-                            className="w-full h-11 bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-10 text-sm font-medium focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 outline-none transition-all"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setShowPassword(!showPassword)}
-                            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
-                          >
-                            {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
             </form>
 
             {/* Footer */}
@@ -339,7 +398,7 @@ export default function SuperAdminModal({
                   <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                 ) : (
                   <>
-                    {editingTenant ? 'Salvar Alterações' : 'Finalizar Cadastro'}
+                    {editingTenant ? 'Salvar Configurações' : 'Finalizar Cadastro'}
                   </>
                 )}
               </button>

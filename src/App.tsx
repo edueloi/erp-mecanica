@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Settings as SettingsIcon } from 'lucide-react';
 import { useAuthStore } from './services/authStore';
+import { SettingsProvider, useSettings } from './contexts/SettingsContext';
 import Layout from './components/Layout';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
@@ -27,16 +28,7 @@ import VehicleEntries from './pages/VehicleEntries';
 import VehicleEntryDetail from './pages/VehicleEntryDetail';
 import EntryPublicForm from './pages/EntryPublicForm';
 import SuperAdmin from './pages/SuperAdmin';
-
-const Placeholder = ({ title }: { title: string }) => (
-  <div className="flex flex-col items-center justify-center h-full text-slate-400 space-y-4">
-    <div className="w-16 h-16 bg-slate-100 rounded-2xl flex items-center justify-center">
-      <SettingsIcon size={32} />
-    </div>
-    <h2 className="text-xl font-bold text-slate-900">{title}</h2>
-    <p>Esta funcionalidade está em desenvolvimento.</p>
-  </div>
-);
+import SplashScreen from './components/SplashScreen';
 
 const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
   const isAuthenticated = useAuthStore(state => state.isAuthenticated);
@@ -59,7 +51,14 @@ const SuperAdminRoute = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
-export default function App() {
+function AppContent() {
+  const { loading, tenantSettings } = useSettings();
+  const isAuthenticated = useAuthStore(state => state.isAuthenticated);
+
+  if (loading && isAuthenticated) {
+    return <SplashScreen logoUrl={tenantSettings?.logo_url} tenantName={tenantSettings?.company_name || tenantSettings?.trade_name} />;
+  }
+
   return (
     <Router>
       <Routes>
@@ -90,11 +89,18 @@ export default function App() {
         <Route path="/checklist-upload/:token" element={<ChecklistPublicUpload />} />
         <Route path="/entry-upload/:token" element={<EntryPublicForm />} />
 
-
         <Route path="/superadmin" element={<SuperAdminRoute><SuperAdmin /></SuperAdminRoute>} />
 
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
     </Router>
+  );
+}
+
+export default function App() {
+  return (
+    <SettingsProvider>
+      <AppContent />
+    </SettingsProvider>
   );
 }

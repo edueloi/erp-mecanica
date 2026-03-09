@@ -19,7 +19,8 @@ import {
   Package,
   Clock,
   Ban,
-  AlertTriangle
+  AlertTriangle,
+  Mail
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "../services/authStore";
@@ -70,6 +71,7 @@ export default function SuperAdmin() {
     subscription_value: 0,
     due_day: 5,
     plan_id: "",
+    logo_url: "",
     admin_name: "",
     admin_email: "",
     admin_password: ""
@@ -117,7 +119,11 @@ export default function SuperAdmin() {
           user_limit: form.user_limit,
           subscription_value: form.subscription_value,
           due_day: form.due_day,
-          plan_id: form.plan_id || null
+          plan_id: form.plan_id || null,
+          logo_url: form.logo_url,
+          admin_name: form.admin_name,
+          admin_email: form.admin_email,
+          admin_password: form.admin_password || undefined
         });
         showToast("Oficina atualizada com sucesso");
       } else {
@@ -160,7 +166,8 @@ export default function SuperAdmin() {
 
   const filteredTenants = tenants.filter(t => 
     t.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    t.phone?.includes(searchTerm)
+    t.phone?.includes(searchTerm) ||
+    t.admin_email?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const totalMRR = tenants.reduce((acc, t) => acc + (t.subscription_value || 0), 0);
@@ -230,6 +237,7 @@ export default function SuperAdmin() {
                 subscription_value: 0,
                 due_day: 5,
                 plan_id: "",
+                logo_url: "",
                 admin_name: "",
                 admin_email: "",
                 admin_password: ""
@@ -247,42 +255,12 @@ export default function SuperAdmin() {
         {/* Stats Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {[
-            { 
-              label: 'Oficinas Ativas', 
-              value: tenants.length, 
-              icon: Building2, 
-              color: 'text-emerald-600', 
-              bg: 'bg-emerald-50', 
-            },
-            { 
-              label: 'Usuários Totais', 
-              value: tenants.reduce((acc, t) => acc + t.user_count, 0), 
-              icon: Users, 
-              color: 'text-blue-600', 
-              bg: 'bg-blue-50', 
-            },
-            { 
-              label: 'Faturamento MRR', 
-              value: `R$ ${totalMRR.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, 
-              icon: DollarSign, 
-              color: 'text-amber-600', 
-              bg: 'bg-amber-50', 
-            },
-            { 
-              label: 'Inadimplentes', 
-              value: tenants.filter(t => t.status === 'OVERDUE' || t.status === 'PENDING_PAYMENT').length, 
-              icon: AlertTriangle, 
-              color: 'text-red-600', 
-              bg: 'bg-red-50', 
-            },
+            { label: 'Oficinas Ativas', value: tenants.length, icon: Building2, color: 'text-emerald-600', bg: 'bg-emerald-50' },
+            { label: 'Usuários Totais', value: tenants.reduce((acc, t) => acc + (t.user_count || 0), 0), icon: Users, color: 'text-blue-600', bg: 'bg-blue-50' },
+            { label: 'Faturamento MRR', value: `R$ ${totalMRR.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, icon: DollarSign, color: 'text-amber-600', bg: 'bg-amber-50' },
+            { label: 'Inadimplentes', value: tenants.filter(t => t.status === 'OVERDUE' || t.status === 'PENDING_PAYMENT').length, icon: AlertTriangle, color: 'text-red-600', bg: 'bg-red-50' },
           ].map((stat, i) => (
-            <motion.div 
-              key={i}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.1 }}
-              className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm hover:shadow-md transition-all relative overflow-hidden group"
-            >
+            <motion.div key={i} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.1 }} className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm hover:shadow-md transition-all group">
               <div className="relative z-10">
                 <div className={cn("w-12 h-12 rounded-2xl flex items-center justify-center mb-4 transition-transform group-hover:scale-110 duration-300", stat.bg, stat.color)}>
                   <stat.icon size={24} />
@@ -301,7 +279,7 @@ export default function SuperAdmin() {
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                 <input 
                   type="text" 
-                  placeholder="Buscar oficina por nome ou telefone..." 
+                  placeholder="Buscar por nome, e-mail ou telefone..." 
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="w-full h-12 bg-slate-50 border border-slate-200 rounded-2xl pl-12 pr-4 font-medium text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all"
@@ -319,7 +297,7 @@ export default function SuperAdmin() {
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-slate-50/50">
-                  <th className="px-8 py-5 text-slate-400 font-black text-[10px] uppercase tracking-[0.2em]">Oficina / Plano</th>
+                  <th className="px-8 py-5 text-slate-400 font-black text-[10px] uppercase tracking-[0.2em]">Oficina / Contato</th>
                   <th className="px-8 py-5 text-slate-400 font-black text-[10px] uppercase tracking-[0.2em] text-center">Status de Acesso</th>
                   <th className="px-8 py-5 text-slate-400 font-black text-[10px] uppercase tracking-[0.2em] text-center">Assinatura</th>
                   <th className="px-8 py-5 text-slate-400 font-black text-[10px] uppercase tracking-[0.2em] text-right">Ações</th>
@@ -329,24 +307,31 @@ export default function SuperAdmin() {
                 {loading ? (
                   <tr><td colSpan={4} className="py-32 text-center text-slate-400 font-bold">Processando dados...</td></tr>
                 ) : filteredTenants.map((t, idx) => {
-                  const StatusIcon = STATUS_CONFIG[t.status || 'ACTIVE'].icon;
                   return (
                     <motion.tr key={t.id} className="hover:bg-slate-50/50 transition-colors group">
                       <td className="px-8 py-6">
                         <div className="flex items-center gap-5">
-                          <div className="w-14 h-14 bg-slate-900 rounded-[1.25rem] flex items-center justify-center text-white font-black text-xl shadow-lg shadow-slate-900/10">
-                            {t.name.charAt(0).toUpperCase()}
+                          <div className="w-14 h-14 bg-slate-900 rounded-[1.25rem] flex items-center justify-center text-white overflow-hidden shadow-lg shadow-slate-900/10">
+                            {t.logo_url ? (
+                              <img src={t.logo_url} alt={t.name} className="w-full h-full object-contain p-2" />
+                            ) : (
+                              <span className="font-black text-xl">{t.name.charAt(0).toUpperCase()}</span>
+                            )}
                           </div>
                           <div className="space-y-1">
                             <h4 className="font-black text-slate-900 text-base tracking-tight leading-none">{t.name}</h4>
-                            <select 
-                              value={t.plan_id || ""} 
-                              onChange={(e) => handleUpdateField(t.id, 'plan_id', e.target.value || null)}
-                              className="text-[10px] font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-100 outline-none cursor-pointer hover:bg-emerald-100 transition-all uppercase"
-                            >
-                              <option value="">Sem Plano</option>
-                              {plans.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                            </select>
+                            <div className="flex items-center gap-2 mt-1">
+                              <span className="text-[10px] font-bold text-slate-400 flex items-center gap-1"><Mail size={10} /> {t.admin_email || 'N/A'}</span>
+                              <span className="w-1 h-1 bg-slate-300 rounded-full" />
+                              <select 
+                                value={t.plan_id || ""} 
+                                onChange={(e) => handleUpdateField(t.id, 'plan_id', e.target.value || null)}
+                                className="text-[10px] font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-100 outline-none cursor-pointer hover:bg-emerald-100 transition-all uppercase"
+                              >
+                                <option value="">Sem Plano</option>
+                                {plans.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                              </select>
+                            </div>
                           </div>
                         </div>
                       </td>
@@ -374,9 +359,26 @@ export default function SuperAdmin() {
                       </td>
                       <td className="px-8 py-6 text-right">
                         <div className="flex justify-end gap-2">
-                          <button onClick={() => setUsersModal({ isOpen: true, tenant: t })} className="p-3 bg-white border border-slate-200 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-2xl transition-all shadow-sm"><Users size={18} /></button>
-                          <button onClick={() => { setEditingTenant(t); setForm({...form, ...t}); setShowModal(true); }} className="p-3 bg-white border border-slate-200 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-2xl transition-all shadow-sm"><Edit2 size={18} /></button>
-                          <button onClick={() => setDeleteModal({ isOpen: true, tenant: t })} className="p-3 bg-white border border-slate-200 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-2xl transition-all shadow-sm"><Trash2 size={18} /></button>
+                          <button onClick={() => setUsersModal({ isOpen: true, tenant: t })} className="p-3 bg-white border border-slate-200 text-slate-400 hover:text-blue-600 hover:border-blue-200 hover:bg-blue-50 rounded-2xl transition-all shadow-sm"><Users size={18} /></button>
+                          <button onClick={() => { 
+                            setEditingTenant(t); 
+                            setForm({
+                              name: t.name,
+                              document: t.document || "",
+                              phone: t.phone || "",
+                              address: t.address || "",
+                              user_limit: t.user_limit,
+                              subscription_value: t.subscription_value || 0,
+                              due_day: t.due_day || 5,
+                              plan_id: t.plan_id || "",
+                              logo_url: t.logo_url || "",
+                              admin_name: t.admin_name || "",
+                              admin_email: t.admin_email || "",
+                              admin_password: ""
+                            }); 
+                            setShowModal(true); 
+                          }} className="p-3 bg-white border border-slate-200 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-2xl transition-all shadow-sm"><Edit2 size={18} /></button>
+                          <button onClick={() => setDeleteModal({ isOpen: true, tenant: t })} className="p-3 bg-white border border-slate-200 text-slate-400 hover:text-red-600 hover:border-red-200 hover:bg-red-50 rounded-2xl transition-all shadow-sm"><Trash2 size={18} /></button>
                         </div>
                       </td>
                     </motion.tr>
@@ -392,19 +394,16 @@ export default function SuperAdmin() {
               <motion.div key={t.id} className="bg-slate-50/50 rounded-3xl p-5 border border-slate-100 space-y-4 shadow-sm">
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-slate-900 rounded-2xl flex items-center justify-center text-white font-black text-lg shadow-lg">
-                      {t.name.charAt(0).toUpperCase()}
+                    <div className="w-12 h-12 bg-slate-900 rounded-2xl flex items-center justify-center text-white overflow-hidden shadow-lg">
+                      {t.logo_url ? (
+                        <img src={t.logo_url} alt={t.name} className="w-full h-full object-contain p-1.5" />
+                      ) : (
+                        <span className="font-black text-lg">{t.name.charAt(0).toUpperCase()}</span>
+                      )}
                     </div>
                     <div>
                       <h4 className="font-black text-slate-900 text-base leading-none">{t.name}</h4>
-                      <select 
-                        value={t.plan_id || ""} 
-                        onChange={(e) => handleUpdateField(t.id, 'plan_id', e.target.value || null)}
-                        className="text-[9px] font-black text-emerald-600 bg-white px-2 py-0.5 mt-1 rounded-lg border border-emerald-100 outline-none"
-                      >
-                        <option value="">Sem Plano</option>
-                        {plans.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                      </select>
+                      <div className="text-[10px] text-slate-400 font-bold mt-1 flex items-center gap-1"><Mail size={10} /> {t.admin_email || 'N/A'}</div>
                     </div>
                   </div>
                   <div className="text-right">
@@ -413,13 +412,20 @@ export default function SuperAdmin() {
                   </div>
                 </div>
 
-                <div className="flex flex-col gap-2">
-                  <span className="text-[9px] font-black text-slate-400 uppercase ml-1">Status do Acesso</span>
+                <div className="flex items-center gap-2">
+                  <select 
+                    value={t.plan_id || ""} 
+                    onChange={(e) => handleUpdateField(t.id, 'plan_id', e.target.value || null)}
+                    className="flex-1 h-9 px-3 rounded-xl text-[10px] font-black text-emerald-600 bg-white border border-emerald-100 outline-none uppercase"
+                  >
+                    <option value="">Sem Plano</option>
+                    {plans.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                  </select>
                   <select 
                     value={t.status || 'ACTIVE'} 
                     onChange={(e) => handleUpdateField(t.id, 'status', e.target.value)}
                     className={cn(
-                      "w-full h-11 px-4 rounded-2xl text-xs font-black uppercase tracking-wider border shadow-sm outline-none transition-all",
+                      "flex-1 h-9 px-3 rounded-xl text-[10px] font-black uppercase tracking-wider border shadow-sm outline-none",
                       STATUS_CONFIG[t.status || 'ACTIVE'].bg,
                       STATUS_CONFIG[t.status || 'ACTIVE'].color,
                       "border-current/10"
@@ -433,7 +439,24 @@ export default function SuperAdmin() {
 
                 <div className="grid grid-cols-3 gap-2 pt-2">
                   <button onClick={() => setUsersModal({ isOpen: true, tenant: t })} className="h-12 bg-white border border-slate-200 text-blue-600 rounded-2xl font-bold text-[10px] flex items-center justify-center gap-2 shadow-sm"><Users size={16} /> USUÁRIOS</button>
-                  <button onClick={() => { setEditingTenant(t); setForm({...form, ...t}); setShowModal(true); }} className="h-12 bg-white border border-slate-200 text-amber-600 rounded-2xl font-bold text-[10px] flex items-center justify-center gap-2 shadow-sm"><Edit2 size={16} /> EDITAR</button>
+                  <button onClick={() => { 
+                    setEditingTenant(t); 
+                    setForm({
+                      name: t.name,
+                      document: t.document || "",
+                      phone: t.phone || "",
+                      address: t.address || "",
+                      user_limit: t.user_limit,
+                      subscription_value: t.subscription_value || 0,
+                      due_day: t.due_day || 5,
+                      plan_id: t.plan_id || "",
+                      logo_url: t.logo_url || "",
+                      admin_name: t.admin_name || "",
+                      admin_email: t.admin_email || "",
+                      admin_password: ""
+                    }); 
+                    setShowModal(true); 
+                  }} className="h-12 bg-white border border-slate-200 text-amber-600 rounded-2xl font-bold text-[10px] flex items-center justify-center gap-2 shadow-sm"><Edit2 size={16} /> EDITAR</button>
                   <button onClick={() => setDeleteModal({ isOpen: true, tenant: t })} className="h-12 bg-white border border-slate-200 text-red-600 rounded-2xl flex items-center justify-center shadow-sm"><Trash2 size={16} /></button>
                 </div>
               </motion.div>

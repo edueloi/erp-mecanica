@@ -69,7 +69,6 @@ router.patch("/plans/:id", (req, res) => {
 router.delete("/plans/:id", (req, res) => {
   const { id } = req.params;
   try {
-    // Check if any tenant is using this plan
     const usage = db.prepare("SELECT COUNT(*) as count FROM tenants WHERE plan_id = ?").get(id) as any;
     if (usage.count > 0) {
       return res.status(400).json({ error: "Cannot delete plan being used by workshops" });
@@ -85,13 +84,15 @@ router.delete("/plans/:id", (req, res) => {
 // TENANT ROUTES
 // ========================================
 
-// List all tenants with user counts and plan info
+// List all tenants with user counts, plan info and admin email
 router.get("/tenants", (req, res) => {
   try {
     const tenants = db.prepare(`
       SELECT 
         t.*, 
         p.name as plan_name,
+        (SELECT email FROM users WHERE tenant_id = t.id AND role = 'ADMIN' LIMIT 1) as admin_email,
+        (SELECT name FROM users WHERE tenant_id = t.id AND role = 'ADMIN' LIMIT 1) as admin_name,
         (SELECT COUNT(*) FROM users WHERE tenant_id = t.id) as user_count 
       FROM tenants t
       LEFT JOIN pricing_plans p ON t.plan_id = p.id
@@ -109,7 +110,7 @@ router.post("/tenants", async (req, res) => {
   const { 
     name, document, address, phone, user_limit, 
     admin_name, admin_email, admin_password, 
-    subscription_value, due_day, plan_id 
+    subscription_value, due_day, plan_id, logo_url
   } = req.body;
 
   try {
@@ -119,9 +120,9 @@ router.post("/tenants", async (req, res) => {
 
     const transaction = db.transaction(() => {
       db.prepare(`
-        INSERT INTO tenants (id, name, document, address, phone, user_limit, subscription_value, due_day, plan_id) 
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(tenantId, name, document, address, phone, user_limit || 5, subscription_value || 0, due_day || 5, plan_id || null);
+        INSERT INTO tenants (id, name, document, address, phone, user_limit, subscription_value, due_day, plan_id, logo_url) 
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(tenantId, name, document, address, phone, user_limit || 5, subscription_value || 0, due_day || 5, plan_id || null, logo_url || null);
 
       db.prepare(`
         INSERT INTO users (id, tenant_id, name, email, password, role) 
@@ -137,29 +138,60 @@ router.post("/tenants", async (req, res) => {
 });
 
 // Update tenant info
-router.patch("/tenants/:id", (req, res) => {
+router.patch("/tenants/:id", async (req, res) => {
   const { id } = req.params;
-  const { name, document, phone, address, user_limit, subscription_value, due_day, status, plan_id } = req.body;
+  const { 
+    name, document, phone, address, user_limit, 
+    subscription_value, due_day, status, plan_id, logo_url,
+    admin_name, admin_email, admin_password
+  } = req.body;
 
   try {
-    const fields = [];
-    const values = [];
+    const transaction = db.transaction(async () => {
+      // 1. Update Tenant
+      const tFields = [];
+      const tValues = [];
+      if (name !== undefined) { tFields.push("name = ?"); tValues.push(name); }
+      if (document !== undefined) { tFields.push("document = ?"); tValues.push(document); }
+      if (phone !== undefined) { tFields.push("phone = ?"); tValues.push(phone); }
+      if (address !== undefined) { tFields.push("address = ?"); tValues.push(address); }
+      if (user_limit !== undefined) { tFields.push("user_limit = ?"); tValues.push(user_limit); }
+      if (subscription_value !== undefined) { tFields.push("subscription_value = ?"); tValues.push(subscription_value); }
+      if (due_day !== undefined) { tFields.push("due_day = ?"); tValues.push(due_day); }
+      if (status !== undefined) { tFields.push("status = ?"); tValues.push(status); }
+      if (plan_id !== undefined) { tFields.push("plan_id = ?"); tValues.push(plan_id); }
+      if (logo_url !== undefined) { tFields.push("logo_url = ?"); tValues.push(logo_url); }
 
-    if (name !== undefined) { fields.push("name = ?"); values.push(name); }
-    if (document !== undefined) { fields.push("document = ?"); values.push(document); }
-    if (phone !== undefined) { fields.push("phone = ?"); values.push(phone); }
-    if (address !== undefined) { fields.push("address = ?"); values.push(address); }
-    if (user_limit !== undefined) { fields.push("user_limit = ?"); values.push(user_limit); }
-    if (subscription_value !== undefined) { fields.push("subscription_value = ?"); values.push(subscription_value); }
-    if (due_day !== undefined) { fields.push("due_day = ?"); values.push(due_day); }
-    if (status !== undefined) { fields.push("status = ?"); values.push(status); }
-    if (plan_id !== undefined) { fields.push("plan_id = ?"); values.push(plan_id); }
+      if (tFields.length > 0) {
+        tValues.push(id);
+        db.prepare(`UPDATE tenants SET ${tFields.join(", ")} WHERE id = ?`).run(...tValues);
+      }
 
-    if (fields.length === 0) return res.status(400).json({ error: "No fields to update" });
+      // 2. Update Primary Admin if provided
+      if (admin_name || admin_email || admin_password) {
+        // Find the first ADMIN of this tenant
+        const admin = db.prepare("SELECT id FROM users WHERE tenant_id = ? AND role = 'ADMIN' LIMIT 1").get(id) as any;
+        if (admin) {
+          const uFields = [];
+          const uValues = [];
+          if (admin_name) { uFields.push("name = ?"); uValues.push(admin_name); }
+          if (admin_email) { uFields.push("email = ?"); uValues.push(admin_email); }
+          if (admin_password) { 
+            const hashedPassword = bcrypt.hashSync(admin_password, 10);
+            uFields.push("password = ?"); 
+            uValues.push(hashedPassword); 
+          }
+          
+          if (uFields.length > 0) {
+            uValues.push(admin.id);
+            db.prepare(`UPDATE users SET ${uFields.join(", ")} WHERE id = ?`).run(...uValues);
+          }
+        }
+      }
+    });
 
-    values.push(id);
-    db.prepare(`UPDATE tenants SET ${fields.join(", ")} WHERE id = ?`).run(...values);
-    res.json({ message: "Tenant updated successfully." });
+    await transaction();
+    res.json({ message: "Tenant and Admin updated successfully." });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }

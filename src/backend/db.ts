@@ -7,7 +7,7 @@ const db = new Database("mecaerp.db");
 
 export function initDb() {
   // Pricing Plans
-  db.exec(\`
+  db.exec(`
     CREATE TABLE IF NOT EXISTS pricing_plans (
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
@@ -18,10 +18,10 @@ export function initDb() {
       active BOOLEAN DEFAULT 1,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )
-  \`);
+  `);
 
   // Tenants (Oficinas)
-  db.exec(\`
+  db.exec(`
     CREATE TABLE IF NOT EXISTS tenants (
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
@@ -33,10 +33,11 @@ export function initDb() {
       due_day INTEGER DEFAULT 5,
       status TEXT CHECK(status IN ('ACTIVE', 'INACTIVE', 'TRIAL', 'OVERDUE', 'BLOCKED', 'PENDING_PAYMENT')) DEFAULT 'ACTIVE',
       plan_id TEXT,
+      logo_url TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (plan_id) REFERENCES pricing_plans(id)
     )
-  \`);
+  `);
 
   // Users
   db.exec(`
@@ -1427,6 +1428,30 @@ export function initDb() {
     }
   } catch (e: any) {
     console.error("⚠️ Error adding user_limit to tenants:", e.message);
+  }
+
+  // Migration: Add superadmin tenant fields if missing
+  const tenantColumnMigrations = [
+    { name: 'subscription_value', sql: "ALTER TABLE tenants ADD COLUMN subscription_value REAL DEFAULT 0" },
+    { name: 'due_day', sql: "ALTER TABLE tenants ADD COLUMN due_day INTEGER DEFAULT 5" },
+    { name: 'status', sql: "ALTER TABLE tenants ADD COLUMN status TEXT DEFAULT 'ACTIVE' CHECK(status IN ('ACTIVE', 'INACTIVE', 'TRIAL', 'OVERDUE', 'BLOCKED', 'PENDING_PAYMENT'))" },
+    { name: 'plan_id', sql: "ALTER TABLE tenants ADD COLUMN plan_id TEXT REFERENCES pricing_plans(id)" },
+    { name: 'logo_url', sql: "ALTER TABLE tenants ADD COLUMN logo_url TEXT" },
+  ];
+
+  for (const migration of tenantColumnMigrations) {
+    try {
+      const checkColumn = db.prepare(`
+        SELECT COUNT(*) as count FROM pragma_table_info('tenants') WHERE name = ?
+      `).get(migration.name) as any;
+
+      if (checkColumn.count === 0) {
+        db.exec(migration.sql);
+        console.log(`? Added ${migration.name} to tenants`);
+      }
+    } catch (e: any) {
+      console.error(`?? Error adding ${migration.name} to tenants:`, e.message);
+    }
   }
 
   // Migration: Add permissions to users if missing
