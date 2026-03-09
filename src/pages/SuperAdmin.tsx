@@ -12,14 +12,14 @@ import {
   MapPin,
   ChevronRight,
   Search,
-  MoreVertical,
   CheckCircle,
   AlertCircle,
   DollarSign,
   Calendar,
-  Eye,
   Package,
-  Settings
+  Clock,
+  Ban,
+  AlertTriangle
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "../services/authStore";
@@ -34,8 +34,18 @@ function cn(...inputs: any[]) {
   return twMerge(inputs.filter(Boolean).map(i => typeof i === 'object' ? Object.keys(i).filter(k => i[k]).join(' ') : i).join(' '));
 }
 
+const STATUS_CONFIG: Record<string, { label: string; color: string; icon: any; bg: string }> = {
+  ACTIVE: { label: "Ativo", color: "text-emerald-600", bg: "bg-emerald-50", icon: CheckCircle },
+  INACTIVE: { label: "Inativo", color: "text-slate-400", bg: "bg-slate-50", icon: Clock },
+  TRIAL: { label: "Teste", color: "text-blue-600", bg: "bg-blue-50", icon: Calendar },
+  OVERDUE: { label: "Atrasado", color: "text-amber-600", bg: "bg-amber-50", icon: AlertTriangle },
+  PENDING_PAYMENT: { label: "Pendente", color: "text-purple-600", bg: "bg-purple-50", icon: DollarSign },
+  BLOCKED: { label: "Bloqueado", color: "text-red-600", bg: "bg-red-50", icon: Ban },
+};
+
 export default function SuperAdmin() {
   const [tenants, setTenants] = useState<any[]>([]);
+  const [plans, setPlans] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [showPlansModal, setShowPlansModal] = useState(false);
@@ -70,14 +80,17 @@ export default function SuperAdmin() {
     setTimeout(() => setToast(null), 3000);
   };
 
-  const loadTenants = async () => {
+  const loadData = async () => {
     try {
       setLoading(true);
-      const res = await api.get("/superadmin/tenants");
-      setTenants(Array.isArray(res.data) ? res.data : []);
+      const [tenantsRes, plansRes] = await Promise.all([
+        api.get("/superadmin/tenants"),
+        api.get("/superadmin/plans")
+      ]);
+      setTenants(Array.isArray(tenantsRes.data) ? tenantsRes.data : []);
+      setPlans(Array.isArray(plansRes.data) ? plansRes.data : []);
     } catch (err: any) {
-      showToast(err.response?.data?.error || "Erro ao carregar oficinas", "error");
-      setTenants([]);
+      showToast("Erro ao carregar dados", "error");
     } finally {
       setLoading(false);
     }
@@ -88,7 +101,7 @@ export default function SuperAdmin() {
       navigate('/');
       return;
     }
-    loadTenants();
+    loadData();
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -112,11 +125,21 @@ export default function SuperAdmin() {
         showToast("Oficina criada com sucesso");
       }
       setShowModal(false);
-      loadTenants();
+      loadData();
     } catch (err: any) {
       showToast(err.response?.data?.error || "Erro ao salvar", "error");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleUpdateField = async (tenantId: string, field: string, value: any) => {
+    try {
+      await api.patch(`/superadmin/tenants/${tenantId}`, { [field]: value });
+      showToast("Dados atualizados com sucesso");
+      loadData();
+    } catch (err: any) {
+      showToast("Erro ao atualizar", "error");
     }
   };
 
@@ -127,7 +150,7 @@ export default function SuperAdmin() {
       await api.delete(`/superadmin/tenants/${deleteModal.tenant.id}`);
       showToast("Oficina excluída com sucesso");
       setDeleteModal({ isOpen: false, tenant: null });
-      loadTenants();
+      loadData();
     } catch (err: any) {
       showToast(err.response?.data?.error || "Erro ao excluir", "error");
     } finally {
@@ -145,7 +168,7 @@ export default function SuperAdmin() {
   return (
     <div className="min-h-screen bg-[#f8fafc] flex flex-col font-sans antialiased text-slate-900">
       {/* Refined Header */}
-      <header className="bg-white border-b border-slate-200 px-4 sm:px-8 py-4 flex items-center justify-between sticky top-0 z-50">
+      <header className="bg-white border-b border-slate-200 px-4 sm:px-8 py-4 flex items-center justify-between sticky top-0 z-50 shadow-sm">
         <div className="flex items-center gap-4">
           <div className="w-10 h-10 bg-slate-900 rounded-xl flex items-center justify-center shadow-lg shadow-slate-900/10">
             <Shield className="text-white w-6 h-6" />
@@ -159,10 +182,10 @@ export default function SuperAdmin() {
         <div className="flex items-center gap-2 sm:gap-4">
           <button 
             onClick={() => setShowPlansModal(true)}
-            className="flex items-center gap-2 px-4 py-2.5 bg-slate-50 text-slate-600 hover:bg-slate-100 hover:text-slate-900 rounded-xl font-bold text-xs transition-all border border-slate-200"
+            className="flex items-center gap-2 px-4 py-2.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-xl font-bold text-xs transition-all border border-emerald-100 shadow-sm"
           >
-            <Package size={16} className="text-emerald-500" />
-            <span className="hidden sm:inline">Planos e Preços</span>
+            <Package size={16} />
+            <span className="hidden sm:inline">Tabelas de Preço</span>
           </button>
 
           <div className="h-8 w-px bg-slate-200 hidden sm:block mx-2" />
@@ -192,7 +215,7 @@ export default function SuperAdmin() {
               <span className="text-emerald-600">Dashboard Central</span>
             </div>
             <h2 className="text-3xl font-black text-slate-900 tracking-tight leading-none">Visão Geral</h2>
-            <p className="text-slate-500 font-medium">Gestão completa de oficinas, assinaturas e limites.</p>
+            <p className="text-slate-500 font-medium">Gestão completa de oficinas, assinaturas e status.</p>
           </div>
           
           <button 
@@ -246,11 +269,11 @@ export default function SuperAdmin() {
               bg: 'bg-amber-50', 
             },
             { 
-              label: 'Média por Oficina', 
-              value: tenants.length ? (tenants.reduce((acc, t) => acc + t.user_count, 0) / tenants.length).toFixed(1) : 0, 
-              icon: Shield, 
-              color: 'text-purple-600', 
-              bg: 'bg-purple-50', 
+              label: 'Inadimplentes', 
+              value: tenants.filter(t => t.status === 'OVERDUE' || t.status === 'PENDING_PAYMENT').length, 
+              icon: AlertTriangle, 
+              color: 'text-red-600', 
+              bg: 'bg-red-50', 
             },
           ].map((stat, i) => (
             <motion.div 
@@ -265,7 +288,7 @@ export default function SuperAdmin() {
                   <stat.icon size={24} />
                 </div>
                 <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest mb-1">{stat.label}</p>
-                <h3 className="text-2xl font-black text-slate-900 tabular-nums">{stat.value}</h3>
+                <h3 className="text-2xl font-black text-slate-900 tabular-nums tracking-tight">{stat.value}</h3>
               </div>
             </motion.div>
           ))}
@@ -291,301 +314,144 @@ export default function SuperAdmin() {
              </div>
           </div>
 
-          {/* Desktop Table - Hidden on small screens */}
+          {/* Desktop Table */}
           <div className="hidden lg:block overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-slate-50/50">
                   <th className="px-8 py-5 text-slate-400 font-black text-[10px] uppercase tracking-[0.2em]">Oficina / Plano</th>
-                  <th className="px-8 py-5 text-slate-400 font-black text-[10px] uppercase tracking-[0.2em] text-center">Mensalidade / Venc.</th>
-                  <th className="px-8 py-5 text-slate-400 font-black text-[10px] uppercase tracking-[0.2em] text-center">Usuários / Limite</th>
+                  <th className="px-8 py-5 text-slate-400 font-black text-[10px] uppercase tracking-[0.2em] text-center">Status de Acesso</th>
+                  <th className="px-8 py-5 text-slate-400 font-black text-[10px] uppercase tracking-[0.2em] text-center">Assinatura</th>
                   <th className="px-8 py-5 text-slate-400 font-black text-[10px] uppercase tracking-[0.2em] text-right">Ações</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {loading ? (
-                  <tr>
-                    <td colSpan={4} className="px-8 py-32 text-center">
-                      <div className="w-12 h-12 border-4 border-slate-100 border-t-emerald-600 rounded-full animate-spin mx-auto mb-4"></div>
-                      <p className="text-slate-500 font-bold">Processando dados...</p>
-                    </td>
-                  </tr>
-                ) : filteredTenants.length === 0 ? (
-                  <tr>
-                    <td colSpan={4} className="px-8 py-32 text-center">
-                      <div className="max-w-xs mx-auto space-y-3">
-                        <div className="w-16 h-16 bg-slate-50 rounded-3xl flex items-center justify-center text-slate-300 mx-auto">
-                          <Building2 size={32} />
-                        </div>
-                        <p className="text-slate-400 font-bold">Nenhuma oficina encontrada.</p>
-                      </div>
-                    </td>
-                  </tr>
-                ) : (
-                  filteredTenants.map((t, idx) => (
-                    <motion.tr 
-                      key={t.id} 
-                      initial={{ opacity: 0, x: -10 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: idx * 0.05 }}
-                      className="hover:bg-slate-50/50 transition-colors group"
-                    >
+                  <tr><td colSpan={4} className="py-32 text-center text-slate-400 font-bold">Processando dados...</td></tr>
+                ) : filteredTenants.map((t, idx) => {
+                  const StatusIcon = STATUS_CONFIG[t.status || 'ACTIVE'].icon;
+                  return (
+                    <motion.tr key={t.id} className="hover:bg-slate-50/50 transition-colors group">
                       <td className="px-8 py-6">
                         <div className="flex items-center gap-5">
-                          <div className="w-14 h-14 bg-slate-900 rounded-[1.25rem] flex items-center justify-center text-white font-black text-xl shadow-lg shadow-slate-900/10 group-hover:scale-110 transition-transform">
+                          <div className="w-14 h-14 bg-slate-900 rounded-[1.25rem] flex items-center justify-center text-white font-black text-xl shadow-lg shadow-slate-900/10">
                             {t.name.charAt(0).toUpperCase()}
                           </div>
                           <div className="space-y-1">
-                            <div className="flex items-center gap-2">
-                              <h4 className="font-black text-slate-900 text-base tracking-tight leading-none group-hover:text-emerald-600 transition-colors">
-                                {t.name}
-                              </h4>
-                              {t.plan_name && (
-                                <span className="px-2 py-0.5 bg-emerald-50 text-emerald-600 text-[9px] font-black rounded-lg uppercase tracking-wider border border-emerald-100">
-                                  {t.plan_name}
-                                </span>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-3">
-                              <span className="flex items-center gap-1.5 text-xs font-bold text-slate-400">
-                                <Phone className="w-3.5 h-3.5" /> {t.phone || 'N/A'}
-                              </span>
-                              <span className="w-1 h-1 bg-slate-300 rounded-full" />
-                              <span className="flex items-center gap-1.5 text-xs font-bold text-slate-400">
-                                <MapPin className="w-3.5 h-3.5" /> {t.city || 'N/A'}
-                              </span>
-                            </div>
+                            <h4 className="font-black text-slate-900 text-base tracking-tight leading-none">{t.name}</h4>
+                            <select 
+                              value={t.plan_id || ""} 
+                              onChange={(e) => handleUpdateField(t.id, 'plan_id', e.target.value || null)}
+                              className="text-[10px] font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-100 outline-none cursor-pointer hover:bg-emerald-100 transition-all uppercase"
+                            >
+                              <option value="">Sem Plano</option>
+                              {plans.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                            </select>
                           </div>
                         </div>
+                      </td>
+                      <td className="px-8 py-6 text-center">
+                        <select 
+                          value={t.status || 'ACTIVE'} 
+                          onChange={(e) => handleUpdateField(t.id, 'status', e.target.value)}
+                          className={cn(
+                            "inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all cursor-pointer outline-none shadow-sm",
+                            STATUS_CONFIG[t.status || 'ACTIVE'].bg,
+                            STATUS_CONFIG[t.status || 'ACTIVE'].color,
+                            "border-transparent hover:border-current"
+                          )}
+                        >
+                          {Object.entries(STATUS_CONFIG).map(([val, cfg]) => (
+                            <option key={val} value={val} className="text-slate-900 font-medium">{cfg.label}</option>
+                          ))}
+                        </select>
                       </td>
                       <td className="px-8 py-6">
                         <div className="flex flex-col items-center gap-1">
-                          <span className="text-sm font-black text-slate-900 tabular-nums">
-                            R$ {(t.subscription_value || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                          </span>
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-50 text-amber-700 text-[9px] font-black uppercase tracking-widest rounded-lg border border-amber-100">
-                            <Calendar size={10} />
-                            DIA {t.due_day || 5}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="px-8 py-6">
-                        <div className="flex flex-col items-center gap-2">
-                          <div className="flex items-end gap-1.5">
-                            <span className="text-lg font-black text-slate-900 leading-none">{t.user_count}</span>
-                            <span className="text-[10px] font-bold text-slate-300 uppercase pb-0.5">/ {t.user_limit} USERS</span>
-                          </div>
-                          <div className="w-24 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                            <motion.div 
-                              initial={{ width: 0 }}
-                              animate={{ width: `${Math.min(100, (t.user_count / t.user_limit) * 100)}%` }}
-                              className={cn(
-                                "h-full transition-all",
-                                (t.user_count / t.user_limit) > 0.9 ? 'bg-red-500' : 'bg-emerald-500'
-                              )}
-                            />
-                          </div>
+                          <span className="text-sm font-black text-slate-900 tabular-nums">R$ {(t.subscription_value || 0).toLocaleString('pt-BR')}</span>
+                          <span className="text-[10px] font-bold text-slate-400 uppercase">DIA {t.due_day || 5}</span>
                         </div>
                       </td>
                       <td className="px-8 py-6 text-right">
                         <div className="flex justify-end gap-2">
-                          <button 
-                            onClick={() => setUsersModal({ isOpen: true, tenant: t })}
-                            className="p-3 bg-white border border-slate-200 text-slate-400 hover:text-blue-600 hover:border-blue-200 hover:bg-blue-50 rounded-2xl transition-all shadow-sm"
-                            title="Ver Usuários"
-                          >
-                            <Users className="w-4.5 h-4.5" />
-                          </button>
-                          <button 
-                            onClick={() => {
-                              setEditingTenant(t);
-                              setForm({
-                                ...form,
-                                name: t.name,
-                                document: t.document || "",
-                                phone: t.phone || "",
-                                address: t.address || "",
-                                user_limit: t.user_limit,
-                                subscription_value: t.subscription_value || 0,
-                                due_day: t.due_day || 5,
-                                plan_id: t.plan_id || ""
-                              });
-                              setShowModal(true);
-                            }}
-                            className="p-3 bg-white border border-slate-200 text-slate-400 hover:text-amber-600 hover:border-amber-200 hover:bg-amber-50 rounded-2xl transition-all shadow-sm"
-                            title="Configurações"
-                          >
-                            <Edit2 className="w-4.5 h-4.5" />
-                          </button>
-                          <button 
-                            onClick={() => setDeleteModal({ isOpen: true, tenant: t })}
-                            className="p-3 bg-white border border-slate-200 text-slate-400 hover:text-red-600 hover:border-red-200 hover:bg-red-50 rounded-2xl transition-all shadow-sm"
-                            title="Excluir Oficina"
-                          >
-                            <Trash2 className="w-4.5 h-4.5" />
-                          </button>
+                          <button onClick={() => setUsersModal({ isOpen: true, tenant: t })} className="p-3 bg-white border border-slate-200 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-2xl transition-all shadow-sm"><Users size={18} /></button>
+                          <button onClick={() => { setEditingTenant(t); setForm({...form, ...t}); setShowModal(true); }} className="p-3 bg-white border border-slate-200 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-2xl transition-all shadow-sm"><Edit2 size={18} /></button>
+                          <button onClick={() => setDeleteModal({ isOpen: true, tenant: t })} className="p-3 bg-white border border-slate-200 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-2xl transition-all shadow-sm"><Trash2 size={18} /></button>
                         </div>
                       </td>
                     </motion.tr>
-                  ))
-                )}
+                  );
+                })}
               </tbody>
             </table>
           </div>
 
-          {/* Mobile Card Grid - Visible only on small screens */}
+          {/* Mobile Card Grid */}
           <div className="lg:hidden p-4 space-y-4">
-            {loading ? (
-              <div className="py-20 text-center">
-                <div className="w-10 h-10 border-4 border-slate-100 border-t-emerald-600 rounded-full animate-spin mx-auto mb-4"></div>
-                <p className="text-slate-500 font-bold">Processando...</p>
-              </div>
-            ) : filteredTenants.length === 0 ? (
-              <div className="py-20 text-center text-slate-400">
-                <p className="font-bold">Nenhuma oficina encontrada.</p>
-              </div>
-            ) : (
-              filteredTenants.map((t, idx) => (
-                <motion.div
-                  key={t.id}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: idx * 0.05 }}
-                  className="bg-slate-50/50 rounded-3xl p-5 border border-slate-100 space-y-4"
-                >
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 bg-slate-900 rounded-2xl flex items-center justify-center text-white font-black text-lg shadow-lg shadow-slate-900/10">
-                        {t.name.charAt(0).toUpperCase()}
-                      </div>
-                      <div>
-                        <div className="flex flex-wrap items-center gap-2">
-                          <h4 className="font-black text-slate-900 text-base leading-none">{t.name}</h4>
-                          {t.plan_name && (
-                            <span className="px-2 py-0.5 bg-emerald-50 text-emerald-600 text-[8px] font-black rounded-lg uppercase tracking-wider border border-emerald-100">
-                              {t.plan_name}
-                            </span>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-2 mt-1">
-                          <Phone className="w-3 h-3 text-slate-400" />
-                          <span className="text-xs font-bold text-slate-400">{t.phone || 'N/A'}</span>
-                        </div>
-                      </div>
+            {filteredTenants.map((t, idx) => (
+              <motion.div key={t.id} className="bg-slate-50/50 rounded-3xl p-5 border border-slate-100 space-y-4 shadow-sm">
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 bg-slate-900 rounded-2xl flex items-center justify-center text-white font-black text-lg shadow-lg">
+                      {t.name.charAt(0).toUpperCase()}
                     </div>
-                    <div className="flex flex-col items-end gap-1">
-                      <span className="text-sm font-black text-slate-900">R$ {(t.subscription_value || 0).toLocaleString('pt-BR')}</span>
-                      <span className="text-[9px] font-black text-amber-600 uppercase bg-amber-50 px-2 py-0.5 rounded-lg border border-amber-100">Dia {t.due_day || 5}</span>
+                    <div>
+                      <h4 className="font-black text-slate-900 text-base leading-none">{t.name}</h4>
+                      <select 
+                        value={t.plan_id || ""} 
+                        onChange={(e) => handleUpdateField(t.id, 'plan_id', e.target.value || null)}
+                        className="text-[9px] font-black text-emerald-600 bg-white px-2 py-0.5 mt-1 rounded-lg border border-emerald-100 outline-none"
+                      >
+                        <option value="">Sem Plano</option>
+                        {plans.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                      </select>
                     </div>
                   </div>
+                  <div className="text-right">
+                    <div className="text-sm font-black text-slate-900">R$ {t.subscription_value?.toLocaleString('pt-BR')}</div>
+                    <div className="text-[9px] font-bold text-slate-400">DIA {t.due_day || 5}</div>
+                  </div>
+                </div>
 
-                  <div className="flex items-center justify-between bg-white rounded-2xl p-3 border border-slate-100">
-                    <div className="flex items-center gap-2">
-                      <Users size={14} className="text-slate-400" />
-                      <span className="text-xs font-bold text-slate-600">Usuários: <span className="text-slate-900">{t.user_count}/{t.user_limit}</span></span>
-                    </div>
-                    <div className="w-32 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                      <div 
-                        className={cn(
-                          "h-full transition-all",
-                          (t.user_count / t.user_limit) > 0.9 ? 'bg-red-500' : 'bg-emerald-500'
-                        )}
-                        style={{ width: `${Math.min(100, (t.user_count / t.user_limit) * 100)}%` }}
-                      />
-                    </div>
-                  </div>
+                <div className="flex flex-col gap-2">
+                  <span className="text-[9px] font-black text-slate-400 uppercase ml-1">Status do Acesso</span>
+                  <select 
+                    value={t.status || 'ACTIVE'} 
+                    onChange={(e) => handleUpdateField(t.id, 'status', e.target.value)}
+                    className={cn(
+                      "w-full h-11 px-4 rounded-2xl text-xs font-black uppercase tracking-wider border shadow-sm outline-none transition-all",
+                      STATUS_CONFIG[t.status || 'ACTIVE'].bg,
+                      STATUS_CONFIG[t.status || 'ACTIVE'].color,
+                      "border-current/10"
+                    )}
+                  >
+                    {Object.entries(STATUS_CONFIG).map(([val, cfg]) => (
+                      <option key={val} value={val} className="text-slate-900 font-medium">{cfg.label}</option>
+                    ))}
+                  </select>
+                </div>
 
-                  <div className="flex items-center gap-2 pt-2">
-                    <button 
-                      onClick={() => setUsersModal({ isOpen: true, tenant: t })}
-                      className="flex-1 h-11 bg-white border border-slate-200 text-blue-600 rounded-xl font-bold text-xs flex items-center justify-center gap-2 shadow-sm active:bg-blue-50 transition-all"
-                    >
-                      <Users size={16} /> Usuários
-                    </button>
-                    <button 
-                      onClick={() => {
-                        setEditingTenant(t);
-                        setForm({
-                          ...form,
-                          name: t.name,
-                          document: t.document || "",
-                          phone: t.phone || "",
-                          address: t.address || "",
-                          user_limit: t.user_limit,
-                          subscription_value: t.subscription_value || 0,
-                          due_day: t.due_day || 5,
-                          plan_id: t.plan_id || ""
-                        });
-                        setShowModal(true);
-                      }}
-                      className="flex-1 h-11 bg-white border border-slate-200 text-amber-600 rounded-xl font-bold text-xs flex items-center justify-center gap-2 shadow-sm active:bg-amber-50 transition-all"
-                    >
-                      <Edit2 size={16} /> Editar
-                    </button>
-                    <button 
-                      onClick={() => setDeleteModal({ isOpen: true, tenant: t })}
-                      className="w-11 h-11 bg-white border border-slate-200 text-red-600 rounded-xl flex items-center justify-center shadow-sm active:bg-red-50 transition-all"
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  </div>
-                </motion.div>
-              ))
-            )}
+                <div className="grid grid-cols-3 gap-2 pt-2">
+                  <button onClick={() => setUsersModal({ isOpen: true, tenant: t })} className="h-12 bg-white border border-slate-200 text-blue-600 rounded-2xl font-bold text-[10px] flex items-center justify-center gap-2 shadow-sm"><Users size={16} /> USUÁRIOS</button>
+                  <button onClick={() => { setEditingTenant(t); setForm({...form, ...t}); setShowModal(true); }} className="h-12 bg-white border border-slate-200 text-amber-600 rounded-2xl font-bold text-[10px] flex items-center justify-center gap-2 shadow-sm"><Edit2 size={16} /> EDITAR</button>
+                  <button onClick={() => setDeleteModal({ isOpen: true, tenant: t })} className="h-12 bg-white border border-slate-200 text-red-600 rounded-2xl flex items-center justify-center shadow-sm"><Trash2 size={16} /></button>
+                </div>
+              </motion.div>
+            ))}
           </div>
         </div>
       </main>
 
-      <SuperAdminModal 
-        isOpen={showModal}
-        onClose={() => setShowModal(false)}
-        editingTenant={editingTenant}
-        form={form}
-        setForm={setForm}
-        onSubmit={handleSubmit}
-        saving={saving}
-      />
-
-      <PricingPlansModal 
-        isOpen={showPlansModal}
-        onClose={() => setShowPlansModal(false)}
-      />
-
-      <DeleteConfirmationModal 
-        isOpen={deleteModal.isOpen}
-        onClose={() => setDeleteModal({ isOpen: false, tenant: null })}
-        onConfirm={handleDelete}
-        title="Excluir Oficina"
-        message="Tem certeza que deseja excluir esta oficina? Todos os usuários e dados vinculados serão apagados permanentemente."
-        itemName={deleteModal.tenant?.name || ""}
-        loading={saving}
-      />
-
-      <TenantUsersModal 
-        isOpen={usersModal.isOpen}
-        onClose={() => setUsersModal({ isOpen: false, tenant: null })}
-        tenant={usersModal.tenant}
-      />
+      <SuperAdminModal isOpen={showModal} onClose={() => setShowModal(false)} editingTenant={editingTenant} form={form} setForm={setForm} onSubmit={handleSubmit} saving={saving} />
+      <PricingPlansModal isOpen={showPlansModal} onClose={() => setShowPlansModal(false)} />
+      <DeleteConfirmationModal isOpen={deleteModal.isOpen} onClose={() => setDeleteModal({ isOpen: false, tenant: null })} onConfirm={handleDelete} title="Excluir Oficina" message="Tem certeza que deseja excluir esta oficina?" itemName={deleteModal.tenant?.name || ""} loading={saving} />
+      <TenantUsersModal isOpen={usersModal.isOpen} onClose={() => setUsersModal({ isOpen: false, tenant: null })} tenant={usersModal.tenant} />
 
       {/* Notifications */}
       <AnimatePresence>
         {toast && (
-          <motion.div
-            initial={{ opacity: 0, y: 50, scale: 0.9 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 50, scale: 0.9 }}
-            className={cn(
-              "fixed bottom-8 left-1/2 -translate-x-1/2 z-[200] px-6 py-4 rounded-[1.5rem] shadow-2xl flex items-center gap-3 border",
-              toast.type === 'success' 
-                ? 'bg-slate-900 border-emerald-500/20 text-white' 
-                : 'bg-red-600 border-red-500/20 text-white'
-            )}
-          >
-            {toast.type === 'success' ? (
-              <CheckCircle className="text-emerald-400" size={20} />
-            ) : (
-              <AlertCircle className="text-red-200" size={20} />
-            )}
+          <motion.div initial={{ opacity: 0, y: 50, scale: 0.9 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 50, scale: 0.9 }} className={cn("fixed bottom-8 left-1/2 -translate-x-1/2 z-[200] px-6 py-4 rounded-[1.5rem] shadow-2xl flex items-center gap-3 border", toast.type === 'success' ? 'bg-slate-900 border-emerald-500/20 text-white' : 'bg-red-600 border-red-500/20 text-white')}>
+            {toast.type === 'success' ? <CheckCircle className="text-emerald-400" size={20} /> : <AlertCircle className="text-red-200" size={20} />}
             <span className="font-bold text-sm tracking-tight">{toast.message}</span>
           </motion.div>
         )}

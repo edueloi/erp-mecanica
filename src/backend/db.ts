@@ -31,7 +31,7 @@ export function initDb() {
       user_limit INTEGER DEFAULT 5,
       subscription_value REAL DEFAULT 0,
       due_day INTEGER DEFAULT 5,
-      status TEXT CHECK(status IN ('ACTIVE', 'INACTIVE', 'TRIAL', 'OVERDUE')) DEFAULT 'ACTIVE',
+      status TEXT CHECK(status IN ('ACTIVE', 'INACTIVE', 'TRIAL', 'OVERDUE', 'BLOCKED', 'PENDING_PAYMENT')) DEFAULT 'ACTIVE',
       plan_id TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (plan_id) REFERENCES pricing_plans(id)
