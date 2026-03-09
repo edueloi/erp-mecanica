@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import api from "../services/api";
+import { useAuthStore } from "../services/authStore";
 
 interface UserPreferences {
   id?: string;
@@ -132,17 +133,41 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
   const [preferences, setPreferences] = useState<UserPreferences>(defaultPreferences);
   const [tenantSettings, setTenantSettings] = useState<TenantSettings>({});
   const [loading, setLoading] = useState(true);
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const token = useAuthStore((state) => state.token);
 
-  // Load preferences on mount
   useEffect(() => {
-    loadPreferences();
-    loadTenantSettings();
-  }, []);
+    if (!isAuthenticated || !token) {
+      setPreferences(defaultPreferences);
+      setTenantSettings({});
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    void loadSettings();
+  }, [isAuthenticated, token]);
 
   // Apply theme whenever preferences change
   useEffect(() => {
     applyTheme();
   }, [preferences.theme_mode, preferences.primary_color]);
+
+  const loadSettings = async () => {
+    try {
+      const [preferencesResponse, tenantResponse] = await Promise.all([
+        api.get("/settings/preferences"),
+        api.get("/settings/tenant"),
+      ]);
+
+      setPreferences(preferencesResponse.data);
+      setTenantSettings(tenantResponse.data);
+    } catch (error) {
+      console.error("Error loading settings:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const loadPreferences = async () => {
     try {

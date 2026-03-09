@@ -421,7 +421,7 @@ export default function EntryPublicForm() {
                 )}
 
                 <div className="pt-2 border-t">
-                   <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Combustível</h3>
+                  <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Combustível</h3>
                    <FuelLevel value={entry.fuel_level || 'EMPTY'} onChange={(v) => handleUpdate({ fuel_level: v })} />
                 </div>
               </div>
