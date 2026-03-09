@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Building2, Users, Phone, FileText, Mail, Lock, Shield, User, Eye, EyeOff, DollarSign, Calendar, Package, MapPin, Edit2, Upload, Trash2, Key } from 'lucide-react';
+import { X, Building2, Users, Phone, FileText, Mail, Lock, Shield, User, Eye, EyeOff, DollarSign, Calendar, Package, MapPin, Edit2, Upload, Trash2, Key, UserCircle } from 'lucide-react';
 import { twMerge } from 'tailwind-merge';
 import { maskPhone, maskDocument } from '../utils/maskUtils';
 import api from '../services/api';
@@ -249,7 +249,54 @@ export default function SuperAdminModal({
                   {editingTenant ? "Administrador da Oficina" : "Administrador Inicial"}
                 </h4>
                 
-                <div className="space-y-3">
+                <div className="space-y-4">
+                  <div className="flex items-center gap-6 p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                    <div className="relative group">
+                      <div className="w-16 h-16 bg-white rounded-full border border-slate-200 flex items-center justify-center overflow-hidden shadow-sm">
+                        {form.admin_photo ? (
+                          <img src={form.admin_photo} alt="Admin Preview" className="w-full h-full object-cover" />
+                        ) : (
+                          <UserCircle className="text-slate-300" size={32} />
+                        )}
+                      </div>
+                      {form.admin_photo && (
+                        <button
+                          type="button"
+                          onClick={() => setForm({ ...form, admin_photo: "" })}
+                          className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center shadow-lg opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <Trash2 size={10} />
+                        </button>
+                      )}
+                    </div>
+                    
+                    <div className="flex-1">
+                      <p className="text-xs font-bold text-slate-700 mb-2">Foto do Administrador</p>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const input = document.createElement('input');
+                          input.type = 'file';
+                          input.accept = 'image/*';
+                          input.onchange = (e: any) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              const reader = new FileReader();
+                              reader.onloadend = () => {
+                                setForm({ ...form, admin_photo: reader.result as string });
+                              };
+                              reader.readAsDataURL(file);
+                            }
+                          };
+                          input.click();
+                        }}
+                        className="px-3 py-1.5 bg-white border border-slate-200 text-slate-700 rounded-lg text-[10px] font-black hover:bg-slate-50 transition-all shadow-sm flex items-center gap-2 uppercase"
+                      >
+                        <Upload size={12} /> Alterar Foto
+                      </button>
+                    </div>
+                  </div>
+
                   <div>
                     <label className="block text-xs font-bold text-slate-700 mb-1 ml-1">Nome do Responsável</label>
                     <div className="relative">

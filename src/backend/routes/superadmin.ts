@@ -31,18 +31,23 @@ router.get("/tenants", requireAdminOrSeller, (req: AuthRequest, res) => {
     let query = `
       SELECT t.*, 
              p.name as plan_name,
-             (SELECT COUNT(*) FROM users WHERE tenant_id = t.id) as user_count
+             p.months_duration as plan_duration,
+             (SELECT COUNT(*) FROM users WHERE tenant_id = t.id) as user_count,
+             u.name as admin_name,
+             u.email as admin_email,
+             u.photo_url as admin_photo
       FROM tenants t
       LEFT JOIN pricing_plans p ON t.plan_id = p.id
+      LEFT JOIN users u ON u.tenant_id = t.id AND u.role = 'ADMIN'
     `;
     
     // Se for vendedor, vê apenas os dele
     if (req.user?.role === 'VENDEDOR') {
-      query += ` WHERE t.seller_id = ? ORDER BY t.created_at DESC`;
+      query += ` WHERE t.seller_id = ? GROUP BY t.id ORDER BY t.created_at DESC`;
       const tenants = db.prepare(query).all(req.user.id);
       return res.json(tenants);
     } else {
-      query += ` ORDER BY t.created_at DESC`;
+      query += ` GROUP BY t.id ORDER BY t.created_at DESC`;
       const tenants = db.prepare(query).all();
       return res.json(tenants);
     }
@@ -52,7 +57,7 @@ router.get("/tenants", requireAdminOrSeller, (req: AuthRequest, res) => {
 });
 
 router.post("/tenants", requireAdminOrSeller, (req: AuthRequest, res) => {
-  const { name, document, phone, address, user_limit, subscription_value, due_day, plan_id, logo_url, admin_name, admin_email, admin_password } = req.body;
+  const { name, document, phone, address, user_limit, subscription_value, due_day, plan_id, logo_url, admin_name, admin_email, admin_password, admin_photo } = req.body;
   const tenantId = uuidv4();
   const userId = uuidv4();
   const sellerId = req.user?.role === 'VENDEDOR' ? req.user.id : null;
@@ -68,9 +73,9 @@ router.post("/tenants", requireAdminOrSeller, (req: AuthRequest, res) => {
       // 2. Create Tenant Admin User
       const hash = bcrypt.hashSync(admin_password || '123456', 10);
       db.prepare(`
-        INSERT INTO users (id, tenant_id, name, email, password, role)
-        VALUES (?, ?, ?, ?, ?, 'ADMIN')
-      `).run(userId, tenantId, admin_name, admin_email, hash);
+        INSERT INTO users (id, tenant_id, name, email, password, role, photo_url)
+        VALUES (?, ?, ?, ?, ?, 'ADMIN', ?)
+      `).run(userId, tenantId, admin_name, admin_email, hash, admin_photo || null);
 
       // 3. Log Audit (Creation)
       db.prepare(`
@@ -88,7 +93,7 @@ router.post("/tenants", requireAdminOrSeller, (req: AuthRequest, res) => {
 
 router.patch("/tenants/:id", requireAdminOrSeller, (req: AuthRequest, res) => {
   const { id } = req.params;
-  const { status, payment_date, payment_method, admin_name, admin_email, admin_password, ...otherFields } = req.body;
+  const { status, payment_date, payment_method, admin_name, admin_email, admin_password, admin_photo, ...otherFields } = req.body;
 
   try {
     // Vendedor só pode alterar as próprias oficinas
@@ -123,11 +128,12 @@ router.patch("/tenants/:id", requireAdminOrSeller, (req: AuthRequest, res) => {
       }
 
       // Atualizar dados do Admin local se fornecido
-      if (admin_name || admin_email || admin_password) {
+      if (admin_name || admin_email || admin_password || admin_photo !== undefined) {
         const adminUser = db.prepare("SELECT id FROM users WHERE tenant_id = ? AND role = 'ADMIN' LIMIT 1").get(id) as any;
         if (adminUser) {
           if (admin_name) db.prepare("UPDATE users SET name = ? WHERE id = ?").run(admin_name, adminUser.id);
           if (admin_email) db.prepare("UPDATE users SET email = ? WHERE id = ?").run(admin_email, adminUser.id);
+          if (admin_photo !== undefined) db.prepare("UPDATE users SET photo_url = ? WHERE id = ?").run(admin_photo, adminUser.id);
           if (admin_password) {
             const hash = bcrypt.hashSync(admin_password, 10);
             db.prepare("UPDATE users SET password = ? WHERE id = ?").run(hash, adminUser.id);
@@ -161,7 +167,7 @@ router.delete("/tenants/:id", requireSuperAdmin, (req: AuthRequest, res) => {
 router.get("/tenants/:id/logs", requireAdminOrSeller, (req: AuthRequest, res) => {
   try {
     const logs = db.prepare(`
-      SELECT l.*, u.name as user_name
+      SELECT l.*, u.name as user_name, u.email as user_email, u.photo_url as user_photo
       FROM tenant_audit_logs l
       LEFT JOIN users u ON l.user_id = u.id
       WHERE l.tenant_id = ?

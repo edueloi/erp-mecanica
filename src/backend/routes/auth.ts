@@ -55,6 +55,7 @@ router.post("/login", async (req, res) => {
         role: user.role,
         tenant_id: user.tenant_id,
         tenant_name: tenant.name,
+        photo_url: user.photo_url,
         permissions: typeof user.permissions === 'string' ? JSON.parse(user.permissions) : user.permissions
       }
     });

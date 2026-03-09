@@ -90,10 +90,33 @@ export default function SuperAdmin() {
   const user = useAuthStore(state => state.user);
   const isVendedor = user?.role === 'VENDEDOR';
 
-  // Formulário para Parceiro
   const [form, setForm] = useState({
-    name: "", document: "", phone: "", address: "", user_limit: 5, subscription_value: 0, due_day: 5, plan_id: "", logo_url: "", admin_name: "", admin_email: "", admin_password: ""
+    name: "", document: "", phone: "", address: "", user_limit: 5, subscription_value: 0, due_day: 5, plan_id: "", logo_url: "", admin_name: "", admin_email: "", admin_password: "", admin_photo: ""
   });
+
+  useEffect(() => {
+    if (editingTenant) {
+      setForm({
+        name: editingTenant.name || "",
+        document: editingTenant.document || "",
+        phone: editingTenant.phone || "",
+        address: editingTenant.address || "",
+        user_limit: editingTenant.user_limit || 5,
+        subscription_value: editingTenant.subscription_value || 0,
+        due_day: editingTenant.due_day || 5,
+        plan_id: editingTenant.plan_id || "",
+        logo_url: editingTenant.logo_url || "",
+        admin_name: editingTenant.admin_name || "",
+        admin_email: editingTenant.admin_email || "",
+        admin_password: "",
+        admin_photo: editingTenant.admin_photo || ""
+      });
+    } else {
+      setForm({
+        name: "", document: "", phone: "", address: "", user_limit: 5, subscription_value: 0, due_day: 5, plan_id: "", logo_url: "", admin_name: "", admin_email: "", admin_password: "", admin_photo: ""
+      });
+    }
+  }, [editingTenant]);
 
   // Formulário para Membro da Equipe
   const [teamForm, setTeamForm] = useState({
@@ -144,6 +167,13 @@ export default function SuperAdmin() {
     const diffMonths = Math.floor(diffDays / 30);
     if (diffMonths < 12) return `${diffMonths} ${diffMonths === 1 ? 'mês' : 'meses'}`;
     return `${Math.floor(diffMonths / 12)} anos`;
+  };
+
+  const calculateExpirationDate = (lastPaymentDate: string, durationMonths: number) => {
+    if (!lastPaymentDate) return "Não Ativado";
+    const date = new Date(lastPaymentDate);
+    date.setMonth(date.getMonth() + (durationMonths || 1));
+    return date.toLocaleDateString('pt-BR');
   };
 
   const stats = useMemo(() => {
@@ -376,9 +406,27 @@ export default function SuperAdmin() {
                           {Object.entries(STATUS_CONFIG).map(([val, cfg]) => (<option key={val} value={val}>{cfg.label}</option>))}
                         </select>
                       </div>
+
+                      <div className="grid grid-cols-2 gap-3 mb-4">
+                        <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                          <p className="text-[7px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Membro desde</p>
+                          <div className="flex items-center gap-1.5">
+                            <Calendar size={10} className="text-slate-400" />
+                            <p className="text-[9px] font-bold text-slate-700">{new Date(t.created_at).toLocaleDateString('pt-BR')}</p>
+                          </div>
+                        </div>
+                        <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                          <p className="text-[7px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Validade</p>
+                          <div className="flex items-center gap-1.5">
+                            <Clock size={10} className="text-emerald-500" />
+                            <p className="text-[9px] font-bold text-emerald-600">{calculateExpirationDate(t.last_payment_date, t.plan_duration)}</p>
+                          </div>
+                        </div>
+                      </div>
+
                       <div className="flex gap-1.5 mt-auto pt-4 border-t border-slate-50">
                         <button onClick={() => loadTenantLogs(t)} className="w-8 h-8 bg-slate-50 text-slate-500 rounded-lg flex items-center justify-center hover:bg-slate-100 border border-slate-200"><History size={14} /></button>
-                        <button onClick={() => setUsersModal({ isOpen: true, tenant: t })} className="flex-1 h-8 bg-slate-50 text-slate-600 rounded-lg text-[9px] font-black uppercase flex items-center justify-center gap-1 border border-slate-200"><Users size={12} /> Users</button>
+                        <button onClick={() => setUsersModal({ isOpen: true, tenant: t })} className="flex-1 h-8 bg-slate-50 text-slate-600 rounded-lg text-[9px] font-black uppercase flex items-center justify-center gap-1 border border-slate-200"><Users size={12} /> Usuários</button>
                         <button onClick={() => { setEditingTenant(t); setShowModal(true); }} className="flex-1 h-8 bg-slate-900 text-white rounded-lg text-[9px] font-black uppercase flex items-center justify-center gap-1"><Edit2 size={12} /> Editar</button>
                         <button onClick={() => setDeleteModal({ isOpen: true, tenant: t })} className="w-8 h-8 bg-red-50 text-red-500 rounded-lg flex items-center justify-center border border-red-100"><Trash2 size={14} /></button>
                       </div>
@@ -405,6 +453,110 @@ export default function SuperAdmin() {
                 </div>
               </div>
             )}
+
+            {activeTab === 'plans' && (
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-xl font-black text-slate-900 uppercase">Planos de Preços</h2>
+                  <button onClick={() => setShowPlansModal(true)} className="h-10 px-5 bg-slate-900 text-white rounded-xl font-black text-[10px] uppercase flex items-center gap-2 hover:bg-emerald-600 transition-all shadow-md">
+                    <Plus size={14} /> Gerenciar Planos
+                  </button>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {plans.map((p) => (
+                    <div key={p.id} className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm relative overflow-hidden group">
+                      <div className="absolute top-0 right-0 p-4">
+                        <div className={cn("px-2 py-1 rounded-lg text-[8px] font-black uppercase", p.active ? "bg-emerald-50 text-emerald-600" : "bg-slate-50 text-slate-400")}>
+                          {p.active ? "Ativo" : "Inativo"}
+                        </div>
+                      </div>
+                      
+                      <div className="mb-6">
+                        <h3 className="text-lg font-black text-slate-900 uppercase">{p.name}</h3>
+                        <p className="text-xs text-slate-500 font-medium mt-1">{p.description || "Sem descrição"}</p>
+                      </div>
+                      
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between p-3 bg-slate-50 rounded-2xl border border-slate-100">
+                          <div className="flex items-center gap-2">
+                            <Users size={14} className="text-slate-400" />
+                            <span className="text-[10px] font-black text-slate-600 uppercase">Usuários</span>
+                          </div>
+                          <span className="text-sm font-black text-slate-900">{p.user_limit}</span>
+                        </div>
+                        
+                        <div className="flex items-center justify-between p-3 bg-slate-50 rounded-2xl border border-slate-100">
+                          <div className="flex items-center gap-2">
+                            <Clock size={14} className="text-slate-400" />
+                            <span className="text-[10px] font-black text-slate-600 uppercase">Duração</span>
+                          </div>
+                          <span className="text-sm font-black text-slate-900">{p.months_duration} {p.months_duration === 1 ? 'mês' : 'meses'}</span>
+                        </div>
+                        
+                        <div className="pt-4 border-t border-slate-100">
+                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Valor Mensal</p>
+                          <h4 className="text-2xl font-black text-emerald-600">R$ {p.monthly_value.toLocaleString('pt-BR')}</h4>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+
+            {activeTab === 'profile' && (
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-xl font-black text-slate-900 uppercase">Meu Perfil</h2>
+                </div>
+                
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  <div className="lg:col-span-1 space-y-6">
+                    <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm text-center">
+                      <div className="relative inline-block mb-4">
+                        <div className="w-24 h-24 rounded-3xl bg-slate-100 border border-slate-200 flex items-center justify-center overflow-hidden">
+                          {user?.photo_url ? (
+                            <img src={user.photo_url} alt={user.name} className="w-full h-full object-cover" />
+                          ) : (
+                            <UserCircle className="text-slate-300" size={48} />
+                          )}
+                        </div>
+                        <button className="absolute -bottom-2 -right-2 w-8 h-8 bg-slate-900 text-white rounded-xl flex items-center justify-center shadow-lg hover:bg-emerald-600 transition-all border-4 border-white">
+                          <Plus size={14} />
+                        </button>
+                      </div>
+                      <h3 className="text-lg font-black text-slate-900 uppercase">{user?.name}</h3>
+                      <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mt-1">{user?.role}</p>
+                    </div>
+                    
+                    <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
+                      <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Segurança</h4>
+                      <button className="w-full h-12 bg-slate-50 text-slate-600 rounded-xl font-black text-[10px] uppercase flex items-center justify-center gap-2 hover:bg-slate-100 border border-slate-200 transition-all">
+                        <Shield size={14} /> Alterar Senha
+                      </button>
+                    </div>
+                  </div>
+                  
+                  <div className="lg:col-span-2">
+                    <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm space-y-6">
+                      <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Dados Pessoais</h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Nome Completo</label>
+                          <input disabled value={user?.name} className="w-full h-12 bg-slate-50 border border-slate-200 rounded-xl px-4 text-sm font-bold text-slate-500" />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[10px] font-black text-slate-400 uppercase ml-1">E-mail</label>
+                          <input disabled value={user?.email} className="w-full h-12 bg-slate-50 border border-slate-200 rounded-xl px-4 text-sm font-bold text-slate-500" />
+                        </div>
+                      </div>
+                      <p className="text-[9px] text-slate-400 italic">Dica: Para alterar seus dados, contate o administrador do sistema raiz.</p>
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            )}
           </div>
         </div>
 
@@ -412,20 +564,62 @@ export default function SuperAdmin() {
           {historyDrawer.isOpen && (
             <>
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setHistoryDrawer({ ...historyDrawer, isOpen: false })} className="absolute inset-0 bg-slate-900/40 backdrop-blur-xs z-[100]" />
-              <motion.div initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} className="absolute right-0 top-0 h-full w-full sm:w-[400px] lg:w-[30%] bg-white shadow-2xl z-[110] border-l border-slate-100 flex flex-col">
+              <motion.div initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} className="absolute right-0 top-0 h-full w-full sm:w-[400px] lg:w-[35%] bg-white shadow-2xl z-[110] border-l border-slate-100 flex flex-col">
                 <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50">
-                  <h3 className="font-black text-sm uppercase">Audit Logs</h3>
-                  <button onClick={() => setHistoryDrawer({ ...historyDrawer, isOpen: false })}><X size={20} /></button>
+                  <div>
+                    <h3 className="font-black text-sm uppercase">Histórico de Auditoria</h3>
+                    <p className="text-[10px] text-slate-500 font-bold uppercase mt-0.5">{historyDrawer.tenant?.name}</p>
+                  </div>
+                  <button onClick={() => setHistoryDrawer({ ...historyDrawer, isOpen: false })} className="w-8 h-8 rounded-full hover:bg-slate-200 flex items-center justify-center transition-colors"><X size={20} /></button>
                 </div>
                 <div className="flex-1 overflow-y-auto p-6 space-y-6">
-                  {(historyDrawer.logs || []).map((log) => (
-                    <div key={log.id} className="relative pl-8 border-l-2 border-slate-100">
-                      <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-emerald-500 border-4 border-white shadow-sm" />
-                      <p className="text-[10px] font-black text-slate-900 uppercase">{log.action_type}</p>
-                      <p className="text-[9px] text-slate-500">{log.description}</p>
-                      <p className="text-[8px] font-black text-slate-400 mt-1">{new Date(log.created_at).toLocaleString()}</p>
+                  {historyDrawer.logs.length === 0 ? (
+                    <div className="text-center py-20">
+                      <History size={40} className="mx-auto text-slate-200 mb-4" />
+                      <p className="text-slate-400 font-bold text-xs uppercase">Nenhum registro encontrado</p>
                     </div>
-                  ))}
+                  ) : (
+                    historyDrawer.logs.map((log) => (
+                      <div key={log.id} className="relative pl-10 border-l-2 border-slate-100 pb-2">
+                        <div className="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-white border-2 border-emerald-500 shadow-sm flex items-center justify-center">
+                          <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                        </div>
+                        
+                        <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100 hover:border-emerald-200 transition-all group">
+                          <div className="flex items-center gap-3 mb-3 pb-3 border-b border-slate-200/60">
+                            <div className="w-10 h-10 rounded-full bg-white border border-slate-200 flex items-center justify-center overflow-hidden shrink-0 shadow-sm">
+                              {log.user_photo ? (
+                                <img src={log.user_photo} className="w-full h-full object-cover" />
+                              ) : (
+                                <UserCircle className="text-slate-300" size={24} />
+                              )}
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-[10px] font-black text-slate-900 uppercase truncate">{log.user_name || 'Sistema'}</p>
+                              <p className="text-[9px] font-bold text-slate-400 truncate">{log.user_email || 'automático'}</p>
+                            </div>
+                          </div>
+
+                          <div className="space-y-1">
+                            <p className="text-[10px] font-black text-emerald-600 uppercase tracking-wider">{log.action_type}</p>
+                            <p className="text-[11px] text-slate-600 font-medium leading-relaxed">{log.description}</p>
+                          </div>
+
+                          <div className="mt-3 flex items-center justify-between">
+                            <div className="flex items-center gap-1 text-slate-400">
+                              <Clock size={10} />
+                              <span className="text-[8px] font-black uppercase">{new Date(log.created_at).toLocaleString('pt-BR')}</span>
+                            </div>
+                            {log.payment_method && (
+                              <div className="px-2 py-0.5 bg-emerald-100 text-emerald-700 rounded-md text-[8px] font-black uppercase">
+                                {log.payment_method}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  )}
                 </div>
               </motion.div>
             </>

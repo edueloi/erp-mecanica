@@ -8,6 +8,7 @@ interface User {
   tenant_id: string;
   tenant_name: string;
   permissions?: any;
+  photo_url?: string;
 }
 
 interface AuthState {
