@@ -33,7 +33,8 @@ import {
   Wallet,
   Zap,
   Layers,
-  Briefcase
+  Briefcase,
+  Menu
 } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuthStore } from "../services/authStore";
@@ -85,6 +86,7 @@ export default function SuperAdmin() {
   const [activationModal, setActivationModal] = useState<{ isOpen: boolean; tenant: any | null; payment_method: string; payment_date: string }>({ 
     isOpen: false, tenant: null, payment_method: 'PIX', payment_date: new Date().toISOString().split('T')[0] 
   });
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const logout = useAuthStore(state => state.logout);
   const user = useAuthStore(state => state.user);
@@ -311,43 +313,83 @@ export default function SuperAdmin() {
   ].filter(Boolean) as any[];
 
   return (
-    <div className="min-h-screen bg-[#f8fafc] flex font-sans antialiased text-slate-900 overflow-hidden h-screen">
-      <aside className="w-20 lg:w-60 bg-slate-900 text-white flex flex-col shrink-0 relative z-30 transition-all duration-300 shadow-2xl">
-        <div className="p-4 lg:p-6 text-center lg:text-left">
-          <div className="flex items-center lg:items-start gap-3 mb-8 justify-center lg:justify-start">
+    <div className="min-h-screen bg-[#f8fafc] flex font-sans antialiased text-slate-900 overflow-hidden h-screen relative">
+      {/* Mobile Sidebar Overlay */}
+      <AnimatePresence>
+        {isSidebarOpen && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-40 lg:hidden"
+            onClick={() => setIsSidebarOpen(false)}
+          />
+        )}
+      </AnimatePresence>
+
+      <aside className={cn(
+        "fixed inset-y-0 left-0 w-64 bg-slate-900 text-white flex flex-col z-50 transform transition-transform duration-300 shadow-2xl lg:relative lg:translate-x-0 lg:w-60 lg:z-30",
+        isSidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
+      )}>
+        <div className="p-6 flex items-center justify-between lg:justify-start gap-3 border-b border-slate-800 lg:border-none mb-4 lg:mb-8">
+          <div className="flex items-center gap-3">
             <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center shadow-lg shrink-0", isVendedor ? "bg-blue-500" : "bg-emerald-500")}>
               {isVendedor ? <TrendingUp className="text-white" size={22} /> : <Shield className="text-white" size={22} />}
             </div>
-            <div className="hidden lg:block overflow-hidden">
+            <div className="overflow-hidden">
               <h1 className="font-black text-base leading-none tracking-tight uppercase italic">MecaERP</h1>
               <p className={cn("text-[8px] font-black uppercase tracking-widest mt-1", isVendedor ? "text-blue-400" : "text-emerald-400")}>
                 {isVendedor ? 'Vendedor' : 'Super Admin'}
               </p>
             </div>
           </div>
+          <button onClick={() => setIsSidebarOpen(false)} className="lg:hidden p-2 hover:bg-slate-800 rounded-xl transition-colors">
+            <X size={20} />
+          </button>
+        </div>
+
+        <div className="px-4 flex-1">
           <nav className="space-y-1">
             {navItems.map((item) => (
-              <button key={item.id} onClick={() => navigate(`/superadmin/${item.id}`)} className={cn("w-full flex items-center gap-3 px-3 py-3 rounded-xl font-bold text-xs transition-all group", activeTab === item.id ? (isVendedor ? "bg-blue-50 text-blue-600 shadow-md" : "bg-emerald-50 text-emerald-600 shadow-md") : "text-slate-400 hover:bg-slate-800 hover:text-white")}>
+              <button 
+                key={item.id} 
+                onClick={() => {
+                  navigate(`/superadmin/${item.id}`);
+                  setIsSidebarOpen(false);
+                }} 
+                className={cn(
+                  "w-full flex items-center gap-3 px-4 py-3 rounded-xl font-bold text-xs transition-all group", 
+                  activeTab === item.id 
+                    ? (isVendedor ? "bg-blue-50 text-blue-600 shadow-md" : "bg-emerald-50 text-emerald-600 shadow-md") 
+                    : "text-slate-400 hover:bg-slate-800 hover:text-white"
+                )}
+              >
                 <item.icon size={18} className={activeTab === item.id ? (isVendedor ? "text-blue-600" : "text-emerald-600") : "text-slate-500 group-hover:text-white"} />
-                <span className="hidden lg:block uppercase tracking-wider">{item.label}</span>
+                <span className="uppercase tracking-wider">{item.label}</span>
               </button>
             ))}
           </nav>
         </div>
+
         <div className="mt-auto p-4 border-t border-slate-800">
-          <button onClick={() => { logout(); navigate('/login'); }} className="flex items-center justify-center lg:justify-start gap-3 w-full px-3 py-3 text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded-xl transition-all font-bold text-[10px] uppercase tracking-widest"><LogOut size={18} /><span className="hidden lg:block">Sair</span></button>
+          <button onClick={() => { logout(); navigate('/login'); }} className="flex items-center gap-3 w-full px-4 py-3 text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded-xl transition-all font-bold text-xs uppercase tracking-widest"><LogOut size={18} /><span>Sair</span></button>
         </div>
       </aside>
 
-      <main className="flex-1 flex flex-col min-w-0 bg-[#f8fafc] overflow-hidden relative">
-        <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-6 shrink-0 relative z-20">
-          <div className="flex items-center gap-2 text-[9px] font-black text-slate-400 uppercase tracking-widest">
-            <span className={cn("italic font-black", isVendedor ? "text-blue-600" : "text-emerald-600")}>{isVendedor ? 'Sales' : 'Root'}</span>
-            <ChevronRight size={10} /><span className="text-slate-900">{activeTab}</span>
+      <main className="flex-1 flex flex-col min-w-0 bg-[#f8fafc] overflow-hidden relative w-full">
+        <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 lg:px-6 shrink-0 relative z-20">
+          <div className="flex items-center gap-4">
+            <button onClick={() => setIsSidebarOpen(true)} className="lg:hidden p-2 hover:bg-slate-100 rounded-xl text-slate-600 transition-all">
+              <Menu size={24} />
+            </button>
+            <div className="flex items-center gap-2 text-[9px] font-black text-slate-400 uppercase tracking-widest">
+              <span className={cn("italic font-black", isVendedor ? "text-blue-600" : "text-emerald-600")}>{isVendedor ? 'Sales' : 'Root'}</span>
+              <ChevronRight size={10} /><span className="text-slate-900">{activeTab}</span>
+            </div>
           </div>
         </header>
 
-        <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
+        <div className="flex-1 overflow-y-auto p-4 lg:p-6 custom-scrollbar">
           <div className="max-w-7xl mx-auto space-y-6 pb-20">
             {activeTab === 'dashboard' && (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
@@ -363,7 +405,7 @@ export default function SuperAdmin() {
                     </div>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                     {[
                       { label: 'MRR Total', value: `R$ ${stats.totalMRR.toLocaleString('pt-BR')}`, icon: DollarSign, color: 'emerald' },
                       { label: 'Unidades', value: stats.activeTenants, icon: Building2, color: 'purple' },
@@ -387,7 +429,10 @@ export default function SuperAdmin() {
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
                 <div className="flex items-center justify-between">
                   <h2 className="text-xl font-black text-slate-900 uppercase">Parceiros</h2>
-                  <button onClick={() => { setEditingTenant(null); setShowModal(true); }} className="h-10 px-5 bg-slate-900 text-white rounded-xl font-black text-[10px] uppercase flex items-center gap-2 hover:bg-emerald-600 transition-all shadow-md"><Plus size={14} /> Novo Cadastro</button>
+                  <button onClick={() => { setEditingTenant(null); setShowModal(true); }} className="h-10 px-3 lg:px-5 bg-slate-900 text-white rounded-xl font-black text-[10px] uppercase flex items-center gap-2 hover:bg-emerald-600 transition-all shadow-md">
+                    <Plus size={14} /> 
+                    <span className="hidden sm:inline">Novo Cadastro</span>
+                  </button>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                   {filteredTenants.map((t) => (
@@ -424,11 +469,11 @@ export default function SuperAdmin() {
                         </div>
                       </div>
 
-                      <div className="flex gap-1.5 mt-auto pt-4 border-t border-slate-50">
-                        <button onClick={() => loadTenantLogs(t)} className="w-8 h-8 bg-slate-50 text-slate-500 rounded-lg flex items-center justify-center hover:bg-slate-100 border border-slate-200"><History size={14} /></button>
-                        <button onClick={() => setUsersModal({ isOpen: true, tenant: t })} className="flex-1 h-8 bg-slate-50 text-slate-600 rounded-lg text-[9px] font-black uppercase flex items-center justify-center gap-1 border border-slate-200"><Users size={12} /> Usuários</button>
-                        <button onClick={() => { setEditingTenant(t); setShowModal(true); }} className="flex-1 h-8 bg-slate-900 text-white rounded-lg text-[9px] font-black uppercase flex items-center justify-center gap-1"><Edit2 size={12} /> Editar</button>
-                        <button onClick={() => setDeleteModal({ isOpen: true, tenant: t })} className="w-8 h-8 bg-red-50 text-red-500 rounded-lg flex items-center justify-center border border-red-100"><Trash2 size={14} /></button>
+                      <div className="flex gap-1 mt-auto pt-4 border-t border-slate-50">
+                        <button onClick={() => loadTenantLogs(t)} title="Histórico" className="w-8 h-8 bg-slate-50 text-slate-500 rounded-lg flex items-center justify-center hover:bg-slate-100 border border-slate-200 shrink-0"><History size={14} /></button>
+                        <button onClick={() => setUsersModal({ isOpen: true, tenant: t })} className="flex-1 h-8 bg-slate-50 text-slate-600 rounded-lg text-[8px] font-black uppercase flex items-center justify-center gap-1 border border-slate-200 px-1"><Users size={12} /><span className="hidden sm:inline">Usuários</span></button>
+                        <button onClick={() => { setEditingTenant(t); setShowModal(true); }} className="flex-1 h-8 bg-slate-900 text-white rounded-lg text-[8px] font-black uppercase flex items-center justify-center gap-1 px-1"><Edit2 size={12} /><span className="hidden sm:inline">Editar</span></button>
+                        <button onClick={() => setDeleteModal({ isOpen: true, tenant: t })} title="Excluir" className="w-8 h-8 bg-red-50 text-red-500 rounded-lg flex items-center justify-center border border-red-100 shrink-0"><Trash2 size={14} /></button>
                       </div>
                     </div>
                   ))}
