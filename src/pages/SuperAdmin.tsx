@@ -651,13 +651,13 @@ export default function SuperAdmin() {
 
       <main className="flex-1 flex flex-col min-w-0 bg-[#f8fafc] overflow-hidden relative w-full">
         <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 lg:px-6 shrink-0 relative z-20">
-          <div className="flex items-center gap-4">
-            <button onClick={() => setIsSidebarOpen(true)} className="lg:hidden p-2 hover:bg-slate-100 rounded-xl text-slate-600 transition-all">
-              <Menu size={24} />
+          <div className="flex items-center gap-3 overflow-hidden">
+            <button onClick={() => setIsSidebarOpen(true)} className="lg:hidden p-2 hover:bg-slate-100 rounded-xl text-slate-600 transition-all shrink-0">
+              <Menu size={20} />
             </button>
-            <div className="flex items-center gap-2 text-[9px] font-black text-slate-400 uppercase tracking-widest">
-              <span className={cn("italic font-black", isVendedor ? "text-blue-600" : "text-emerald-600")}>{isVendedor ? 'Sales' : 'Root'}</span>
-              <ChevronRight size={10} /><span className="text-slate-900">{activeTab}</span>
+            <div className="flex items-center gap-1.5 text-[8px] sm:text-[9px] font-black text-slate-400 uppercase tracking-widest truncate">
+              <span className={cn("italic font-black hidden sm:inline", isVendedor ? "text-blue-600" : "text-emerald-600")}>{isVendedor ? 'Sales' : 'Root'}</span>
+              <ChevronRight size={10} className="hidden sm:inline" /><span className="text-slate-900 truncate">{activeTab}</span>
             </div>
           </div>
 
@@ -736,11 +736,11 @@ export default function SuperAdmin() {
                             </h3>
                             <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mt-1">Crescimento Mensal nos últimos 6 meses</p>
                         </div>
-                        <div className="flex gap-2 text-[10px] font-black uppercase">
+                        <div className="flex flex-wrap gap-2 text-[10px] font-black uppercase">
                             <span className="px-3 py-1 bg-slate-100 rounded-lg text-slate-500">6 Meses</span>
                         </div>
                     </div>
-                    <div className="h-[250px] sm:h-[300px] w-full">
+                    <div className="h-[200px] sm:h-[300px] w-full">
                         <ResponsiveContainer width="100%" height="100%">
                             <AreaChart data={stats.monthlyData}>
                                 <defs>
@@ -871,14 +871,26 @@ export default function SuperAdmin() {
 
             {activeTab === 'workshops' && (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div>
-                    <h2 className="text-xl font-black text-slate-900 uppercase">Gestão de Parceiros</h2>
+                    <h2 className="text-xl font-black text-slate-900 uppercase italic">Gestão de Parceiros</h2>
                     <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Total de {filteredTenants.length} oficinas cadastradas</p>
                   </div>
-                  <button onClick={() => { setEditingTenant(null); setShowModal(true); }} className="h-10 px-6 bg-slate-900 text-white rounded-xl font-black text-[10px] uppercase flex items-center gap-2 hover:bg-emerald-600 transition-all shadow-lg shadow-slate-900/10">
-                    <Plus size={16} /> Novo Cadastro
-                  </button>
+                  <div className="flex items-center gap-2 w-full sm:w-auto">
+                    <div className="relative flex-1 sm:w-64">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                      <input 
+                        type="text"
+                        placeholder="Buscar parceiro..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="w-full h-10 pl-9 pr-4 bg-white border border-slate-200 rounded-xl text-xs font-bold focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all"
+                      />
+                    </div>
+                    <button onClick={() => { setEditingTenant(null); setShowModal(true); }} className="h-10 px-4 sm:px-6 bg-slate-900 text-white rounded-xl font-black text-[10px] uppercase flex items-center gap-2 hover:bg-emerald-600 transition-all shadow-lg shrink-0">
+                      <Plus size={16} /> <span className="hidden sm:inline">Novo</span>
+                    </button>
+                  </div>
                 </div>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
@@ -1117,12 +1129,12 @@ export default function SuperAdmin() {
 
             {activeTab === 'plans' && (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div>
-                    <h2 className="text-xl font-black text-slate-900 uppercase">Planos de Assinatura</h2>
+                    <h2 className="text-xl font-black text-slate-900 uppercase italic">Planos de Assinatura</h2>
                     <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Configurações globais de precificação</p>
                   </div>
-                  <button onClick={() => setShowPlansModal(true)} className="h-10 px-5 bg-slate-900 text-white rounded-xl font-black text-[10px] uppercase flex items-center gap-2 hover:bg-emerald-600 transition-all shadow-md">
+                  <button onClick={() => setShowPlansModal(true)} className="h-10 px-5 bg-slate-900 text-white rounded-xl font-black text-[10px] uppercase flex items-center gap-2 hover:bg-emerald-600 transition-all shadow-md w-full sm:w-auto justify-center">
                     <Plus size={14} /> Gerenciar Planos
                   </button>
                 </div>
