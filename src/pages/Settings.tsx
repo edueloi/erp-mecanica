@@ -26,6 +26,9 @@ import {
   Image as ImageIcon,
   FileCheck,
   TestTube,
+  Plus,
+  Trash2,
+  Edit2,
 } from "lucide-react";
 import { useSettings } from "../contexts/SettingsContext";
 import * as ibgeService from "../services/ibgeService";
@@ -82,6 +85,43 @@ export default function Settings() {
     confirm_password: "",
   });
   const [showPasswords, setShowPasswords] = useState(false);
+  
+  // User Management states
+  const [usersList, setUsersList] = useState<any[]>([]);
+  const [showUserModal, setShowUserModal] = useState(false);
+  const [editingUser, setEditingUser] = useState<any | null>(null);
+  const [userForm, setUserForm] = useState({
+    name: "",
+    email: "",
+    password: "",
+    role: "MECHANIC",
+    permissions: {
+      dashboard: true,
+      clients: true,
+      vehicles: true,
+      workOrders: true,
+      appointments: true,
+      inventory: false,
+      finance: false,
+      whatsapp: false,
+      settings: false
+    }
+  });
+
+  const loadUsers = async () => {
+    try {
+      const response = await api.get("/users");
+      setUsersList(response.data);
+    } catch (error) {
+      console.error("Error loading users:", error);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === "team") {
+      loadUsers();
+    }
+  }, [activeTab]);
 
   useEffect(() => {
     setTenantForm(tenantSettings);
@@ -742,33 +782,283 @@ export default function Settings() {
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              className="max-w-4xl mx-auto space-y-6"
+              className="max-w-5xl mx-auto space-y-6"
             >
-              <div className="mb-6">
-                <h2 className="text-2xl font-bold text-slate-900 mb-2">👥 Equipe e Permissões</h2>
-                <p className="text-sm text-slate-600">
-                  Gerencie os usuários da sua oficina
-                </p>
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h2 className="text-2xl font-bold text-slate-900 mb-2">👥 Equipe e Permissões</h2>
+                  <p className="text-sm text-slate-600">
+                    Gerencie os usuários e o que cada um pode acessar no sistema.
+                    Limite contratado: <span className="font-bold text-slate-900">{usersList.length} / {tenantSettings.user_limit || 5} usuários</span>
+                  </p>
+                </div>
+                <button
+                  onClick={() => {
+                    setEditingUser(null);
+                    setUserForm({
+                      name: "",
+                      email: "",
+                      password: "",
+                      role: "MECHANIC",
+                      permissions: {
+                        dashboard: true,
+                        clients: true,
+                        vehicles: true,
+                        workOrders: true,
+                        appointments: true,
+                        inventory: false,
+                        finance: false,
+                        whatsapp: false,
+                        settings: false
+                      }
+                    });
+                    setShowUserModal(true);
+                  }}
+                  disabled={usersList.length >= (tenantSettings.user_limit || 5)}
+                  className="flex items-center gap-2 px-4 py-2 bg-slate-800 text-white rounded-xl text-sm font-semibold hover:bg-slate-900 transition-all disabled:opacity-50"
+                >
+                  <Plus className="w-4 h-4" />
+                  Novo Usuário
+                </button>
               </div>
 
-              <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
-                <div className="flex items-center justify-between mb-6">
-                  <h3 className="text-lg font-bold text-slate-800">Usuários</h3>
-                  <button
-                    type="button"
-                    onClick={() => showToast("Funcionalidade de gestão de equipe em desenvolvimento", "success")}
-                    className="px-4 py-2 bg-slate-700 text-white rounded-xl text-sm font-medium hover:bg-slate-800 transition-colors"
-                  >
-                    + Convidar Usuário
-                  </button>
-                </div>
-                
-                <div className="text-center py-12 text-slate-500">
-                  <Users className="w-16 h-16 mx-auto mb-4 opacity-30" />
-                  <p className="text-sm">Funcionalidade de gestão de equipe em desenvolvimento</p>
-                  <p className="text-xs mt-2">Em breve você poderá gerenciar usuários, cargos e permissões</p>
-                </div>
+              <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
+                <table className="w-full text-left border-collapse">
+                  <thead className="bg-slate-50 border-b border-slate-200">
+                    <tr>
+                      <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Nome / E-mail</th>
+                      <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Cargo</th>
+                      <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Data Cadastro</th>
+                      <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider text-right">Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {usersList.length === 0 ? (
+                      <tr>
+                        <td colSpan={4} className="px-6 py-12 text-center text-slate-500">
+                          <Users className="w-12 h-12 mx-auto mb-4 opacity-10" />
+                          Nenhum usuário cadastrado.
+                        </td>
+                      </tr>
+                    ) : (
+                      usersList.map((user) => (
+                        <tr key={user.id} className="hover:bg-slate-50 transition-colors">
+                          <td className="px-6 py-4">
+                            <div className="font-medium text-slate-900">{user.name}</div>
+                            <div className="text-sm text-slate-500">{user.email}</div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <span className={`px-2 py-1 rounded-lg text-xs font-bold ${
+                              user.role === 'ADMIN' ? 'bg-amber-100 text-amber-700' :
+                              user.role === 'SUPER_ADMIN' ? 'bg-purple-100 text-purple-700' :
+                              'bg-slate-100 text-slate-600'
+                            }`}>
+                              {user.role}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 text-sm text-slate-500">
+                            {new Date(user.created_at).toLocaleDateString()}
+                          </td>
+                          <td className="px-6 py-4 text-right">
+                            <div className="flex justify-end gap-2">
+                              <button 
+                                onClick={() => {
+                                  setEditingUser(user);
+                                  setUserForm({
+                                    name: user.name,
+                                    email: user.email,
+                                    password: "",
+                                    role: user.role,
+                                    permissions: typeof user.permissions === 'string' 
+                                      ? JSON.parse(user.permissions) 
+                                      : (user.permissions || {
+                                          dashboard: true,
+                                          clients: true,
+                                          vehicles: true,
+                                          workOrders: true,
+                                          appointments: true,
+                                          inventory: false,
+                                          finance: false,
+                                          whatsapp: false,
+                                          settings: false
+                                        })
+                                  });
+                                  setShowUserModal(true);
+                                }}
+                                className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+                              >
+                                <Edit2 className="w-4 h-4" />
+                              </button>
+                              <button 
+                                onClick={async () => {
+                                  if (window.confirm(`Deseja realmente excluir o usuário ${user.name}?`)) {
+                                    try {
+                                      await api.delete(`/users/${user.id}`);
+                                      showToast("Usuário excluído com sucesso!");
+                                      loadUsers();
+                                    } catch (error: any) {
+                                      showToast(error.response?.data?.error || "Erro ao excluir usuário", "error");
+                                    }
+                                  }
+                                }}
+                                className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
               </div>
+
+              {/* User Modal */}
+              {showUserModal && (
+                <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
+                  <motion.div
+                    initial={{ scale: 0.95, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col"
+                  >
+                    <div className="px-6 py-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
+                      <h3 className="text-xl font-bold text-slate-800">
+                        {editingUser ? "Editar Usuário" : "Novo Usuário"}
+                      </h3>
+                      <button onClick={() => setShowUserModal(false)} className="text-slate-400 hover:text-slate-600 transition-colors">
+                        <X className="w-6 h-6" />
+                      </button>
+                    </div>
+
+                    <form 
+                      onSubmit={async (e) => {
+                        e.preventDefault();
+                        setSaving(true);
+                        try {
+                          if (editingUser) {
+                            await api.patch(`/users/${editingUser.id}`, userForm);
+                            showToast("Usuário atualizado com sucesso!");
+                          } else {
+                            await api.post("/users", userForm);
+                            showToast("Usuário criado com sucesso!");
+                          }
+                          setShowUserModal(false);
+                          loadUsers();
+                        } catch (error: any) {
+                          showToast(error.response?.data?.error || "Erro ao salvar usuário", "error");
+                        } finally {
+                          setSaving(false);
+                        }
+                      }}
+                      className="p-6 overflow-y-auto space-y-6"
+                    >
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="col-span-2">
+                          <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Nome Completo</label>
+                          <input 
+                            required
+                            type="text"
+                            value={userForm.name}
+                            onChange={(e) => setUserForm({...userForm, name: e.target.value})}
+                            className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-400 outline-none"
+                            placeholder="Ex: João Silva"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold text-slate-500 uppercase mb-2">E-mail (Login)</label>
+                          <input 
+                            required
+                            type="email"
+                            value={userForm.email}
+                            onChange={(e) => setUserForm({...userForm, email: e.target.value})}
+                            className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-400 outline-none"
+                            placeholder="joao@email.com"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Cargo / Nível</label>
+                          <select 
+                            value={userForm.role}
+                            onChange={(e) => setUserForm({...userForm, role: e.target.value})}
+                            className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-400 outline-none"
+                          >
+                            <option value="ADMIN">Administrador</option>
+                            <option value="MECHANIC">Mecânico</option>
+                            <option value="ATTENDANT">Atendente / Recepção</option>
+                            <option value="FINANCE">Financeiro</option>
+                          </select>
+                        </div>
+                        <div className="col-span-2">
+                          <label className="block text-xs font-bold text-slate-500 uppercase mb-2">
+                            {editingUser ? "Nova Senha (deixe em branco para não alterar)" : "Senha Inicial"}
+                          </label>
+                          <input 
+                            required={!editingUser}
+                            type="password"
+                            value={userForm.password}
+                            onChange={(e) => setUserForm({...userForm, password: e.target.value})}
+                            className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-400 outline-none"
+                            placeholder="******"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="border-t border-slate-200 pt-6">
+                        <h4 className="font-bold text-slate-800 mb-4">Permissões de Acesso</h4>
+                        <div className="grid grid-cols-2 gap-y-3">
+                          {Object.keys(userForm.permissions).map((module) => (
+                            <label key={module} className="flex items-center gap-3 cursor-pointer group">
+                              <div className="relative inline-flex items-center">
+                                <input 
+                                  type="checkbox"
+                                  className="sr-only peer"
+                                  checked={(userForm.permissions as any)[module]}
+                                  onChange={(e) => {
+                                    setUserForm({
+                                      ...userForm,
+                                      permissions: {
+                                        ...userForm.permissions,
+                                        [module]: e.target.checked
+                                      }
+                                    });
+                                  }}
+                                />
+                                <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-slate-800"></div>
+                              </div>
+                              <span className="text-sm font-medium text-slate-700 capitalize">
+                                {module === 'workOrders' ? 'Ordens de Serviço' :
+                                 module === 'appointments' ? 'Agendamentos' :
+                                 module === 'inventory' ? 'Estoque / Peças' :
+                                 module === 'finance' ? 'Financeiro' :
+                                 module === 'settings' ? 'Configurações' :
+                                 module}
+                              </span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="flex justify-end gap-3 mt-8">
+                        <button 
+                          type="button" 
+                          onClick={() => setShowUserModal(false)}
+                          className="px-6 py-2.5 border border-slate-200 text-slate-600 rounded-xl font-semibold hover:bg-slate-50 transition-colors"
+                        >
+                          Cancelar
+                        </button>
+                        <button 
+                          type="submit"
+                          disabled={saving}
+                          className="px-8 py-2.5 bg-slate-800 text-white rounded-xl font-bold hover:bg-slate-900 transition-colors disabled:opacity-50"
+                        >
+                          {saving ? "Salvando..." : editingUser ? "Salvar Alterações" : "Criar Usuário"}
+                        </button>
+                      </div>
+                    </form>
+                  </motion.div>
+                </div>
+              )}
             </motion.div>
           )}
 

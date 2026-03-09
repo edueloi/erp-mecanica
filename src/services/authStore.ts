@@ -7,6 +7,7 @@ interface User {
   role: string;
   tenant_id: string;
   tenant_name: string;
+  permissions?: any;
 }
 
 interface AuthState {

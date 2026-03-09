@@ -31,7 +31,11 @@ export default function Login() {
       } else {
         const res = await api.post('/auth/login', { email, password });
         login(res.data.user, res.data.token);
-        navigate('/');
+        if (res.data.user.role === 'SUPER_ADMIN') {
+          navigate('/superadmin');
+        } else {
+          navigate('/');
+        }
       }
     } catch (err: any) {
       setError(err.response?.data?.error || 'Ocorreu um erro. Tente novamente.');

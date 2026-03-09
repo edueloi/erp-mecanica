@@ -3,7 +3,7 @@ import { useParams } from 'react-router-dom';
 import { 
   Camera, CheckCircle2, ShieldCheck, Info, Loader, Smartphone, 
   User, Car, AlertCircle, Send, ChevronRight, ChevronLeft,
-  Calendar, Clock, CheckCircle
+  Calendar, Clock, CheckCircle, MapPin, Search
 } from 'lucide-react';
 import api from '../services/api';
 import { motion, AnimatePresence } from 'motion/react';
@@ -17,10 +17,30 @@ export default function EntryPublicForm() {
   const [step, setStep] = useState(1);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [activeItemId, setActiveItemId] = useState<string | null>(null);
+  
+  // Cliente autocomplete
+  const [clientSuggestions, setClientSuggestions] = useState<any[]>([]);
+  const [showClientSuggestions, setShowClientSuggestions] = useState(false);
+  const [clientSearchTimeout, setClientSearchTimeout] = useState<NodeJS.Timeout | null>(null);
+  const clientInputRef = useRef<HTMLDivElement>(null);
+
+  // FIPE / veículo lookup
+  const [fipeLoading, setFipeLoading] = useState(false);
 
   useEffect(() => {
     fetchEntry();
   }, [token]);
+
+  // Fechar dropdown de clientes ao clicar fora
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (clientInputRef.current && !clientInputRef.current.contains(e.target as Node)) {
+        setShowClientSuggestions(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const fetchEntry = async () => {
     try {
@@ -39,6 +59,88 @@ export default function EntryPublicForm() {
       await api.patch(`/entries/public/${token}`, data);
     } catch (err) {
       console.error(err);
+    }
+  };
+
+  // Buscar clientes por nome
+  const searchClients = async (searchTerm: string) => {
+    if (!searchTerm || searchTerm.length < 2) {
+      setClientSuggestions([]);
+      setShowClientSuggestions(false);
+      return;
+    }
+
+    try {
+      const res = await api.get(`/clients?q=${encodeURIComponent(searchTerm)}`);
+      setClientSuggestions(res.data.slice(0, 5));
+      setShowClientSuggestions(res.data.length > 0);
+    } catch (err) {
+      console.error('Erro ao buscar clientes:', err);
+      setClientSuggestions([]);
+      setShowClientSuggestions(false);
+    }
+  };
+
+  // Selecionar cliente da lista
+  const selectClient = (client: any) => {
+    const updateData = {
+      customer_name: client.name,
+      customer_document: client.document,
+      customer_phone: client.phone,
+      customer_zip_code: client.zip_code,
+      customer_state: client.state,
+      customer_city: client.city,
+      customer_neighborhood: client.neighborhood,
+      customer_street: client.street,
+      customer_number: client.number,
+    };
+    
+    setEntry((prev: any) => ({ ...prev, ...updateData }));
+    handleUpdate(updateData);
+    setShowClientSuggestions(false);
+    setClientSuggestions([]);
+  };
+
+  // Handler para mudança no nome do cliente
+  const handleClientNameChange = (value: string) => {
+    handleUpdate({ customer_name: value });
+    
+    // Limpar timeout anterior
+    if (clientSearchTimeout) {
+      clearTimeout(clientSearchTimeout);
+    }
+    
+    // Criar novo timeout para buscar após 500ms
+    const timeout = setTimeout(() => {
+      searchClients(value);
+    }, 500);
+    
+    setClientSearchTimeout(timeout);
+  };
+
+  // Buscar endereço pelo CEP (ViaCEP)
+  const handleCepLookup = async (cep: string) => {
+    const cleaned = cep.replace(/\D/g, '');
+    if (cleaned.length !== 8) return;
+    setFipeLoading(true); // reuse as cep loading indicator
+    try {
+      const res = await fetch(`https://viacep.com.br/ws/${cleaned}/json/`);
+      const data = await res.json();
+      if (!data.erro) {
+        const updateData = {
+          customer_zip_code: cep,
+          customer_state: data.uf,
+          customer_city: data.localidade,
+          customer_neighborhood: data.bairro,
+          customer_street: data.logradouro,
+        };
+        setEntry((prev: any) => ({ ...prev, ...updateData }));
+        handleUpdate(updateData);
+      }
+    } catch (err) {
+      console.error('Erro ao buscar CEP:', err);
+    } finally {
+      setFipeLoading(false);
     }
   };
 
@@ -162,14 +264,90 @@ export default function EntryPublicForm() {
                  </div>
                  <h2 className="text-xl font-black text-slate-800 tracking-tight italic">DADOS DO <span className="text-indigo-600">CLIENTE</span></h2>
               </div>
-              <div className="bg-white p-6 rounded-[32px] shadow-xl border border-slate-100 space-y-6">
-                <div>
+              <div className="bg-white p-6 rounded-[32px] shadow-xl border border-slate-100 space-y-5">
+                <div className="relative" ref={clientInputRef}>
                   <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Nome Completo</label>
-                  <input type="text" value={entry.customer_name || ''} onChange={(e) => handleUpdate({ customer_name: e.target.value })} className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl" />
+                  <input 
+                    type="text" 
+                    value={entry.customer_name || ''} 
+                    onChange={(e) => handleClientNameChange(e.target.value)}
+                    placeholder="Digite seu nome..."
+                    className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl" 
+                  />
+                  {showClientSuggestions && clientSuggestions.length > 0 && (
+                    <div className="absolute z-50 w-full mt-2 bg-white border border-slate-200 rounded-2xl shadow-2xl max-h-60 overflow-y-auto">
+                      {clientSuggestions.map((client) => (
+                        <button
+                          key={client.id}
+                          type="button"
+                          onClick={() => selectClient(client)}
+                          className="w-full px-5 py-3 text-left hover:bg-indigo-50 border-b border-slate-100 last:border-b-0 transition-colors"
+                        >
+                          <div className="text-sm font-bold text-slate-900">{client.name}</div>
+                          <div className="text-xs text-slate-500 flex items-center gap-3 mt-1">
+                            {client.document && <span>{client.document}</span>}
+                            {client.phone && <span>{client.phone}</span>}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 <div>
                   <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Telefone</label>
                   <input type="text" value={entry.customer_phone || ''} onChange={(e) => handleUpdate({ customer_phone: e.target.value })} className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl" />
+                </div>
+
+                {/* ── ENDEREÇO ── */}
+                <div className="pt-4 border-t border-slate-100">
+                  <div className="flex items-center gap-2 mb-4">
+                    <MapPin size={14} className="text-indigo-500" />
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Endereço</span>
+                  </div>
+                  <div className="space-y-4">
+                    {/* CEP com lookup automático */}
+                    <div>
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">CEP</label>
+                      <div className="relative">
+                        <input
+                          type="text"
+                          value={entry.customer_zip_code || ''}
+                          onChange={(e) => setEntry((prev: any) => ({ ...prev, customer_zip_code: e.target.value }))}
+                          onBlur={(e) => handleCepLookup(e.target.value)}
+                          placeholder="00000-000"
+                          maxLength={9}
+                          className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl pr-14"
+                        />
+                        <div className="absolute right-4 top-1/2 -translate-y-1/2">
+                          {fipeLoading ? <Loader size={16} className="animate-spin text-indigo-400" /> : <Search size={16} className="text-slate-300" />}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-3 gap-3">
+                      <div>
+                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">UF</label>
+                        <input type="text" value={entry.customer_state || ''} onChange={(e) => handleUpdate({ customer_state: e.target.value.toUpperCase() })} maxLength={2} placeholder="SP" className="w-full px-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-center font-bold uppercase" />
+                      </div>
+                      <div className="col-span-2">
+                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Cidade</label>
+                        <input type="text" value={entry.customer_city || ''} onChange={(e) => handleUpdate({ customer_city: e.target.value })} placeholder="Sua cidade" className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl" />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Bairro</label>
+                      <input type="text" value={entry.customer_neighborhood || ''} onChange={(e) => handleUpdate({ customer_neighborhood: e.target.value })} placeholder="Seu bairro" className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl" />
+                    </div>
+                    <div className="grid grid-cols-3 gap-3">
+                      <div className="col-span-2">
+                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Rua / Avenida</label>
+                        <input type="text" value={entry.customer_street || ''} onChange={(e) => handleUpdate({ customer_street: e.target.value })} placeholder="Nome da rua" className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl" />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Nº</label>
+                        <input type="text" value={entry.customer_number || ''} onChange={(e) => handleUpdate({ customer_number: e.target.value })} placeholder="000" className="w-full px-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-center font-bold" />
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </motion.div>
@@ -188,11 +366,61 @@ export default function EntryPublicForm() {
                  <h2 className="text-xl font-black text-slate-800 tracking-tight italic">DADOS DO <span className="text-indigo-600">VEÍCULO</span></h2>
               </div>
               <div className="bg-white p-6 rounded-[32px] shadow-xl border border-slate-100 space-y-6">
+                {/* Placa com busca automática */}
                 <div>
                   <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Placa</label>
-                  <input type="text" value={entry.vehicle_plate || ''} onChange={(e) => handleUpdate({ vehicle_plate: e.target.value.toUpperCase() })} className="w-full px-5 py-4 bg-slate-900 text-white rounded-2xl text-center text-2xl font-black tracking-widest uppercase" />
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={entry.vehicle_plate || ''}
+                      onChange={(e) => setEntry((prev: any) => ({ ...prev, vehicle_plate: e.target.value.toUpperCase() }))}
+                      onBlur={(e) => {
+                        handleUpdate({ vehicle_plate: e.target.value.toUpperCase() });
+                      }}
+                      placeholder="ABC-1234"
+                      maxLength={8}
+                      className="w-full px-5 py-5 bg-slate-900 text-white rounded-2xl text-center text-2xl font-black tracking-widest uppercase pr-16"
+                    />
+                    <div className="absolute right-5 top-1/2 -translate-y-1/2">
+                      {fipeLoading
+                        ? <Loader size={18} className="animate-spin text-indigo-400" />
+                        : <Search size={18} className="text-white/30" />}
+                    </div>
+                  </div>
+                  {fipeLoading && (
+                    <p className="text-[10px] text-indigo-500 font-bold uppercase tracking-widest mt-2 text-center animate-pulse">Buscando dados do veículo...</p>
+                  )}
                 </div>
-                <div className="pt-4 border-t">
+
+                {/* Dados vindos do sistema (editáveis) */}
+                {(entry.vehicle_brand || entry.vehicle_model) && (
+                  <div className="p-4 bg-indigo-50 rounded-2xl border border-indigo-100 space-y-3">
+                    <div className="flex items-center gap-2 mb-1">
+                      <CheckCircle size={14} className="text-indigo-500" />
+                      <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">Dados encontrados — você pode editar</span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Marca</label>
+                        <input type="text" value={entry.vehicle_brand || ''} onChange={(e) => handleUpdate({ vehicle_brand: e.target.value })} className="w-full px-4 py-3 bg-white border border-indigo-100 rounded-xl text-sm font-bold" />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Modelo</label>
+                        <input type="text" value={entry.vehicle_model || ''} onChange={(e) => handleUpdate({ vehicle_model: e.target.value })} className="w-full px-4 py-3 bg-white border border-indigo-100 rounded-xl text-sm font-bold" />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Ano</label>
+                        <input type="text" value={entry.vehicle_year || ''} onChange={(e) => handleUpdate({ vehicle_year: e.target.value })} className="w-full px-4 py-3 bg-white border border-indigo-100 rounded-xl text-sm font-bold" />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Cor</label>
+                        <input type="text" value={entry.vehicle_color || ''} onChange={(e) => handleUpdate({ vehicle_color: e.target.value })} className="w-full px-4 py-3 bg-white border border-indigo-100 rounded-xl text-sm font-bold" />
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <div className="pt-2 border-t">
                    <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Combustível</h3>
                    <FuelLevel value={entry.fuel_level || 'EMPTY'} onChange={(v) => handleUpdate({ fuel_level: v })} />
                 </div>

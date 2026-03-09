@@ -96,6 +96,27 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     navigate('/login');
   };
 
+  const filteredMenuSections = menuSections.map(section => ({
+    ...section,
+    items: section.items.filter(item => {
+      if (user?.role === 'ADMIN' || user?.role === 'SUPER_ADMIN') return true;
+      if (!user?.permissions) return true; // Default to allow if no permissions object
+
+      const perms = typeof user.permissions === 'string' ? JSON.parse(user.permissions) : user.permissions;
+      
+      if (item.path === '/') return perms.dashboard;
+      if (item.path === '/appointments') return perms.appointments;
+      if (item.path === '/work-orders' || item.path === '/vehicle-entries' || item.path === '/action-plans') return perms.workOrders;
+      if (item.path === '/clients' || item.path === '/vehicles') return perms.clients;
+      if (item.path === '/services' || item.path === '/parts' || item.path === '/suppliers') return perms.inventory;
+      if (item.path?.startsWith('/finance')) return perms.finance;
+      if (item.path?.startsWith('/communication')) return perms.whatsapp;
+      if (item.path?.startsWith('/settings')) return perms.settings;
+
+      return true;
+    })
+  })).filter(section => section.items.length > 0);
+
   return (
     <div className="min-h-screen bg-slate-50 flex">
       {/* Mobile Sidebar Overlay */}
@@ -122,7 +143,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         </div>
 
         <nav className="flex-1 overflow-y-auto px-4 space-y-8 pb-8 pt-4">
-          {menuSections.map((section) => (
+          {filteredMenuSections.map((section) => (
             <div key={section.title} className="space-y-2">
               <div className="px-4 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">
                 {section.title}

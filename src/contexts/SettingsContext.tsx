@@ -95,6 +95,7 @@ interface TenantSettings {
   // Alertas
   alert_os_stopped_days?: number;
   alert_overdue_clients?: boolean;
+  user_limit?: number;
 }
 
 interface SettingsContextType {

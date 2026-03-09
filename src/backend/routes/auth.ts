@@ -54,7 +54,8 @@ router.post("/login", async (req, res) => {
         email: user.email,
         role: user.role,
         tenant_id: user.tenant_id,
-        tenant_name: tenant.name
+        tenant_name: tenant.name,
+        permissions: typeof user.permissions === 'string' ? JSON.parse(user.permissions) : user.permissions
       }
     });
   } catch (error: any) {

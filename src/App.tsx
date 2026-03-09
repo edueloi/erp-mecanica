@@ -26,6 +26,7 @@ import ActionPlans from './pages/ActionPlans';
 import VehicleEntries from './pages/VehicleEntries';
 import VehicleEntryDetail from './pages/VehicleEntryDetail';
 import EntryPublicForm from './pages/EntryPublicForm';
+import SuperAdmin from './pages/SuperAdmin';
 
 const Placeholder = ({ title }: { title: string }) => (
   <div className="flex flex-col items-center justify-center h-full text-slate-400 space-y-4">
@@ -41,6 +42,17 @@ const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
   const isAuthenticated = useAuthStore(state => state.isAuthenticated);
   
   if (!isAuthenticated) {
+    return <Navigate to="/login" />;
+  }
+  
+  return <>{children}</>;
+};
+
+const SuperAdminRoute = ({ children }: { children: React.ReactNode }) => {
+  const user = useAuthStore(state => state.user);
+  const isAuthenticated = useAuthStore(state => state.isAuthenticated);
+  
+  if (!isAuthenticated || user?.role !== 'SUPER_ADMIN') {
     return <Navigate to="/login" />;
   }
   
@@ -78,6 +90,8 @@ export default function App() {
         <Route path="/checklist-upload/:token" element={<ChecklistPublicUpload />} />
         <Route path="/entry-upload/:token" element={<EntryPublicForm />} />
 
+
+        <Route path="/superadmin" element={<SuperAdminRoute><SuperAdmin /></SuperAdminRoute>} />
 
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>

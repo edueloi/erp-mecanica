@@ -100,8 +100,10 @@ router.get("/tenant", (req: any, res) => {
   try {
     let settings = db
       .prepare(
-        `SELECT * FROM tenant_settings 
-         WHERE tenant_id = ?`
+        `SELECT ts.*, t.user_limit 
+         FROM tenant_settings ts
+         JOIN tenants t ON t.id = ts.tenant_id
+         WHERE ts.tenant_id = ?`
       )
       .get(req.user.tenant_id);
 
@@ -114,7 +116,12 @@ router.get("/tenant", (req: any, res) => {
       ).run(id, req.user.tenant_id);
 
       settings = db
-        .prepare("SELECT * FROM tenant_settings WHERE id = ?")
+        .prepare(`
+          SELECT ts.*, t.user_limit 
+          FROM tenant_settings ts
+          JOIN tenants t ON t.id = ts.tenant_id
+          WHERE ts.id = ?
+        `)
         .get(id);
     }
 

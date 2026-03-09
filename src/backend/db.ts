@@ -1,6 +1,7 @@
 import Database from "better-sqlite3";
 import path from "path";
 import { v4 as uuidv4 } from "uuid";
+import bcryptLib from "bcryptjs";
 
 const db = new Database("mecaerp.db");
 
@@ -13,6 +14,7 @@ export function initDb() {
       document TEXT,
       address TEXT,
       phone TEXT,
+      user_limit INTEGER DEFAULT 5,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )
   `);
@@ -25,7 +27,8 @@ export function initDb() {
       name TEXT NOT NULL,
       email TEXT NOT NULL,
       password TEXT NOT NULL,
-      role TEXT CHECK(role IN ('ADMIN', 'MECHANIC', 'ATTENDANT', 'FINANCE')) NOT NULL,
+      role TEXT CHECK(role IN ('SUPER_ADMIN', 'ADMIN', 'MECHANIC', 'ATTENDANT', 'FINANCE')) NOT NULL,
+      permissions TEXT DEFAULT '{}',
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (tenant_id) REFERENCES tenants(id)
     )
@@ -1362,6 +1365,62 @@ export function initDb() {
     }
   } catch (e: any) {
     console.error("⚠️  Error adding diagnostic_requested:", e.message);
+  }
+
+  // SUPER ADMIN SEEDING
+  try {
+    const superAdminEmail = "admin@mecaerp.com.br";
+    const superAdminPassword = "Mec@123";
+    
+    const existingSuperAdmin = db.prepare("SELECT * FROM users WHERE email = ?").get(superAdminEmail);
+    
+    if (!existingSuperAdmin) {
+      console.log("🚀 Seeding Super Admin...");
+      
+      const systemTenantId = "system-tenant-id";
+      const tenantExists = db.prepare("SELECT id FROM tenants WHERE id = ?").get(systemTenantId);
+      
+      if (!tenantExists) {
+        db.prepare("INSERT INTO tenants (id, name, user_limit) VALUES (?, ?, ?)")
+          .run(systemTenantId, "Meca ERP System", 999999);
+      }
+      
+      const hashedPassword = bcryptLib.hashSync(superAdminPassword, 10);
+      db.prepare("INSERT INTO users (id, tenant_id, name, email, password, role) VALUES (?, ?, ?, ?, ?, ?)")
+        .run(uuidv4(), systemTenantId, "Super Admin", superAdminEmail, hashedPassword, "SUPER_ADMIN");
+        
+      console.log("✅ Super Admin created successfully!");
+    } else {
+      console.log("ℹ️ Super Admin already exists.");
+    }
+  } catch (e: any) {
+    console.error("⚠️ Error seeding Super Admin:", e.message);
+  }
+
+  // Migration: Add user_limit to tenants if missing
+  try {
+    const checkUserLimit = db.prepare(`
+      SELECT COUNT(*) as count FROM pragma_table_info('tenants') WHERE name='user_limit'
+    `).get() as any;
+    if (checkUserLimit.count === 0) {
+      db.exec(`ALTER TABLE tenants ADD COLUMN user_limit INTEGER DEFAULT 5`);
+      console.log("✅ Added user_limit to tenants");
+    }
+  } catch (e: any) {
+    console.error("⚠️ Error adding user_limit to tenants:", e.message);
+  }
+
+  // Migration: Add permissions to users if missing
+  try {
+    const checkPermissions = db.prepare(`
+      SELECT COUNT(*) as count FROM pragma_table_info('users') WHERE name='permissions'
+    `).get() as any;
+    if (checkPermissions.count === 0) {
+      db.exec(`ALTER TABLE users ADD COLUMN permissions TEXT DEFAULT '{}'`);
+      console.log("✅ Added permissions to users");
+    }
+  } catch (e: any) {
+    console.error("⚠️ Error adding permissions to users:", e.message);
   }
 
   console.log("Database initialized successfully.");

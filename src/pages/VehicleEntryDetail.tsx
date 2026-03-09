@@ -26,10 +26,32 @@ export default function VehicleEntryDetail() {
   const [uploading, setUploading] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const activeItemIdRef = useRef<string | null>(null);
+  
+  // Cliente autocomplete
+  const [clientSuggestions, setClientSuggestions] = useState<any[]>([]);
+  const [showClientSuggestions, setShowClientSuggestions] = useState(false);
+  const [clientSearchTimeout, setClientSearchTimeout] = useState<NodeJS.Timeout | null>(null);
+  const clientInputRef = useRef<HTMLDivElement>(null);
+
+  // CEP lookup
+  const [cepLoading, setCepLoading] = useState(false);
+  // FIPE lookup
+  const [fipeLoading, setFipeLoading] = useState(false);
 
   useEffect(() => {
     fetchEntry();
   }, [id]);
+
+  // Fechar dropdown de clientes ao clicar fora
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (clientInputRef.current && !clientInputRef.current.contains(e.target as Node)) {
+        setShowClientSuggestions(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const fetchEntry = async () => {
     try {
@@ -52,6 +74,119 @@ export default function VehicleEntryDetail() {
       console.error('Erro ao salvar:', err.response?.data || err.message);
     } finally {
       setSaving(false);
+    }
+  };
+
+  // Buscar clientes por nome
+  const searchClients = async (searchTerm: string) => {
+    if (!searchTerm || searchTerm.length < 2) {
+      setClientSuggestions([]);
+      setShowClientSuggestions(false);
+      return;
+    }
+
+    try {
+      const res = await api.get(`/clients?q=${encodeURIComponent(searchTerm)}`);
+      setClientSuggestions(res.data.slice(0, 5)); // Limitar a 5 resultados
+      setShowClientSuggestions(res.data.length > 0);
+    } catch (err) {
+      console.error('Erro ao buscar clientes:', err);
+      setClientSuggestions([]);
+      setShowClientSuggestions(false);
+    }
+  };
+
+  // Selecionar cliente da lista
+  const selectClient = (client: any) => {
+    const updateData = {
+      client_id: client.id,
+      customer_name: client.name,
+      customer_document: client.document,
+      customer_phone: client.phone,
+      customer_zip_code: client.zip_code,
+      customer_state: client.state,
+      customer_city: client.city,
+      customer_neighborhood: client.neighborhood,
+      customer_street: client.street,
+      customer_number: client.number,
+    };
+    
+    setEntry((prev: any) => ({ ...prev, ...updateData }));
+    handleUpdate(updateData);
+    setShowClientSuggestions(false);
+    setClientSuggestions([]);
+  };
+
+  // Handler para mudança no nome do cliente
+  const handleClientNameChange = (value: string) => {
+    setEntry({...entry, customer_name: value});
+    
+    // Limpar timeout anterior
+    if (clientSearchTimeout) {
+      clearTimeout(clientSearchTimeout);
+    }
+    
+    // Criar novo timeout para buscar após 500ms
+    const timeout = setTimeout(() => {
+      searchClients(value);
+    }, 500);
+    
+    setClientSearchTimeout(timeout);
+  };
+
+  // Buscar endereço pelo CEP (ViaCEP)
+  const handleCepLookup = async (cep: string) => {
+    const cleaned = cep.replace(/\D/g, '');
+    if (cleaned.length !== 8) return;
+    setCepLoading(true);
+    try {
+      const res = await fetch(`https://viacep.com.br/ws/${cleaned}/json/`);
+      const data = await res.json();
+      if (!data.erro) {
+        const updateData = {
+          customer_zip_code: cep,
+          customer_state: data.uf,
+          customer_city: data.localidade,
+          customer_neighborhood: data.bairro,
+          customer_street: data.logradouro,
+        };
+        setEntry((prev: any) => ({ ...prev, ...updateData }));
+        handleUpdate(updateData);
+      }
+    } catch (err) {
+      console.error('Erro ao buscar CEP:', err);
+    } finally {
+      setCepLoading(false);
+    }
+  };
+
+  // Buscar dados do veículo via sistema interno (placa)
+  const handleFipeLookupByPlate = async (plate: string) => {
+    const cleaned = plate.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+    if (cleaned.length < 7) return;
+    setFipeLoading(true);
+    try {
+      const res = await api.get(`/vehicles?q=${encodeURIComponent(cleaned)}`);
+      if (res.data && res.data.length > 0) {
+        const v = res.data[0];
+        const updateData = {
+          vehicle_id: v.id,
+          vehicle_plate: v.plate,
+          vehicle_chassis: v.vin,
+          vehicle_brand: v.brand,
+          vehicle_model: v.model,
+          vehicle_year: String(v.year),
+          vehicle_color: v.color,
+          vehicle_fuel_type: v.fuel_type,
+          vehicle_gearbox: v.gearbox,
+        };
+        setEntry((prev: any) => ({ ...prev, ...updateData }));
+        handleUpdate(updateData);
+      }
+    } catch (err) {
+      console.error('Erro ao buscar veículo:', err);
+    } finally {
+      setFipeLoading(false);
     }
   };
 
@@ -434,7 +569,37 @@ export default function VehicleEntryDetail() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="md:col-span-2">
                 <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Nome Completo</label>
-                <input type="text" value={entry.customer_name || ''} onChange={e => setEntry({...entry, customer_name: e.target.value})} onBlur={e => handleUpdate({ customer_name: e.target.value })} placeholder="Nome do cliente..." className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-slate-900/10" />
+                <div className="relative" ref={clientInputRef}>
+                  <input 
+                    type="text" 
+                    value={entry.customer_name || ''} 
+                    onChange={e => handleClientNameChange(e.target.value)}
+                    onBlur={e => {
+                      // Delay para permitir o clique no item da lista
+                      setTimeout(() => handleUpdate({ customer_name: e.target.value }), 200);
+                    }}
+                    placeholder="Digite o nome do cliente..." 
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-slate-900/10" 
+                  />
+                  {showClientSuggestions && clientSuggestions.length > 0 && (
+                    <div className="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                      {clientSuggestions.map((client) => (
+                        <button
+                          key={client.id}
+                          type="button"
+                          onClick={() => selectClient(client)}
+                          className="w-full px-3 py-2 text-left hover:bg-slate-50 border-b border-slate-100 last:border-b-0 transition-colors"
+                        >
+                          <div className="text-sm font-semibold text-slate-900">{client.name}</div>
+                          <div className="text-xs text-slate-500 flex items-center gap-3 mt-0.5">
+                            {client.document && <span>{client.document}</span>}
+                            {client.phone && <span>{client.phone}</span>}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
               <div>
                 <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">CPF / CNPJ</label>
@@ -444,10 +609,23 @@ export default function VehicleEntryDetail() {
                     handleUpdate({ customer_document: doc });
                     if (doc.replace(/\D/g,'').length >= 11) {
                       try {
-                        const res = await api.get(`/clients?search=${doc}`);
+                        const res = await api.get(`/clients?q=${encodeURIComponent(doc)}`);
                         if (res.data.length > 0) {
                           const c = res.data[0];
-                          handleUpdate({ customer_name: c.name, customer_phone: c.phone, client_id: c.id });
+                          const updateData = {
+                            client_id: c.id,
+                            customer_name: c.name,
+                            customer_document: c.document,
+                            customer_phone: c.phone,
+                            customer_zip_code: c.zip_code,
+                            customer_state: c.state,
+                            customer_city: c.city,
+                            customer_neighborhood: c.neighborhood,
+                            customer_street: c.street,
+                            customer_number: c.number,
+                          };
+                          setEntry((prev: any) => ({ ...prev, ...updateData }));
+                          handleUpdate(updateData);
                         }
                       } catch {}
                     }
@@ -467,7 +645,22 @@ export default function VehicleEntryDetail() {
                 ].map(f => (
                   <div key={f.key} className={f.span === 2 ? 'col-span-2' : ''}>
                     <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">{f.label}</label>
-                    <input type="text" value={entry[f.key] || ''} onChange={e => setEntry({...entry, [f.key]: e.target.value})} onBlur={e => handleUpdate({ [f.key]: e.target.value })} placeholder={f.placeholder} className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-slate-900/10" />
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={entry[f.key] || ''}
+                        onChange={e => setEntry({...entry, [f.key]: e.target.value})}
+                        onBlur={e => {
+                          handleUpdate({ [f.key]: e.target.value });
+                          if (f.key === 'customer_zip_code') handleCepLookup(e.target.value);
+                        }}
+                        placeholder={f.placeholder}
+                        className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-slate-900/10"
+                      />
+                      {f.key === 'customer_zip_code' && cepLoading && (
+                        <Loader size={12} className="absolute right-3 top-1/2 -translate-y-1/2 text-indigo-400 animate-spin" />
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -497,18 +690,16 @@ export default function VehicleEntryDetail() {
                   <input type="text" value={entry.vehicle_plate || ''} onChange={e => setEntry({...entry, vehicle_plate: e.target.value.toUpperCase()})} onBlur={async e => {
                     const plate = e.target.value.toUpperCase();
                     handleUpdate({ vehicle_plate: plate });
-                    if (plate.length >= 7) {
-                      try {
-                        const res = await api.get(`/vehicles?search=${plate}`);
-                        if (res.data.length > 0) {
-                          const v = res.data[0];
-                          handleUpdate({ vehicle_brand: v.brand, vehicle_model: v.model, vehicle_year: String(v.year), vehicle_color: v.color, vehicle_chassis: v.vin, vehicle_fuel_type: v.fuel_type, vehicle_id: v.id });
-                        }
-                      } catch {}
-                    }
+                    await handleFipeLookupByPlate(plate);
                   }} placeholder="ABC-1234" className="w-full px-3 py-2 bg-slate-50 border border-indigo-100 rounded-lg text-sm font-black tracking-widest outline-none focus:ring-2 focus:ring-indigo-500/20 uppercase" />
-                  <Search size={12} className="absolute right-3 top-1/2 -translate-y-1/2 text-indigo-300" />
+                  {fipeLoading
+                    ? <Loader size={12} className="absolute right-3 top-1/2 -translate-y-1/2 text-indigo-400 animate-spin" />
+                    : <Search size={12} className="absolute right-3 top-1/2 -translate-y-1/2 text-indigo-300" />
+                  }
                 </div>
+                {fipeLoading && (
+                  <p className="text-[10px] text-indigo-500 font-bold uppercase tracking-widest mt-1 animate-pulse">Buscando dados do veículo...</p>
+                )}
               </div>
               <div className="md:col-span-2">
                 <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Nº Chassi</label>
