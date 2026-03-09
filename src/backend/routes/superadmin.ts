@@ -6,6 +6,8 @@ import { authenticateToken, AuthRequest } from "../middleware/auth";
 
 const router = express.Router();
 
+router.use(authenticateToken);
+
 // Middleware to ensure user is Super Admin or Vendedor
 const requireAdminOrSeller = (req: AuthRequest, res: express.Response, next: express.NextFunction) => {
   if (req.user?.role !== 'SUPER_ADMIN' && req.user?.role !== 'VENDEDOR') {
@@ -185,44 +187,45 @@ router.get("/tenants/:id/logs", requireAdminOrSeller, (req: AuthRequest, res) =>
 
 router.get("/team", requireSuperAdmin, (req: AuthRequest, res) => {
   try {
-    // Retorna apenas usuários que não pertencem a nenhum tenant (Sistema central) ou que tenham role VENDEDOR/SUPER_ADMIN
     const team = db.prepare(`
-      SELECT id, name, email, role, phone, cpf, profession, created_at 
+      SELECT id, name, email, role, phone, cpf, profession, permissions, created_at 
       FROM users 
       WHERE role IN ('SUPER_ADMIN', 'VENDEDOR')
       ORDER BY created_at DESC
     `).all();
-    res.json(team);
+    
+    // Parse permissions for each user
+    const formattedTeam = team.map((u: any) => ({
+        ...u,
+        permissions: u.permissions ? JSON.parse(u.permissions) : {}
+    }));
+
+    res.json(formattedTeam);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
 });
 
 router.post("/team", requireSuperAdmin, (req: AuthRequest, res) => {
-  const { name, email, password, role, phone, cpf, profession } = req.body;
+  const { name, email, password, role, phone, cpf, profession, permissions } = req.body;
   try {
+    // Check if email already exists
+    const existing = db.prepare("SELECT id FROM users WHERE email = ?").get(email);
+    if (existing) {
+        return res.status(400).json({ error: "E-mail já cadastrado na equipe." });
+    }
+
     const hash = bcrypt.hashSync(password, 10);
-    // Usamos tenant_id = null para equipe do sistema global (para evitar Foreign Key falha, ou um tenant raiz fictício. O sqlite null é aceito)
-    // No entanto, se o BD exige tenant_id NOT NULL, precisamos usar um ID global ou desabilitar NOT NULL.
-    // Presumindo que o banco aceita tenant_id ou usamos um hardcoded. 
-    // Para simplificar, vou tentar null ou ignorar.
+    const permsStr = permissions ? JSON.stringify(permissions) : '{}';
+    
     db.prepare(`
-      INSERT INTO users (id, name, email, password, role, phone, cpf, profession)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(uuidv4(), name, email, hash, role, phone || null, cpf || null, profession || null);
+      INSERT INTO users (id, tenant_id, name, email, password, role, phone, cpf, profession, permissions)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(uuidv4(), 'system-tenant-id', name, email, hash, role, phone || null, cpf || null, profession || null, permsStr);
+    
     res.json({ message: "Membro da equipe criado com sucesso!" });
   } catch (error: any) {
-    // Caso de erro de constraint de tenant_id, vamos inserir um tenant_id fake ou o do super admin atual
-    try {
-      const hash = bcrypt.hashSync(password, 10);
-      db.prepare(`
-        INSERT INTO users (id, tenant_id, name, email, password, role, phone, cpf, profession)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(uuidv4(), req.user?.tenant_id, name, email, hash, role, phone || null, cpf || null, profession || null);
-      res.json({ message: "Membro da equipe criado." });
-    } catch (e: any) {
-       res.status(500).json({ error: e.message });
-    }
+    res.status(500).json({ error: error.message });
   }
 });
 

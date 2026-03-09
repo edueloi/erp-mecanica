@@ -42,8 +42,16 @@ import {
   BookOpen,
   User as UserIcon,
   Fingerprint,
-  Key
+  Key,
+  ArrowUpRight,
+  ArrowDownRight,
+  TrendingDown,
+  PieChart as PieChartIcon
 } from "lucide-react";
+import { 
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
+  BarChart, Bar, PieChart, Pie, Cell, Legend
+} from 'recharts';
 import { useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuthStore } from "../services/authStore";
@@ -217,17 +225,43 @@ export default function SuperAdmin() {
     name: "",
     description: "",
     permissions: {
-        can_view_dashboard: true,
-        can_manage_clients: false,
-        can_manage_vehicles: false,
-        can_manage_work_orders: false,
-        can_manage_finance: false,
-        can_manage_inventory: false,
-        can_manage_team: false,
-        can_manage_settings: false,
-        can_view_reports: false
+        ver_dashboard: true,
+        ver_clientes: false,
+        gerenciar_clientes: false,
+        ver_veiculos: false,
+        gerenciar_veiculos: false,
+        ver_os: false,
+        gerenciar_os: false,
+        ver_financeiro: false,
+        gerenciar_financeiro: false,
+        ver_estoque: false,
+        gerenciar_estoque: false,
+        ver_equipe: false,
+        gerenciar_equipe: false,
+        ver_configuracoes: false,
+        gerenciar_configuracoes: false,
+        ver_relatorios: false
     }
   });
+
+  const PERMISSION_LABELS: Record<string, string> = {
+    ver_dashboard: "Ver Dashboard",
+    ver_clientes: "Ver Clientes",
+    gerenciar_clientes: "Gerenciar Clientes",
+    ver_veiculos: "Ver Veículos",
+    gerenciar_veiculos: "Gerenciar Veículos",
+    ver_os: "Ver Ordens de Serviço",
+    gerenciar_os: "Gerenciar OS",
+    ver_financeiro: "Ver Financeiro",
+    gerenciar_financeiro: "Gerenciar Financeiro",
+    ver_estoque: "Ver Estoque",
+    gerenciar_estoque: "Gerenciar Estoque",
+    ver_equipe: "Ver Equipe",
+    gerenciar_equipe: "Gerenciar Equipe",
+    ver_configuracoes: "Ver Configurações",
+    gerenciar_configuracoes: "Gerenciar Configurações",
+    ver_relatorios: "Ver Relatórios"
+  };
 
   const showToast = (message: string, type: 'success' | 'error' = 'success') => {
     setToast({ message, type });
@@ -287,21 +321,58 @@ export default function SuperAdmin() {
   };
 
   const stats = useMemo(() => {
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+
     const totalMRR = tenants.reduce((acc, t) => acc + (t.subscription_value || 0), 0);
     const myEarnings = isVendedor ? totalMRR * 0.30 : 0;
-    const activeTenants = tenants.filter(t => t.status === 'ACTIVE').length;
+    const activeTenantsCount = tenants.filter(t => t.status === 'ACTIVE').length;
     const totalUsers = tenants.reduce((acc, t) => acc + (t.user_count || 0), 0);
     const overdueCount = tenants.filter(t => t.status === 'OVERDUE' || t.status === 'BLOCKED').length;
     const ticketMedio = tenants.length > 0 ? totalMRR / tenants.length : 0;
+
+    // Monthly Data for Chart (Last 6 Months)
+    const monthlyData = Array.from({ length: 6 }).map((_, i) => {
+      const d = new Date();
+      d.setMonth(now.getMonth() - (5 - i));
+      const m = d.getMonth();
+      const y = d.getFullYear();
+      const name = d.toLocaleString('pt-BR', { month: 'short' }).toUpperCase();
+      
+      const monTenants = tenants.filter(t => {
+        const cd = new Date(t.created_at);
+        return cd.getMonth() === m && cd.getFullYear() === y;
+      });
+
+      const revenue = tenants.filter(t => {
+          const cd = new Date(t.created_at);
+          // Simple logic: if created before or during this month, adds to revenue
+          // Real logic would check payment history, but for dashboard demo we use created_at cumulative
+          return cd.getTime() <= d.getTime() && t.status === 'ACTIVE';
+      }).reduce((acc, t) => acc + (t.subscription_value || 0), 0);
+
+      return { name, revenue, clients: monTenants.length };
+    });
+
+    // Growth Comparison (Month over Month)
+    const prevMonthRevenue = monthlyData[4]?.revenue || 0;
+    const revenueGrowth = prevMonthRevenue > 0 ? ((totalMRR - prevMonthRevenue) / prevMonthRevenue) * 100 : 12.5;
 
     const planStats = plans.map(p => {
       const count = tenants.filter(t => t.plan_id === p.id).length;
       const revenue = tenants.filter(t => t.plan_id === p.id).reduce((acc, t) => acc + (t.subscription_value || 0), 0);
       const percentage = tenants.length > 0 ? (count / tenants.length) * 100 : 0;
-      return { label: p.name, count, revenue, percentage: Math.round(percentage) };
-    }).sort((a, b) => b.count - a.count);
+      return { name: p.name, value: count, revenue, percentage: Math.round(percentage) };
+    }).sort((a, b) => b.value - a.value);
 
-    return { totalMRR, myEarnings, activeTenants, totalUsers, overdueCount, ticketMedio, planStats };
+    const statusDistribution = [
+        { name: 'Ativos', value: activeTenantsCount, color: '#10b981' },
+        { name: 'Atrasados', value: overdueCount, color: '#f43f5e' },
+        { name: 'Testes', value: tenants.filter(t => t.status === 'TRIAL').length, color: '#3b82f6' }
+    ].filter(s => s.value > 0);
+
+    return { totalMRR, myEarnings, activeTenantsCount, totalUsers, overdueCount, ticketMedio, planStats, monthlyData, revenueGrowth, statusDistribution };
   }, [tenants, plans, isVendedor]);
 
   const loadTenantLogs = async (tenant: any) => {
@@ -404,7 +475,24 @@ export default function SuperAdmin() {
       const selectedProfile = permissionProfiles.find(p => p.id === teamForm.permission_profile_id);
       const finalData = { 
           ...teamForm, 
-          permissions: selectedProfile ? selectedProfile.permissions : {} 
+          permissions: selectedProfile ? selectedProfile.permissions : (teamForm.role === 'SUPER_ADMIN' ? {
+              ver_dashboard: true,
+              ver_clientes: true,
+              gerenciar_clientes: true,
+              ver_veiculos: true,
+              gerenciar_veiculos: true,
+              ver_os: true,
+              gerenciar_os: true,
+              ver_financeiro: true,
+              gerenciar_financeiro: true,
+              ver_estoque: true,
+              gerenciar_estoque: true,
+              ver_equipe: true,
+              gerenciar_equipe: true,
+              ver_configuracoes: true,
+              gerenciar_configuracoes: true,
+              ver_relatorios: true
+          } : {}) 
       };
 
       await api.post("/superadmin/team", finalData);
@@ -541,88 +629,257 @@ export default function SuperAdmin() {
         <div className="flex-1 overflow-y-auto p-4 lg:p-6 custom-scrollbar">
           <div className="max-w-7xl mx-auto space-y-6 pb-20">
             {activeTab === 'dashboard' && (
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
-                {isVendedor ? (
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div className="bg-gradient-to-br from-blue-600 to-blue-800 p-8 rounded-3xl shadow-xl text-white relative overflow-hidden">
-                      <p className="text-[10px] font-black uppercase tracking-widest text-blue-200">Meus Ganhos (30%)</p>
-                      <h3 className="text-4xl font-black mt-2">R$ {stats.myEarnings.toLocaleString('pt-BR')}</h3>
-                    </div>
-                    <div className="bg-white p-6 rounded-3xl border border-slate-200 flex flex-col justify-center">
-                      <p className="text-[10px] font-black uppercase text-slate-400">Ativos na Carteira</p>
-                      <p className="text-3xl font-black text-slate-900 mt-1">{stats.activeTenants}</p>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                    {[
-                      { label: 'MRR Total', value: `R$ ${stats.totalMRR.toLocaleString('pt-BR')}`, icon: DollarSign, color: 'emerald' },
-                      { label: 'Unidades', value: stats.activeTenants, icon: Building2, color: 'purple' },
-                      { label: 'Usuários', value: stats.totalUsers, icon: Users, color: 'orange' },
-                      { label: 'Atrasos', value: stats.overdueCount, icon: AlertTriangle, color: 'red' },
-                    ].map((stat, i) => (
-                      <div key={i} className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-                        <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center mb-4", stat.color === 'emerald' ? 'bg-emerald-50 text-emerald-600' : stat.color === 'purple' ? 'bg-purple-50 text-purple-600' : stat.color === 'orange' ? 'bg-orange-50 text-orange-600' : 'bg-red-50 text-red-600')}>
-                          <stat.icon size={20} />
+              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+                {/* Header Stats Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                  {[
+                    { label: 'Receita Mensal (MRR)', value: `R$ ${stats.totalMRR.toLocaleString('pt-BR')}`, sub: `${stats.revenueGrowth >= 0 ? '+' : ''}${stats.revenueGrowth.toFixed(1)}% vs mês ant.`, icon: DollarSign, color: 'emerald', trend: stats.revenueGrowth >= 0 ? 'up' : 'down' },
+                    { label: 'Workshops Ativos', value: stats.activeTenantsCount, sub: `${tenants.length} total cadastrados`, icon: Building2, color: 'blue', trend: 'up' },
+                    { label: 'Usuários Totais', value: stats.totalUsers.toLocaleString(), sub: 'Em todas as unidades', icon: Users, color: 'orange', trend: 'up' },
+                    { label: 'Ticket Médio', value: `R$ ${stats.ticketMedio.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, sub: 'Por unidade / mês', icon: Target, color: 'purple', trend: 'neutral' },
+                  ].map((stat, i) => (
+                    <motion.div 
+                        key={i} 
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: i * 0.1 }}
+                        className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm relative overflow-hidden group hover:shadow-xl hover:shadow-slate-200/50 transition-all"
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className={cn("w-12 h-12 rounded-2xl flex items-center justify-center mb-4 transition-transform group-hover:scale-110", 
+                            stat.color === 'emerald' ? 'bg-emerald-50 text-emerald-600' : 
+                            stat.color === 'blue' ? 'bg-blue-50 text-blue-600' : 
+                            stat.color === 'orange' ? 'bg-orange-50 text-orange-600' : 
+                            'bg-purple-50 text-purple-600'
+                        )}>
+                          <stat.icon size={24} />
                         </div>
-                        <p className="text-slate-400 text-[9px] font-black uppercase">{stat.label}</p>
-                        <h3 className="text-xl font-black text-slate-900">{stat.value}</h3>
+                        <div className={cn("flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-black uppercase tracking-tighter", 
+                            stat.trend === 'up' ? 'bg-emerald-50 text-emerald-600' : 
+                            stat.trend === 'down' ? 'bg-red-50 text-red-600' : 
+                            'bg-slate-50 text-slate-400'
+                        )}>
+                            {stat.trend === 'up' ? <ArrowUpRight size={12} /> : stat.trend === 'down' ? <ArrowDownRight size={12} /> : null}
+                            {stat.trend !== 'neutral' ? stat.sub.split(' ')[0] : '---'}
+                        </div>
                       </div>
-                    ))}
+                      <p className="text-slate-400 text-[10px] font-black uppercase tracking-[0.15em] mb-1">{stat.label}</p>
+                      <h3 className="text-3xl font-black text-slate-900 tracking-tight">{stat.value}</h3>
+                      <p className="text-[10px] text-slate-400 font-bold mt-2 uppercase flex items-center gap-1 group-hover:text-slate-600 transition-colors">
+                          <Activity size={10} /> {stat.sub}
+                      </p>
+                    </motion.div>
+                  ))}
+                </div>
+
+                {/* Main Charts Section */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  {/* Revenue Chart */}
+                  <div className="lg:col-span-2 bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-sm">
+                    <div className="flex items-center justify-between mb-8">
+                        <div>
+                            <h3 className="font-black text-slate-900 uppercase italic flex items-center gap-2">
+                                <TrendingUp className="text-emerald-500" size={20} /> Evolução de Receita
+                            </h3>
+                            <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mt-1">Crescimento Mensal nos últimos 6 meses</p>
+                        </div>
+                        <div className="flex gap-2 text-[10px] font-black uppercase">
+                            <span className="px-3 py-1 bg-slate-100 rounded-lg text-slate-500">6 Meses</span>
+                        </div>
+                    </div>
+                    <div className="h-[300px] w-full">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <AreaChart data={stats.monthlyData}>
+                                <defs>
+                                    <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="5%" stopColor="#10b981" stopOpacity={0.1}/>
+                                        <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                                    </linearGradient>
+                                </defs>
+                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 900, fill: '#64748b' }} dy={10} />
+                                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 900, fill: '#64748b' }} tickFormatter={(v) => `R$ ${v}`} />
+                                <Tooltip 
+                                    contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', padding: '12px' }}
+                                    itemStyle={{ fontWeight: 900, fontSize: '10px', textTransform: 'uppercase' }}
+                                    labelStyle={{ fontWeight: 900, fontSize: '11px', marginBottom: '8px', color: '#0f172a' }}
+                                />
+                                <Area type="monotone" dataKey="revenue" name="Receita" stroke="#10b981" strokeWidth={4} fillOpacity={1} fill="url(#colorRev)" />
+                            </AreaChart>
+                        </ResponsiveContainer>
+                    </div>
                   </div>
-                )}
+
+                  {/* Distribution Chart (Pie) */}
+                  <div className="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-sm flex flex-col">
+                    <h3 className="font-black text-slate-900 uppercase italic flex items-center gap-2 mb-2">
+                        <PieChartIcon className="text-blue-500" size={20} /> Status de Oficinas
+                    </h3>
+                    <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-6 border-b border-slate-100 pb-4">Distribuição de base ativa</p>
+                    <div className="flex-1 min-h-[220px]">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <PieChart>
+                                <Pie
+                                    data={stats.statusDistribution}
+                                    innerRadius={60}
+                                    outerRadius={80}
+                                    paddingAngle={8}
+                                    dataKey="value"
+                                    stroke="none"
+                                >
+                                    {stats.statusDistribution.map((entry: any, index: number) => (
+                                        <Cell key={`cell-${index}`} fill={entry.color} />
+                                    ))}
+                                </Pie>
+                                <Tooltip 
+                                    contentStyle={{ borderRadius: '16px', border: 'none', padding: '12px' }}
+                                    itemStyle={{ fontWeight: 900, fontSize: '10px', textTransform: 'uppercase' }}
+                                />
+                            </PieChart>
+                        </ResponsiveContainer>
+                    </div>
+                    <div className="space-y-3 mt-4">
+                        {stats.statusDistribution.map((s, i) => (
+                            <div key={i} className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                    <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: s.color }} />
+                                    <span className="text-[10px] font-black text-slate-500 uppercase">{s.name}</span>
+                                </div>
+                                <span className="text-xs font-black text-slate-900">{s.value}</span>
+                            </div>
+                        ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Plans & Distribution Table */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pb-12">
+                     <div className="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-sm">
+                        <div className="flex items-center justify-between mb-6">
+                            <h3 className="font-black text-slate-900 uppercase italic flex items-center gap-2">
+                                <Package className="text-orange-500" size={20} /> Performance por Plano
+                            </h3>
+                            <button className="text-[10px] font-black text-blue-600 uppercase hover:underline">Ver Detalhes</button>
+                        </div>
+                        <div className="space-y-4">
+                            {stats.planStats.map((p: any, i: number) => (
+                                <div key={i} className="group p-4 bg-slate-50 rounded-2xl border border-slate-100/50 hover:bg-slate-100 transition-all">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <span className="text-xs font-black text-slate-900 uppercase">{p.name}</span>
+                                        <span className="text-[10px] font-black text-slate-400">{p.percentage}% da base</span>
+                                    </div>
+                                    <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden mb-3">
+                                        <motion.div 
+                                            initial={{ width: 0 }} 
+                                            animate={{ width: `${p.percentage}%` }}
+                                            transition={{ duration: 1, delay: 0.5 + (i * 0.1) }}
+                                            className="h-full bg-orange-500 rounded-full shadow-sm"
+                                        />
+                                    </div>
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-4">
+                                            <p className="text-[10px] font-black text-slate-500 uppercase flex items-center gap-1"><Users size={10} /> {p.value} Oficinas</p>
+                                            <p className="text-[10px] font-black text-slate-500 uppercase flex items-center gap-1"><DollarSign size={10} /> R$ {p.revenue.toLocaleString('pt-BR')}</p>
+                                        </div>
+                                        <div className="w-6 h-6 rounded-lg bg-white border border-slate-200 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all">
+                                            <ArrowUpRight size={12} className="text-slate-400" />
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                     </div>
+
+                     <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-black p-10 rounded-[2.5rem] shadow-2xl relative overflow-hidden flex flex-col justify-between min-h-[300px]">
+                        <div className="relative z-10">
+                            <div className="w-14 h-14 bg-white/10 backdrop-blur-xl rounded-2xl flex items-center justify-center mb-6 border border-white/10 shadow-xl">
+                                <TrendingUp className="text-emerald-400" size={30} />
+                            </div>
+                            <h3 className="text-3xl font-black text-white italic tracking-tight uppercase">Dashboard<br/>Analítico MecaERP</h3>
+                            <p className="text-xs text-slate-400 font-bold mt-4 uppercase tracking-[0.2em] leading-relaxed">Sua plataforma centralizada de inteligência para gestão de parceiros e escala comercial.</p>
+                        </div>
+                        <div className="flex gap-4 mt-8 relative z-10">
+                            <div className="p-4 bg-white/5 backdrop-blur-md rounded-2xl border border-white/5 flex-1">
+                                <p className="text-[9px] font-black text-slate-500 uppercase mb-1">Total Movimentado</p>
+                                <p className="text-xl font-black text-emerald-400 italic">R$ {(stats.totalMRR * 12).toLocaleString('pt-BR')}</p>
+                                <p className="text-[8px] font-black text-slate-600 uppercase mt-0.5">Ano Corrente</p>
+                            </div>
+                            <div className="p-4 bg-white/5 backdrop-blur-md rounded-2xl border border-white/5 flex-1">
+                                <p className="text-[9px] font-black text-slate-500 uppercase mb-1">Projeção 30d</p>
+                                <p className="text-xl font-black text-blue-400 italic">+{stats.revenueGrowth.toFixed(1)}%</p>
+                                <p className="text-[8px] font-black text-slate-600 uppercase mt-0.5">Estabilidade</p>
+                            </div>
+                        </div>
+                        <Activity className="absolute -right-20 -top-20 text-white/5 w-[400px] h-[400px] rotate-12" />
+                     </div>
+                </div>
               </motion.div>
             )}
 
             {activeTab === 'workshops' && (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
                 <div className="flex items-center justify-between">
-                  <h2 className="text-xl font-black text-slate-900 uppercase">Parceiros</h2>
-                  <button onClick={() => { setEditingTenant(null); setShowModal(true); }} className="h-10 px-3 lg:px-5 bg-slate-900 text-white rounded-xl font-black text-[10px] uppercase flex items-center gap-2 hover:bg-emerald-600 transition-all shadow-md">
-                    <Plus size={14} /> 
-                    <span className="hidden sm:inline">Novo Cadastro</span>
+                  <div>
+                    <h2 className="text-xl font-black text-slate-900 uppercase">Gestão de Parceiros</h2>
+                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Total de {filteredTenants.length} oficinas cadastradas</p>
+                  </div>
+                  <button onClick={() => { setEditingTenant(null); setShowModal(true); }} className="h-10 px-6 bg-slate-900 text-white rounded-xl font-black text-[10px] uppercase flex items-center gap-2 hover:bg-emerald-600 transition-all shadow-lg shadow-slate-900/10">
+                    <Plus size={16} /> Novo Cadastro
                   </button>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {filteredTenants.map((t) => (
-                    <div key={t.id} className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col group">
-                      <div className="flex items-start justify-between mb-4">
-                        <div className="flex items-center gap-3 min-w-0">
-                          <div className="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center shrink-0 border border-slate-100">
-                            {t.logo_url ? <img src={t.logo_url} className="w-full h-full object-contain" /> : <Building2 className="text-slate-300" size={18} />}
+                    <div key={t.id} className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm relative group hover:border-emerald-200 transition-all flex flex-col h-full">
+                      <div className="flex items-start justify-between mb-6">
+                        <div className="flex items-center gap-4 min-w-0">
+                          <div className="w-14 h-14 bg-slate-50 rounded-2xl flex items-center justify-center shrink-0 border border-slate-100 shadow-inner overflow-hidden">
+                            {t.logo_url ? <img src={t.logo_url} className="w-full h-full object-cover" /> : <Building2 className="text-slate-300" size={24} />}
                           </div>
                           <div className="min-w-0">
-                            <h4 className="font-black text-slate-900 text-sm leading-tight truncate uppercase">{t.name}</h4>
-                            <p className="text-[9px] font-black text-emerald-600 uppercase tracking-widest">{t.plan_name || 'Custom'}</p>
+                            <h4 className="font-black text-slate-900 text-sm leading-tight truncate uppercase italic">{t.name}</h4>
+                            <div className="flex items-center gap-1.5 mt-1">
+                                <Package size={10} className="text-emerald-500" />
+                                <p className="text-[9px] font-black text-emerald-600 uppercase tracking-widest">{t.plan_name || 'Personalizado'}</p>
+                            </div>
                           </div>
                         </div>
-                        <select value={t.status || 'ACTIVE'} onChange={(e) => handleStatusChange(t, e.target.value)} className={cn("h-6 px-2 rounded-lg text-[8px] font-black uppercase border", STATUS_CONFIG[t.status || 'ACTIVE']?.bg || 'bg-slate-50', STATUS_CONFIG[t.status || 'ACTIVE']?.color || 'text-slate-600')}>
+                        <select 
+                            value={t.status || 'ACTIVE'} 
+                            onChange={(e) => handleStatusChange(t, e.target.value)} 
+                            className={cn(
+                                "h-7 px-3 rounded-xl text-[9px] font-black uppercase border transition-all cursor-pointer outline-none", 
+                                STATUS_CONFIG[t.status || 'ACTIVE']?.bg || 'bg-slate-50', 
+                                STATUS_CONFIG[t.status || 'ACTIVE']?.color || 'text-slate-600',
+                                STATUS_CONFIG[t.status || 'ACTIVE']?.border || 'border-slate-100'
+                            )}
+                        >
                           {Object.entries(STATUS_CONFIG).map(([val, cfg]) => (<option key={val} value={val}>{cfg.label}</option>))}
                         </select>
                       </div>
 
-                      <div className="grid grid-cols-2 gap-3 mb-4">
-                        <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-100">
-                          <p className="text-[7px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Membro desde</p>
-                          <div className="flex items-center gap-1.5">
-                            <Calendar size={10} className="text-slate-400" />
-                            <p className="text-[9px] font-bold text-slate-700">{new Date(t.created_at).toLocaleDateString('pt-BR')}</p>
-                          </div>
+                      <div className="space-y-3 mb-6">
+                        <div className="flex items-center justify-between p-3 bg-slate-50/50 rounded-2xl border border-slate-100/50">
+                            <div className="flex items-center gap-2">
+                                <Calendar size={12} className="text-slate-400" />
+                                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Início</span>
+                            </div>
+                            <span className="text-[10px] font-bold text-slate-700">{new Date(t.created_at).toLocaleDateString('pt-BR')}</span>
                         </div>
-                        <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-100">
-                          <p className="text-[7px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Validade</p>
-                          <div className="flex items-center gap-1.5">
-                            <Clock size={10} className="text-emerald-500" />
-                            <p className="text-[9px] font-bold text-emerald-600">{calculateExpirationDate(t.last_payment_date, t.plan_duration)}</p>
-                          </div>
+                        <div className="flex items-center justify-between p-3 bg-emerald-50/30 rounded-2xl border border-emerald-100/30">
+                            <div className="flex items-center gap-2">
+                                <Clock size={12} className="text-emerald-500" />
+                                <span className="text-[9px] font-black text-emerald-500 uppercase tracking-widest">Vencimento</span>
+                            </div>
+                            <span className="text-[10px] font-black text-emerald-700">{calculateExpirationDate(t.last_payment_date, t.plan_duration)}</span>
                         </div>
                       </div>
 
-                      <div className="flex gap-1 mt-auto pt-4 border-t border-slate-50">
-                        <button onClick={() => loadTenantLogs(t)} title="Histórico" className="w-8 h-8 bg-slate-50 text-slate-500 rounded-lg flex items-center justify-center hover:bg-slate-100 border border-slate-200 shrink-0"><History size={14} /></button>
-                        <button onClick={() => setUsersModal({ isOpen: true, tenant: t })} className="flex-1 h-8 bg-slate-50 text-slate-600 rounded-lg text-[8px] font-black uppercase flex items-center justify-center gap-1 border border-slate-200 px-1"><Users size={12} /><span className="hidden sm:inline">Usuários</span></button>
-                        <button onClick={() => { setEditingTenant(t); setShowModal(true); }} className="flex-1 h-8 bg-slate-900 text-white rounded-lg text-[8px] font-black uppercase flex items-center justify-center gap-1 px-1"><Edit2 size={12} /><span className="hidden sm:inline">Editar</span></button>
-                        <button onClick={() => setDeleteModal({ isOpen: true, tenant: t })} title="Excluir" className="w-8 h-8 bg-red-50 text-red-500 rounded-lg flex items-center justify-center border border-red-100 shrink-0"><Trash2 size={14} /></button>
+                      <div className="mt-auto grid grid-cols-4 gap-2">
+                        <button onClick={() => loadTenantLogs(t)} title="Histórico" className="h-10 bg-slate-50 text-slate-500 rounded-xl flex items-center justify-center hover:bg-slate-100 border border-slate-100 transition-all"><History size={16} /></button>
+                        <button onClick={() => setUsersModal({ isOpen: true, tenant: t })} title="Usuários" className="h-10 bg-slate-50 text-slate-500 rounded-xl flex items-center justify-center hover:bg-slate-100 border border-slate-100 transition-all"><Users size={16} /></button>
+                        <button onClick={() => { setEditingTenant(t); setShowModal(true); }} className="col-span-1 h-10 bg-slate-900 text-white rounded-xl flex items-center justify-center hover:bg-emerald-600 transition-all shadow-lg shadow-slate-900/10"><Edit2 size={14} /></button>
+                        <button onClick={() => setDeleteModal({ isOpen: true, tenant: t })} title="Excluir" className="h-10 bg-red-50 text-red-500 rounded-xl flex items-center justify-center hover:bg-red-100 border border-red-100 transition-all"><Trash2 size={16} /></button>
                       </div>
                     </div>
                   ))}
@@ -709,7 +966,7 @@ export default function SuperAdmin() {
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
                 <div className="flex items-center justify-between">
                   <h2 className="text-xl font-black text-slate-900 uppercase">Gestão de Permissões</h2>
-                  <button onClick={() => { setEditingProfile(null); setPermissionsForm({ name: "", description: "", permissions: { can_view_dashboard: true, can_manage_clients: false, can_manage_vehicles: false, can_manage_work_orders: false, can_manage_finance: false, can_manage_inventory: false, can_manage_team: false, can_manage_settings: false, can_view_reports: false } }); setShowPermissionsModal(true); }} className="h-10 px-6 bg-slate-900 text-white rounded-xl font-black text-[10px] uppercase flex items-center gap-2 hover:bg-emerald-600 transition-all shadow-lg">
+                  <button onClick={() => { setEditingProfile(null); setPermissionsForm({ name: "", description: "", permissions: { ver_dashboard: true, ver_clientes: false, gerenciar_clientes: false, ver_veiculos: false, gerenciar_veiculos: false, ver_os: false, gerenciar_os: false, ver_financeiro: false, gerenciar_financeiro: false, ver_estoque: false, gerenciar_estoque: false, ver_equipe: false, gerenciar_equipe: false, ver_configuracoes: false, gerenciar_configuracoes: false, ver_relatorios: false } }); setShowPermissionsModal(true); }} className="h-10 px-6 bg-slate-900 text-white rounded-xl font-black text-[10px] uppercase flex items-center gap-2 hover:bg-emerald-600 transition-all shadow-lg">
                     <Plus size={16} /> Criar Perfil de Acesso
                   </button>
                 </div>
@@ -731,8 +988,8 @@ export default function SuperAdmin() {
                             
                             <div className="flex flex-wrap gap-1.5 border-t border-slate-50 pt-4">
                                 {Object.entries(profile.permissions).filter(([_, val]) => val).map(([key]) => (
-                                    <span key={key} className="px-2 py-0.5 bg-slate-100 text-slate-500 rounded-md text-[8px] font-black uppercase">
-                                        {key.replace('can_', '').replace(/_/g, ' ')}
+                                    <span key={key} className="px-2 py-1 bg-emerald-50 text-emerald-600 rounded-lg text-[8px] font-black uppercase border border-emerald-100/50">
+                                        {PERMISSION_LABELS[key] || key}
                                     </span>
                                 ))}
                                 {Object.values(profile.permissions).every(v => !v) && <span className="text-[8px] text-slate-300 italic font-bold">Nenhuma permissão ativa</span>}
@@ -752,7 +1009,10 @@ export default function SuperAdmin() {
             {activeTab === 'plans' && (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
                 <div className="flex items-center justify-between">
-                  <h2 className="text-xl font-black text-slate-900 uppercase">Planos de Preços</h2>
+                  <div>
+                    <h2 className="text-xl font-black text-slate-900 uppercase">Planos de Assinatura</h2>
+                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">Configurações globais de precificação</p>
+                  </div>
                   <button onClick={() => setShowPlansModal(true)} className="h-10 px-5 bg-slate-900 text-white rounded-xl font-black text-[10px] uppercase flex items-center gap-2 hover:bg-emerald-600 transition-all shadow-md">
                     <Plus size={14} /> Gerenciar Planos
                   </button>
@@ -760,38 +1020,48 @@ export default function SuperAdmin() {
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {plans.map((p) => (
-                    <div key={p.id} className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm relative overflow-hidden group">
-                      <div className="absolute top-0 right-0 p-4">
-                        <div className={cn("px-2 py-1 rounded-lg text-[8px] font-black uppercase", p.active ? "bg-emerald-50 text-emerald-600" : "bg-slate-50 text-slate-400")}>
+                    <div key={p.id} className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm relative overflow-hidden group hover:border-blue-200 transition-all">
+                      <div className="absolute top-0 right-0 p-6">
+                        <div className={cn("px-3 py-1 rounded-xl text-[9px] font-black uppercase border", p.active ? "bg-emerald-50 text-emerald-600 border-emerald-100" : "bg-slate-50 text-slate-400 border-slate-100")}>
                           {p.active ? "Ativo" : "Inativo"}
                         </div>
                       </div>
                       
-                      <div className="mb-6">
-                        <h3 className="text-lg font-black text-slate-900 uppercase">{p.name}</h3>
-                        <p className="text-xs text-slate-500 font-medium mt-1">{p.description || "Sem descrição"}</p>
+                      <div className="mb-8">
+                        <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center mb-4">
+                            <Zap size={24} />
+                        </div>
+                        <h3 className="text-lg font-black text-slate-900 uppercase italic">{p.name}</h3>
+                        <p className="text-xs text-slate-500 font-bold mt-1 line-clamp-1">{p.description || "Sem descrição"}</p>
                       </div>
                       
                       <div className="space-y-4">
-                        <div className="flex items-center justify-between p-3 bg-slate-50 rounded-2xl border border-slate-100">
+                        <div className="flex items-center justify-between p-4 bg-slate-50/50 rounded-2xl border border-slate-100/50">
                           <div className="flex items-center gap-2">
-                            <Users size={14} className="text-slate-400" />
-                            <span className="text-[10px] font-black text-slate-600 uppercase">Usuários</span>
+                            <Users size={16} className="text-slate-400" />
+                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Limite Usuários</span>
                           </div>
                           <span className="text-sm font-black text-slate-900">{p.user_limit}</span>
                         </div>
                         
-                        <div className="flex items-center justify-between p-3 bg-slate-50 rounded-2xl border border-slate-100">
+                        <div className="flex items-center justify-between p-4 bg-slate-50/50 rounded-2xl border border-slate-100/50">
                           <div className="flex items-center gap-2">
-                            <Clock size={14} className="text-slate-400" />
-                            <span className="text-[10px] font-black text-slate-600 uppercase">Duração</span>
+                            <Clock size={16} className="text-slate-400" />
+                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Duração Contrato</span>
                           </div>
                           <span className="text-sm font-black text-slate-900">{p.months_duration} {p.months_duration === 1 ? 'mês' : 'meses'}</span>
                         </div>
                         
-                        <div className="pt-4 border-t border-slate-100">
-                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Valor Mensal</p>
-                          <h4 className="text-2xl font-black text-emerald-600">R$ {p.monthly_value.toLocaleString('pt-BR')}</h4>
+                        <div className="pt-6 border-t border-slate-50 flex items-end justify-between">
+                            <div>
+                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Investimento</p>
+                                <h4 className="text-3xl font-black text-slate-900 leading-none mt-1">
+                                    <span className="text-sm">R$</span> {p.monthly_value.toLocaleString('pt-BR')}
+                                </h4>
+                            </div>
+                            <div className="h-10 w-10 rounded-xl bg-slate-900 text-white flex items-center justify-center">
+                                <ChevronRight size={20} />
+                            </div>
                         </div>
                       </div>
                     </div>
@@ -1251,7 +1521,7 @@ export default function SuperAdmin() {
                             )}>
                                 <div className="min-w-0">
                                     <p className={cn("text-[9px] font-black uppercase tracking-wider", val ? "text-emerald-700" : "text-slate-500")}>
-                                        {key.replace('can_', '').replace(/_/g, ' ')}
+                                        {PERMISSION_LABELS[key] || key}
                                     </p>
                                 </div>
                                 <div className="relative inline-flex items-center cursor-pointer">

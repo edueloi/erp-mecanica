@@ -14,6 +14,7 @@ export function initDb() {
   try { db.exec('ALTER TABLE users ADD COLUMN surname TEXT'); } catch (e) {}
   try { db.exec('ALTER TABLE users ADD COLUMN biography TEXT'); } catch (e) {}
   try { db.exec('ALTER TABLE users ADD COLUMN education TEXT'); } catch (e) {}
+  try { db.exec('ALTER TABLE users ADD COLUMN permissions TEXT'); } catch (e) {}
 
   db.exec('CREATE TABLE IF NOT EXISTS tenant_audit_logs (id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, user_id TEXT, action_type TEXT NOT NULL, description TEXT, payment_date DATETIME, payment_method TEXT, old_status TEXT, new_status TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)');
   
