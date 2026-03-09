@@ -228,10 +228,22 @@ router.post("/team", requireSuperAdmin, (req: AuthRequest, res) => {
 
 router.delete("/team/:id", requireSuperAdmin, (req: AuthRequest, res) => {
   try {
-    if (req.params.id === req.user?.id) {
+    const { id } = req.params;
+    if (id === req.user?.id) {
       return res.status(400).json({ error: "Você não pode excluir a si mesmo." });
     }
-    db.prepare("DELETE FROM users WHERE id = ? AND role IN ('SUPER_ADMIN', 'VENDEDOR')").run(req.params.id);
+
+    const userToDelete = db.prepare("SELECT role, email FROM users WHERE id = ?").get(id) as any;
+    if (!userToDelete) return res.status(404).json({ error: "Usuário não encontrado" });
+
+    // Se o usuário a ser deletado for SUPER_ADMIN, apenas admin@mecaerp.com.br pode deletar
+    if (userToDelete.role === 'SUPER_ADMIN') {
+      if (req.user?.email !== 'admin@mecaerp.com.br') {
+        return res.status(403).json({ error: "Apenas o Administrador Principal pode remover outros Super Admins." });
+      }
+    }
+
+    db.prepare("DELETE FROM users WHERE id = ? AND role IN ('SUPER_ADMIN', 'VENDEDOR')").run(id);
     res.json({ message: "Membro removido" });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
