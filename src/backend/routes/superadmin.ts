@@ -18,6 +18,85 @@ router.use(authenticateToken);
 router.use(isSuperAdmin);
 
 // ========================================
+// SUPERADMIN SETTINGS
+// ========================================
+
+router.get("/settings", (req, res) => {
+  try {
+    let settings = db.prepare("SELECT * FROM superadmin_settings LIMIT 1").get() as any;
+
+    if (!settings) {
+      const id = uuidv4();
+      db.prepare(`
+        INSERT INTO superadmin_settings (id, power_bi_title, default_user_limit, default_due_day, default_subscription_value)
+        VALUES (?, ?, ?, ?, ?)
+      `).run(id, 'Painel Financeiro', 5, 5, 0);
+
+      settings = db.prepare("SELECT * FROM superadmin_settings WHERE id = ?").get(id);
+    }
+
+    res.json(settings);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.put("/settings", (req, res) => {
+  const {
+    power_bi_url,
+    power_bi_title,
+    billing_url,
+    onboarding_url,
+    support_url,
+    default_user_limit,
+    default_due_day,
+    default_subscription_value,
+  } = req.body;
+
+  try {
+    let settings = db.prepare("SELECT id FROM superadmin_settings LIMIT 1").get() as any;
+
+    if (!settings) {
+      const id = uuidv4();
+      db.prepare(`
+        INSERT INTO superadmin_settings (id, power_bi_title, default_user_limit, default_due_day, default_subscription_value)
+        VALUES (?, ?, ?, ?, ?)
+      `).run(id, 'Painel Financeiro', 5, 5, 0);
+      settings = { id };
+    }
+
+    db.prepare(`
+      UPDATE superadmin_settings
+      SET power_bi_url = COALESCE(?, power_bi_url),
+          power_bi_title = COALESCE(?, power_bi_title),
+          billing_url = COALESCE(?, billing_url),
+          onboarding_url = COALESCE(?, onboarding_url),
+          support_url = COALESCE(?, support_url),
+          default_user_limit = COALESCE(?, default_user_limit),
+          default_due_day = COALESCE(?, default_due_day),
+          default_subscription_value = COALESCE(?, default_subscription_value),
+          updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `).run(
+      power_bi_url,
+      power_bi_title,
+      billing_url,
+      onboarding_url,
+      support_url,
+      default_user_limit,
+      default_due_day,
+      default_subscription_value,
+      settings.id
+    );
+
+    const updated = db.prepare("SELECT * FROM superadmin_settings WHERE id = ?").get(settings.id);
+    res.json(updated);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ========================================
 // PRICING PLANS ROUTES
 // ========================================
 
@@ -138,7 +217,7 @@ router.post("/tenants", async (req, res) => {
 });
 
 // Update tenant info
-router.patch("/tenants/:id", async (req, res) => {
+router.patch("/tenants/:id", (req, res) => {
   const { id } = req.params;
   const { 
     name, document, phone, address, user_limit, 
@@ -147,7 +226,7 @@ router.patch("/tenants/:id", async (req, res) => {
   } = req.body;
 
   try {
-    const transaction = db.transaction(async () => {
+    const transaction = db.transaction(() => {
       // 1. Update Tenant
       const tFields = [];
       const tValues = [];
@@ -190,7 +269,7 @@ router.patch("/tenants/:id", async (req, res) => {
       }
     });
 
-    await transaction();
+    transaction();
     res.json({ message: "Tenant and Admin updated successfully." });
   } catch (error: any) {
     res.status(500).json({ error: error.message });

@@ -311,7 +311,7 @@ export default function SuperAdmin() {
                     <motion.tr key={t.id} className="hover:bg-slate-50/50 transition-colors group">
                       <td className="px-8 py-6">
                         <div className="flex items-center gap-5">
-                          <div className="w-14 h-14 bg-slate-900 rounded-[1.25rem] flex items-center justify-center text-white overflow-hidden shadow-lg shadow-slate-900/10">
+                          <div className={cn("w-14 h-14 rounded-[1.25rem] flex items-center justify-center overflow-hidden shadow-lg shadow-slate-900/10", t.logo_url ? "bg-white border border-slate-200" : "bg-slate-900 text-white")}>
                             {t.logo_url ? (
                               <img src={t.logo_url} alt={t.name} className="w-full h-full object-contain p-2" />
                             ) : (
@@ -394,7 +394,7 @@ export default function SuperAdmin() {
               <motion.div key={t.id} className="bg-slate-50/50 rounded-3xl p-5 border border-slate-100 space-y-4 shadow-sm">
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-slate-900 rounded-2xl flex items-center justify-center text-white overflow-hidden shadow-lg">
+                    <div className={cn("w-12 h-12 rounded-2xl flex items-center justify-center overflow-hidden shadow-lg", t.logo_url ? "bg-white border border-slate-200" : "bg-slate-900 text-white")}>
                       {t.logo_url ? (
                         <img src={t.logo_url} alt={t.name} className="w-full h-full object-contain p-1.5" />
                       ) : (

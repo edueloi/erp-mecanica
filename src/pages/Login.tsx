@@ -4,6 +4,8 @@ import { useAuthStore } from '../services/authStore';
 import api from '../services/api';
 import { motion } from 'motion/react';
 import { LogIn, UserPlus, Eye, EyeOff, Mail, Lock, User, Building2 } from 'lucide-react';
+const logoMecaerp = '/src/image/logo-system/logo-mecaerp.png';
+const mecaerpSystem = '/src/image/logo-system/mecaerp-system.png';
 
 export default function Login() {
   const [isRegister, setIsRegister] = useState(false);
@@ -55,10 +57,7 @@ export default function Login() {
             animate={{ opacity: 1, y: 0 }}
             className="text-center mb-8"
           >
-            <div className="w-12 h-12 bg-emerald-600 rounded-lg flex items-center justify-center font-bold text-2xl text-white mx-auto mb-3">
-              M
-            </div>
-            <h1 className="text-2xl font-bold text-slate-800">MecaERP</h1>
+            <img src={logoMecaerp} alt="MecaERP" className="h-16 mx-auto mb-3 object-contain" />
             <p className="text-slate-500 text-sm mt-1">
               {isRegister ? 'Criar nova conta' : 'Entre na sua conta'}
             </p>

@@ -330,7 +330,7 @@ export default function Settings() {
                         <img 
                           src={tenantForm.logo_url} 
                           alt="Logo" 
-                          className="w-20 h-20 object-contain rounded-xl border border-slate-200"
+                          className="w-20 h-20 object-contain rounded-xl border border-slate-200 bg-white p-2"
                         />
                       )}
                       <div className="flex-1">

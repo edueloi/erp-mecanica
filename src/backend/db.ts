@@ -20,6 +20,23 @@ export function initDb() {
     )
   `);
 
+  // Super Admin Settings
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS superadmin_settings (
+      id TEXT PRIMARY KEY,
+      power_bi_url TEXT,
+      power_bi_title TEXT DEFAULT 'Painel Financeiro',
+      billing_url TEXT,
+      onboarding_url TEXT,
+      support_url TEXT,
+      default_user_limit INTEGER DEFAULT 5,
+      default_due_day INTEGER DEFAULT 5,
+      default_subscription_value REAL DEFAULT 0,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
   // Tenants (Oficinas)
   db.exec(`
     CREATE TABLE IF NOT EXISTS tenants (
@@ -1452,6 +1469,20 @@ export function initDb() {
     } catch (e: any) {
       console.error(`?? Error adding ${migration.name} to tenants:`, e.message);
     }
+  }
+
+  // Seed superadmin settings row
+  try {
+    const existingSettings = db.prepare("SELECT id FROM superadmin_settings LIMIT 1").get() as any;
+    if (!existingSettings) {
+      db.prepare(`
+        INSERT INTO superadmin_settings (id, power_bi_title, default_user_limit, default_due_day, default_subscription_value)
+        VALUES (?, ?, ?, ?, ?)
+      `).run(uuidv4(), 'Painel Financeiro', 5, 5, 0);
+      console.log("? Superadmin settings initialized");
+    }
+  } catch (e: any) {
+    console.error("?? Error initializing superadmin settings:", e.message);
   }
 
   // Migration: Add permissions to users if missing
