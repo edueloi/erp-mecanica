@@ -225,6 +225,54 @@ router.post("/team", requireSuperAdmin, (req: AuthRequest, res) => {
     
     res.json({ message: "Membro da equipe criado com sucesso!" });
   } catch (error: any) {
+    console.error("Erro ao criar membro da equipe:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.patch("/team/:id", requireSuperAdmin, (req: AuthRequest, res) => {
+  const { id } = req.params;
+  const { name, email, password, role, phone, cpf, profession, permissions } = req.body;
+  
+  try {
+    const userToEdit = db.prepare("SELECT role, email FROM users WHERE id = ?").get(id) as any;
+    if (!userToEdit) return res.status(404).json({ error: "Usuário não encontrado" });
+
+    // Proteção Hierárquica
+    if (userToEdit.email === 'admin@mecaerp.com.br' && req.user?.email !== 'admin@mecaerp.com.br') {
+        return res.status(403).json({ error: "Apenas o Administrador Principal pode alterar seu próprio perfil." });
+    }
+
+    if (userToEdit.role === 'SUPER_ADMIN' && userToEdit.email !== req.user?.email && req.user?.email !== 'admin@mecaerp.com.br') {
+        return res.status(403).json({ error: "Você não tem permissão para editar outro Super Admin." });
+    }
+
+    const updates: string[] = [];
+    const values: any[] = [];
+
+    if (name) { updates.push("name = ?"); values.push(name); }
+    if (email) { 
+        // Verificar se e-mail já existe em outro usuário
+        const existing = db.prepare("SELECT id FROM users WHERE email = ? AND id != ?").get(email, id);
+        if (existing) return res.status(400).json({ error: "E-mail já em uso." });
+        updates.push("email = ?"); values.push(email); 
+    }
+    if (password) { 
+        const hash = bcrypt.hashSync(password, 10);
+        updates.push("password = ?"); values.push(hash); 
+    }
+    if (role && req.user?.email === 'admin@mecaerp.com.br') { updates.push("role = ?"); values.push(role); }
+    if (phone !== undefined) { updates.push("phone = ?"); values.push(phone || null); }
+    if (cpf !== undefined) { updates.push("cpf = ?"); values.push(cpf || null); }
+    if (profession !== undefined) { updates.push("profession = ?"); values.push(profession || null); }
+    if (permissions) { updates.push("permissions = ?"); values.push(JSON.stringify(permissions)); }
+
+    if (updates.length > 0) {
+        db.prepare(`UPDATE users SET ${updates.join(", ")} WHERE id = ?`).run(...values, id);
+    }
+
+    res.json({ message: "Membro atualizado" });
+  } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
 });
@@ -239,11 +287,13 @@ router.delete("/team/:id", requireSuperAdmin, (req: AuthRequest, res) => {
     const userToDelete = db.prepare("SELECT role, email FROM users WHERE id = ?").get(id) as any;
     if (!userToDelete) return res.status(404).json({ error: "Usuário não encontrado" });
 
-    // Se o usuário a ser deletado for SUPER_ADMIN, apenas admin@mecaerp.com.br pode deletar
-    if (userToDelete.role === 'SUPER_ADMIN') {
-      if (req.user?.email !== 'admin@mecaerp.com.br') {
+    // Proteção Hierárquica
+    if (userToDelete.email === 'admin@mecaerp.com.br') {
+        return res.status(403).json({ error: "O Administrador Principal não pode ser removido." });
+    }
+
+    if (userToDelete.role === 'SUPER_ADMIN' && req.user?.email !== 'admin@mecaerp.com.br') {
         return res.status(403).json({ error: "Apenas o Administrador Principal pode remover outros Super Admins." });
-      }
     }
 
     db.prepare("DELETE FROM users WHERE id = ? AND role IN ('SUPER_ADMIN', 'VENDEDOR')").run(id);

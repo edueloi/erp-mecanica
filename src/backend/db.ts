@@ -11,6 +11,9 @@ export function initDb() {
   db.exec('CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, name TEXT NOT NULL, email TEXT NOT NULL, password TEXT NOT NULL, role TEXT NOT NULL, cpf TEXT, phone TEXT, profession TEXT, photo_url TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)');
   
   // Migrations for new profile fields
+  try { db.exec('ALTER TABLE users ADD COLUMN phone TEXT'); } catch (e) {}
+  try { db.exec('ALTER TABLE users ADD COLUMN cpf TEXT'); } catch (e) {}
+  try { db.exec('ALTER TABLE users ADD COLUMN profession TEXT'); } catch (e) {}
   try { db.exec('ALTER TABLE users ADD COLUMN surname TEXT'); } catch (e) {}
   try { db.exec('ALTER TABLE users ADD COLUMN biography TEXT'); } catch (e) {}
   try { db.exec('ALTER TABLE users ADD COLUMN education TEXT'); } catch (e) {}

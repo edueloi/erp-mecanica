@@ -106,8 +106,11 @@ export default function SuperAdmin() {
   const [activationModal, setActivationModal] = useState<{ isOpen: boolean; tenant: any | null; payment_method: string; payment_date: string }>({ 
     isOpen: false, tenant: null, payment_method: 'PIX', payment_date: new Date().toISOString().split('T')[0] 
   });
+  const [deleteTeamConfig, setDeleteTeamConfig] = useState<{ isOpen: boolean; member: any | null }>({ isOpen: false, member: null });
+  const [deleteProfileConfig, setDeleteProfileConfig] = useState<{ isOpen: boolean; profile: any | null }>({ isOpen: false, profile: null });
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [showTeamPassword, setShowTeamPassword] = useState(false);
+  const [editingMember, setEditingMember] = useState<any | null>(null);
 
   const logout = useAuthStore(state => state.logout);
   const user = useAuthStore(state => state.user);
@@ -455,53 +458,78 @@ export default function SuperAdmin() {
     }
   };
 
-  const deletePermissionProfile = async (id: string) => {
-    if (confirm("Remover este perfil de permissões?")) {
-      try {
-        await api.delete(`/superadmin/permission-profiles/${id}`);
-        showToast("Perfil removido");
-        loadData();
-      } catch (err) {
-        showToast("Erro ao remover", "error");
-      }
+  const deletePermissionProfile = async () => {
+    if (!deleteProfileConfig.profile) return;
+    setSaving(true);
+    try {
+      await api.delete(`/superadmin/permission-profiles/${deleteProfileConfig.profile.id}`);
+      showToast("Perfil removido");
+      setDeleteProfileConfig({ isOpen: false, profile: null });
+      loadData();
+    } catch (err) {
+      showToast("Erro ao remover", "error");
+    } finally {
+      setSaving(false);
     }
+  };
+
+
+  const handleEditTeamMember = (member: any) => {
+    setEditingMember(member);
+    setTeamForm({
+      name: member.name,
+      email: member.email,
+      password: "", // Deixa vazio para não trocar se não quiser
+      role: member.role,
+      phone: member.phone || "",
+      cpf: member.cpf || "",
+      profession: member.profession || "",
+      permission_profile_id: member.permission_profile_id || ""
+    });
+    setShowTeamModal(true);
   };
 
   const handleTeamSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
     try {
-      // Find selected permissions if any
       const selectedProfile = permissionProfiles.find(p => p.id === teamForm.permission_profile_id);
-      const finalData = { 
-          ...teamForm, 
-          permissions: selectedProfile ? selectedProfile.permissions : (teamForm.role === 'SUPER_ADMIN' ? {
-              ver_dashboard: true,
-              ver_clientes: true,
-              gerenciar_clientes: true,
-              ver_veiculos: true,
-              gerenciar_veiculos: true,
-              ver_os: true,
-              gerenciar_os: true,
-              ver_financeiro: true,
-              gerenciar_financeiro: true,
-              ver_estoque: true,
-              gerenciar_estoque: true,
-              ver_equipe: true,
-              gerenciar_equipe: true,
-              ver_configuracoes: true,
-              gerenciar_configuracoes: true,
-              ver_relatorios: true
-          } : {}) 
-      };
+      const permissions = selectedProfile ? selectedProfile.permissions : (teamForm.role === 'SUPER_ADMIN' ? {
+          ver_dashboard: true, ver_clientes: true, gerenciar_clientes: true, ver_veiculos: true, gerenciar_veiculos: true, ver_os: true, gerenciar_os: true, ver_financeiro: true, gerenciar_financeiro: true, ver_estoque: true, gerenciar_estoque: true, ver_equipe: true, gerenciar_equipe: true, ver_configuracoes: true, gerenciar_configuracoes: true, ver_relatorios: true
+      } : {});
 
-      await api.post("/superadmin/team", finalData);
-      showToast("Membro adicionado!");
+      const finalData = { ...teamForm, permissions };
+      if (!finalData.password) delete (finalData as any).password;
+
+      if (editingMember) {
+        await api.patch(`/superadmin/team/${editingMember.id}`, finalData);
+        showToast("Membro atualizado!");
+      } else {
+        await api.post("/superadmin/team", finalData);
+        showToast("Membro adicionado!");
+      }
+
       setShowTeamModal(false);
+      setEditingMember(null);
       setTeamForm({ name: "", email: "", password: "", role: "VENDEDOR", phone: "", cpf: "", profession: "", permission_profile_id: "" });
       loadData();
     } catch (err: any) {
-      showToast(err.response?.data?.error || "Erro", "error");
+      showToast(err.response?.data?.error || "Erro ao salvar", "error");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const deleteTeamMember = async () => {
+    if (!deleteTeamConfig.member) return;
+    setSaving(true);
+    try {
+      await api.delete(`/superadmin/team/${deleteTeamConfig.member.id}`);
+      showToast("Membro removido");
+      setDeleteTeamConfig({ isOpen: false, member: null });
+      loadData();
+    } catch (err: any) {
+      showToast(err.response?.data?.error || "Erro ao remover", "error");
     } finally {
       setSaving(false);
     }
@@ -523,17 +551,6 @@ export default function SuperAdmin() {
     }
   };
 
-  const deleteTeamMember = async (id: string) => {
-    if (confirm("Remover este membro da equipe?")) {
-      try {
-        await api.delete(`/superadmin/team/${id}`);
-        showToast("Membro removido");
-        loadData();
-      } catch (err: any) {
-        showToast(err.response?.data?.error || "Erro", "error");
-      }
-    }
-  };
 
   const filteredTenants = tenants.filter(t => 
     t.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -891,7 +908,7 @@ export default function SuperAdmin() {
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
                 <div className="flex items-center justify-between">
                   <h2 className="text-xl font-black text-slate-900 uppercase">Equipe Interna</h2>
-                  <button onClick={() => setShowTeamModal(true)} className="h-10 px-6 bg-slate-900 text-white rounded-xl font-black text-[10px] uppercase flex items-center gap-2 hover:bg-emerald-600 transition-all shadow-lg shadow-slate-900/10">
+                  <button onClick={() => { setEditingMember(null); setTeamForm({ name: "", email: "", password: "", role: "VENDEDOR", phone: "", cpf: "", profession: "", permission_profile_id: "" }); setShowTeamModal(true); }} className="h-10 px-6 bg-slate-900 text-white rounded-xl font-black text-[10px] uppercase flex items-center gap-2 hover:bg-emerald-600 transition-all shadow-lg shadow-slate-900/10">
                     <Plus size={16} /> Novo Membro
                   </button>
                 </div>
@@ -904,13 +921,27 @@ export default function SuperAdmin() {
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {team.map((m) => (
-                      <div key={m.id} className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm relative group hover:border-emerald-200 transition-all">
-                        <button 
-                          onClick={() => deleteTeamMember(m.id)} 
-                          className="absolute top-4 right-4 w-8 h-8 rounded-lg bg-slate-50 text-slate-300 hover:bg-red-50 hover:text-red-500 flex items-center justify-center transition-all opacity-0 group-hover:opacity-100"
-                        >
-                          <Trash2 size={14} />
-                        </button>
+                      <div key={m.id} className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm relative group hover:border-emerald-200 transition-all flex flex-col">
+                        <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-all">
+                            {(isMasterRoot || (user?.permissions?.gerenciar_equipe && m.role !== 'SUPER_ADMIN' && m.email !== 'admin@mecaerp.com.br')) && m.email !== user?.email && (
+                                <>
+                                    <button 
+                                        onClick={() => handleEditTeamMember(m)} 
+                                        className="w-8 h-8 rounded-lg bg-slate-50 text-slate-400 hover:bg-slate-100 hover:text-slate-600 flex items-center justify-center transition-all"
+                                        title="Editar"
+                                    >
+                                        <Edit2 size={14} />
+                                    </button>
+                                    <button 
+                                        onClick={() => setDeleteTeamConfig({ isOpen: true, member: m })} 
+                                        className="w-8 h-8 rounded-lg bg-red-50 text-red-400 hover:bg-red-100 hover:text-red-500 flex items-center justify-center transition-all"
+                                        title="Excluir"
+                                    >
+                                        <Trash2 size={14} />
+                                    </button>
+                                </>
+                            )}
+                        </div>
 
                         <div className="flex items-center gap-4 mb-6">
                           <div className="w-14 h-14 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-center overflow-hidden shrink-0">
@@ -980,7 +1011,7 @@ export default function SuperAdmin() {
                                 </div>
                                 <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-all">
                                     <button onClick={() => { setEditingProfile(profile); setPermissionsForm({ name: profile.name, description: profile.description || "", permissions: profile.permissions }); setShowPermissionsModal(true); }} className="w-8 h-8 rounded-lg bg-slate-50 text-slate-400 hover:bg-slate-100 hover:text-slate-600 flex items-center justify-center"><Edit2 size={14} /></button>
-                                    <button onClick={() => deletePermissionProfile(profile.id)} className="w-8 h-8 rounded-lg bg-red-50 text-red-400 hover:bg-red-100 hover:text-red-600 flex items-center justify-center"><Trash2 size={14} /></button>
+                                    <button onClick={() => setDeleteProfileConfig({ isOpen: true, profile: profile })} className="w-8 h-8 rounded-lg bg-red-50 text-red-400 hover:bg-red-100 hover:text-red-600 flex items-center justify-center"><Trash2 size={14} /></button>
                                 </div>
                             </div>
                             <h3 className="text-sm font-black text-slate-900 uppercase truncate mb-1">{profile.name}</h3>
@@ -1347,7 +1378,7 @@ export default function SuperAdmin() {
                 <div className="bg-slate-900 p-8 text-white relative flex items-center justify-between overflow-hidden">
                   <div className="relative z-10">
                     <h3 className="font-black uppercase tracking-[0.2em] text-xs opacity-70 mb-1">Gerenciar Acessos</h3>
-                    <h2 className="text-2xl font-black uppercase tracking-tight">Novo Colaborador</h2>
+                    <h2 className="text-2xl font-black uppercase tracking-tight">{editingMember ? 'Editar Colaborador' : 'Novo Colaborador'}</h2>
                   </div>
                   <button onClick={() => setShowTeamModal(false)} className="w-10 h-10 rounded-2xl bg-white/10 flex items-center justify-center hover:bg-white/20 transition-all group relative z-10"><X size={20} className="group-hover:rotate-90 transition-all duration-300" /></button>
                   <Briefcase size={120} className="absolute -right-10 -bottom-10 text-white/5 rotate-12" />
@@ -1447,7 +1478,7 @@ export default function SuperAdmin() {
                   <div className="pt-2 flex gap-3">
                     <button type="button" onClick={() => setShowTeamModal(false)} className="flex-1 h-14 bg-slate-50 text-slate-500 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-slate-100 transition-all">Cancelar</button>
                     <button type="submit" disabled={saving} className="flex-[2] h-14 bg-slate-900 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-emerald-600 shadow-xl shadow-slate-900/10 hover:shadow-emerald-500/20 transition-all flex items-center justify-center gap-2">
-                      {saving ? 'Criando...' : <><Shield size={16} /> Finalizar Cadastro</>}
+                      {saving ? 'Salvando...' : <>{editingMember ? <Edit2 size={16} /> : <Shield size={16} />} {editingMember ? 'Salvar Alterações' : 'Finalizar Cadastro'}</>}
                     </button>
                   </div>
                 </form>
@@ -1557,6 +1588,24 @@ export default function SuperAdmin() {
       <SuperAdminModal isOpen={showModal} onClose={() => setShowModal(false)} editingTenant={editingTenant} form={form} setForm={setForm} onSubmit={handleSubmit} saving={saving} />
       <PricingPlansModal isOpen={showPlansModal} onClose={() => setShowPlansModal(false)} />
       <DeleteConfirmationModal isOpen={deleteModal.isOpen} onClose={() => setDeleteModal({ isOpen: false, tenant: null })} onConfirm={handleDelete} title="Excluir" message="Tem certeza?" itemName={deleteModal.tenant?.name || ""} loading={saving} />
+      <DeleteConfirmationModal 
+        isOpen={deleteTeamConfig.isOpen} 
+        onClose={() => setDeleteTeamConfig({ isOpen: false, member: null })} 
+        onConfirm={deleteTeamMember} 
+        title="Remover Membro" 
+        message="Tem certeza que deseja remover este colaborador da equipe? Esta ação não pode ser desfeita." 
+        itemName={deleteTeamConfig.member?.name || ""} 
+        loading={saving} 
+      />
+      <DeleteConfirmationModal 
+        isOpen={deleteProfileConfig.isOpen} 
+        onClose={() => setDeleteProfileConfig({ isOpen: false, profile: null })} 
+        onConfirm={deletePermissionProfile} 
+        title="Remover Perfil" 
+        message="Tem certeza que deseja remover este perfil de permissões?" 
+        itemName={deleteProfileConfig.profile?.name || ""} 
+        loading={saving} 
+      />
       <TenantUsersModal isOpen={usersModal.isOpen} onClose={() => setUsersModal({ isOpen: false, tenant: null })} tenant={usersModal.tenant} />
     </div>
   );
