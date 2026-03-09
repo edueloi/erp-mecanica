@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Building2, 
@@ -8,8 +8,6 @@ import {
   Trash2, 
   Edit2, 
   LogOut,
-  Phone,
-  MapPin,
   ChevronRight,
   Search,
   CheckCircle,
@@ -20,7 +18,19 @@ import {
   Clock,
   Ban,
   AlertTriangle,
-  Mail
+  Mail,
+  LayoutDashboard,
+  BarChart3,
+  UserCircle,
+  Settings as SettingsIcon,
+  Phone,
+  TrendingUp,
+  Target,
+  CreditCard,
+  ArrowUpRight,
+  History,
+  Activity,
+  X
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "../services/authStore";
@@ -35,16 +45,19 @@ function cn(...inputs: any[]) {
   return twMerge(inputs.filter(Boolean).map(i => typeof i === 'object' ? Object.keys(i).filter(k => i[k]).join(' ') : i).join(' '));
 }
 
-const STATUS_CONFIG: Record<string, { label: string; color: string; icon: any; bg: string }> = {
-  ACTIVE: { label: "Ativo", color: "text-emerald-600", bg: "bg-emerald-50", icon: CheckCircle },
-  INACTIVE: { label: "Inativo", color: "text-slate-400", bg: "bg-slate-50", icon: Clock },
-  TRIAL: { label: "Teste", color: "text-blue-600", bg: "bg-blue-50", icon: Calendar },
-  OVERDUE: { label: "Atrasado", color: "text-amber-600", bg: "bg-amber-50", icon: AlertTriangle },
-  PENDING_PAYMENT: { label: "Pendente", color: "text-purple-600", bg: "bg-purple-50", icon: DollarSign },
-  BLOCKED: { label: "Bloqueado", color: "text-red-600", bg: "bg-red-50", icon: Ban },
+const STATUS_CONFIG: Record<string, { label: string; color: string; icon: any; bg: string; border: string }> = {
+  ACTIVE: { label: "Ativo", color: "text-emerald-600", bg: "bg-emerald-50", border: "border-emerald-100", icon: CheckCircle },
+  INACTIVE: { label: "Inativo", color: "text-slate-400", bg: "bg-slate-50", border: "border-slate-100", icon: Clock },
+  TRIAL: { label: "Teste", color: "text-blue-600", bg: "bg-blue-50", border: "border-blue-100", icon: Calendar },
+  OVERDUE: { label: "Atrasado", color: "text-amber-600", bg: "bg-amber-50", border: "border-amber-100", icon: AlertTriangle },
+  PENDING_PAYMENT: { label: "Pendente", color: "text-purple-600", bg: "bg-purple-50", border: "border-purple-100", icon: DollarSign },
+  BLOCKED: { label: "Bloqueado", color: "text-red-600", bg: "bg-red-50", border: "border-red-100", icon: Ban },
 };
 
+type AdminTab = 'dashboard' | 'workshops' | 'plans' | 'profile';
+
 export default function SuperAdmin() {
+  const [activeTab, setActiveTab] = useState<AdminTab>('dashboard');
   const [tenants, setTenants] = useState<any[]>([]);
   const [plans, setPlans] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -57,6 +70,7 @@ export default function SuperAdmin() {
   
   const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; tenant: any | null }>({ isOpen: false, tenant: null });
   const [usersModal, setUsersModal] = useState<{ isOpen: boolean; tenant: any | null }>({ isOpen: false, tenant: null });
+  const [historyModal, setHistoryModal] = useState<{ isOpen: boolean; tenant: any | null }>({ isOpen: false, tenant: null });
 
   const navigate = useNavigate();
   const logout = useAuthStore(state => state.logout);
@@ -106,34 +120,59 @@ export default function SuperAdmin() {
     loadData();
   }, []);
 
+  const calculateUsageTime = (createdAt: string) => {
+    const start = new Date(createdAt);
+    const now = new Date();
+    const diffTime = Math.abs(now.getTime() - start.getTime());
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffDays < 30) return `Há ${diffDays} dias`;
+    const diffMonths = Math.floor(diffDays / 30);
+    if (diffMonths < 12) return `Há ${diffMonths} ${diffMonths === 1 ? 'mês' : 'meses'}`;
+    const diffYears = Math.floor(diffMonths / 12);
+    return `Há ${diffYears} ${diffYears === 1 ? 'ano' : 'anos'}`;
+  };
+
+  const stats = useMemo(() => {
+    const totalMRR = tenants.reduce((acc, t) => acc + (t.subscription_value || 0), 0);
+    const activeTenants = tenants.filter(t => t.status === 'ACTIVE').length;
+    const totalUsers = tenants.reduce((acc, t) => acc + (t.user_count || 0), 0);
+    const overdueCount = tenants.filter(t => t.status === 'OVERDUE').length;
+    const ticketMedio = tenants.length > 0 ? totalMRR / tenants.length : 0;
+
+    const planStats = plans.map(p => {
+      const count = tenants.filter(t => t.plan_id === p.id).length;
+      const revenue = tenants.filter(t => t.plan_id === p.id).reduce((acc, t) => acc + (t.subscription_value || 0), 0);
+      const percentage = tenants.length > 0 ? (count / tenants.length) * 100 : 0;
+      return { 
+        label: p.name, 
+        count, 
+        revenue, 
+        percentage: Math.round(percentage) 
+      };
+    }).sort((a, b) => b.count - a.count);
+
+    return { totalMRR, activeTenants, totalUsers, overdueCount, ticketMedio, planStats };
+  }, [tenants, plans]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
     try {
       if (editingTenant) {
         await api.patch(`/superadmin/tenants/${editingTenant.id}`, { 
-          name: form.name,
-          document: form.document,
-          phone: form.phone,
-          address: form.address,
-          user_limit: form.user_limit,
-          subscription_value: form.subscription_value,
-          due_day: form.due_day,
-          plan_id: form.plan_id || null,
-          logo_url: form.logo_url,
-          admin_name: form.admin_name,
-          admin_email: form.admin_email,
-          admin_password: form.admin_password || undefined
+          ...form,
+          plan_id: form.plan_id || null
         });
         showToast("Oficina atualizada com sucesso");
       } else {
         await api.post("/superadmin/tenants", form);
-        showToast("Oficina criada com sucesso");
+        showToast("Oficina cadastrada com sucesso");
       }
       setShowModal(false);
       loadData();
     } catch (err: any) {
-      showToast(err.response?.data?.error || "Erro ao salvar", "error");
+      showToast(err.response?.data?.error || "Erro ao processar", "error");
     } finally {
       setSaving(false);
     }
@@ -142,10 +181,10 @@ export default function SuperAdmin() {
   const handleUpdateField = async (tenantId: string, field: string, value: any) => {
     try {
       await api.patch(`/superadmin/tenants/${tenantId}`, { [field]: value });
-      showToast("Dados atualizados com sucesso");
+      showToast("Campo atualizado");
       loadData();
     } catch (err: any) {
-      showToast("Erro ao atualizar", "error");
+      showToast("Erro na atualização", "error");
     }
   };
 
@@ -154,7 +193,7 @@ export default function SuperAdmin() {
     setSaving(true);
     try {
       await api.delete(`/superadmin/tenants/${deleteModal.tenant.id}`);
-      showToast("Oficina excluída com sucesso");
+      showToast("Parceiro removido");
       setDeleteModal({ isOpen: false, tenant: null });
       loadData();
     } catch (err: any) {
@@ -170,315 +209,409 @@ export default function SuperAdmin() {
     t.admin_email?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const totalMRR = tenants.reduce((acc, t) => acc + (t.subscription_value || 0), 0);
-
   return (
-    <div className="min-h-screen bg-[#f8fafc] flex flex-col font-sans antialiased text-slate-900">
-      {/* Refined Header */}
-      <header className="bg-white border-b border-slate-200 px-4 sm:px-8 py-4 flex items-center justify-between sticky top-0 z-50 shadow-sm">
-        <div className="flex items-center gap-4">
-          <div className="w-10 h-10 bg-slate-900 rounded-xl flex items-center justify-center shadow-lg shadow-slate-900/10">
-            <Shield className="text-white w-6 h-6" />
+    <div className="min-h-screen bg-[#f8fafc] flex font-sans antialiased text-slate-900 overflow-hidden h-screen">
+      {/* Sidebar */}
+      <aside className="w-20 lg:w-60 bg-slate-900 text-white flex flex-col shrink-0 relative z-30 transition-all duration-300 shadow-2xl">
+        <div className="p-4 lg:p-6 text-center lg:text-left">
+          <div className="flex items-center lg:items-start gap-3 mb-8 justify-center lg:justify-start">
+            <div className="w-10 h-10 bg-emerald-500 rounded-xl flex items-center justify-center shadow-lg shrink-0">
+              <Shield className="text-white" size={22} />
+            </div>
+            <div className="hidden lg:block overflow-hidden">
+              <h1 className="font-black text-base leading-none tracking-tight">MecaERP</h1>
+              <p className="text-emerald-400 text-[8px] font-black uppercase tracking-widest mt-1">Super Admin</p>
+            </div>
           </div>
-          <div className="hidden sm:block">
-            <h1 className="text-slate-900 font-bold text-lg leading-none tracking-tight">MecaERP</h1>
-            <p className="text-emerald-600 text-[10px] font-black uppercase tracking-[0.2em] mt-1">Super Painel</p>
-          </div>
+
+          <nav className="space-y-1">
+            {[
+              { id: 'dashboard', label: 'Início', icon: LayoutDashboard },
+              { id: 'workshops', label: 'Parceiros', icon: Building2 },
+              { id: 'plans', label: 'Planos', icon: Package },
+              { id: 'profile', label: 'Perfil', icon: UserCircle },
+            ].map((item) => (
+              <button
+                key={item.id}
+                onClick={() => setActiveTab(item.id as AdminTab)}
+                className={cn(
+                  "w-full flex items-center gap-3 px-3 py-3 rounded-xl font-bold text-xs transition-all group",
+                  activeTab === item.id 
+                    ? "bg-emerald-50 text-emerald-600 shadow-md" 
+                    : "text-slate-400 hover:bg-slate-800 hover:text-white"
+                )}
+              >
+                <item.icon size={18} className={activeTab === item.id ? "text-emerald-600" : "text-slate-500 group-hover:text-white"} />
+                <span className="hidden lg:block uppercase tracking-wider">{item.label}</span>
+              </button>
+            ))}
+          </nav>
         </div>
 
-        <div className="flex items-center gap-2 sm:gap-4">
-          <button 
-            onClick={() => setShowPlansModal(true)}
-            className="flex items-center gap-2 px-4 py-2.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-xl font-bold text-xs transition-all border border-emerald-100 shadow-sm"
-          >
-            <Package size={16} />
-            <span className="hidden sm:inline">Tabelas de Preço</span>
-          </button>
-
-          <div className="h-8 w-px bg-slate-200 hidden sm:block mx-2" />
-
-          <div className="hidden md:flex flex-col items-end">
-            <span className="text-sm font-bold text-slate-900 tabular-nums">{user?.name}</span>
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Administrador Geral</span>
-          </div>
-          
+        <div className="mt-auto p-4 border-t border-slate-800">
           <button 
             onClick={() => { logout(); navigate('/login'); }}
-            className="p-2.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all duration-200 border border-transparent hover:border-red-100"
-            title="Sair do sistema"
+            className="flex items-center justify-center lg:justify-start gap-3 w-full px-3 py-3 text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded-xl transition-all font-bold text-[10px] uppercase tracking-widest"
           >
-            <LogOut className="w-5 h-5" />
+            <LogOut size={18} />
+            <span className="hidden lg:block">Sair</span>
           </button>
         </div>
-      </header>
+      </aside>
 
-      <main className="flex-1 p-4 sm:p-8 max-w-7xl mx-auto w-full space-y-8">
-        {/* Breadcrumb & Title */}
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">
-              <span>Admin</span>
-              <ChevronRight size={10} />
-              <span className="text-emerald-600">Dashboard Central</span>
+      {/* Main Content */}
+      <main className="flex-1 flex flex-col min-w-0 bg-[#f8fafc] overflow-hidden relative">
+        {/* Header */}
+        <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-6 shrink-0 relative z-20">
+          <div className="flex items-center gap-2 text-[9px] font-black text-slate-400 uppercase tracking-widest">
+            <span className="text-emerald-600">Sistema Root</span>
+            <ChevronRight size={10} />
+            <span className="text-slate-900">{activeTab}</span>
+          </div>
+
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 px-3 py-1 bg-emerald-50 rounded-full border border-emerald-100">
+              <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
+              <span className="text-[9px] font-black text-emerald-700 uppercase tracking-tighter">Live Monitor</span>
             </div>
-            <h2 className="text-3xl font-black text-slate-900 tracking-tight leading-none">Visão Geral</h2>
-            <p className="text-slate-500 font-medium">Gestão completa de oficinas, assinaturas e status.</p>
           </div>
-          
-          <button 
-            onClick={() => {
-              setEditingTenant(null);
-              setForm({
-                name: "",
-                document: "",
-                phone: "",
-                address: "",
-                user_limit: 5,
-                subscription_value: 0,
-                due_day: 5,
-                plan_id: "",
-                logo_url: "",
-                admin_name: "",
-                admin_email: "",
-                admin_password: ""
-              });
-              setShowModal(true);
-            }}
-            className="group relative flex items-center justify-center gap-3 px-8 py-4 bg-slate-900 text-white rounded-2xl font-bold shadow-xl shadow-slate-900/20 hover:bg-slate-800 transition-all active:scale-[0.98]"
-          >
-            <div className="absolute inset-0 bg-emerald-500/0 group-hover:bg-emerald-500/10 rounded-2xl transition-all" />
-            <Plus className="w-5 h-5 text-emerald-400" />
-            <span>Nova Oficina</span>
-          </button>
-        </div>
+        </header>
 
-        {/* Stats Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {[
-            { label: 'Oficinas Ativas', value: tenants.length, icon: Building2, color: 'text-emerald-600', bg: 'bg-emerald-50' },
-            { label: 'Usuários Totais', value: tenants.reduce((acc, t) => acc + (t.user_count || 0), 0), icon: Users, color: 'text-blue-600', bg: 'bg-blue-50' },
-            { label: 'Faturamento MRR', value: `R$ ${totalMRR.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, icon: DollarSign, color: 'text-amber-600', bg: 'bg-amber-50' },
-            { label: 'Inadimplentes', value: tenants.filter(t => t.status === 'OVERDUE' || t.status === 'PENDING_PAYMENT').length, icon: AlertTriangle, color: 'text-red-600', bg: 'bg-red-50' },
-          ].map((stat, i) => (
-            <motion.div key={i} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.1 }} className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm hover:shadow-md transition-all group">
-              <div className="relative z-10">
-                <div className={cn("w-12 h-12 rounded-2xl flex items-center justify-center mb-4 transition-transform group-hover:scale-110 duration-300", stat.bg, stat.color)}>
-                  <stat.icon size={24} />
+        {/* Scroll Content */}
+        <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
+          <div className="max-w-7xl mx-auto space-y-6 pb-20">
+            
+            {activeTab === 'dashboard' && (
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div>
+                    <h2 className="text-2xl font-black text-slate-900 uppercase tracking-tight leading-none">Gestão de Rede</h2>
+                    <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest mt-1">Visão Consolidada</p>
+                  </div>
                 </div>
-                <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest mb-1">{stat.label}</p>
-                <h3 className="text-2xl font-black text-slate-900 tabular-nums tracking-tight">{stat.value}</h3>
-              </div>
-            </motion.div>
-          ))}
-        </div>
 
-        {/* Filters & Table Section */}
-        <div className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm overflow-hidden flex flex-col">
-          <div className="p-6 border-b border-slate-100 flex flex-col sm:flex-row gap-4 justify-between items-center bg-white">
-             <div className="relative w-full sm:max-w-md">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                <input 
-                  type="text" 
-                  placeholder="Buscar por nome, e-mail ou telefone..." 
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full h-12 bg-slate-50 border border-slate-200 rounded-2xl pl-12 pr-4 font-medium text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all"
-                />
-             </div>
-             <div className="flex items-center gap-2">
-                <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] px-3">
-                  {filteredTenants.length} OFICINAS CADASTRADAS
-                </span>
-             </div>
-          </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                  {[
+                    { label: 'MRR Mensal', value: `R$ ${stats.totalMRR.toLocaleString('pt-BR')}`, icon: DollarSign, color: 'emerald' },
+                    { label: 'Ticket Médio', value: `R$ ${stats.ticketMedio.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, icon: TrendingUp, color: 'blue' },
+                    { label: 'Ativos', value: stats.activeTenants, icon: Building2, color: 'purple' },
+                    { label: 'Usuários', value: stats.totalUsers, icon: Users, color: 'orange' },
+                  ].map((stat, i) => (
+                    <div key={i} className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+                      <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center mb-4", 
+                        stat.color === 'emerald' ? 'bg-emerald-50 text-emerald-600' :
+                        stat.color === 'blue' ? 'bg-blue-50 text-blue-600' :
+                        stat.color === 'purple' ? 'bg-purple-50 text-purple-600' : 'bg-orange-50 text-orange-600'
+                      )}>
+                        <stat.icon size={20} />
+                      </div>
+                      <p className="text-slate-400 text-[9px] font-black uppercase tracking-widest">{stat.label}</p>
+                      <h3 className="text-xl font-black text-slate-900 leading-none mt-1">{stat.value}</h3>
+                    </div>
+                  ))}
+                </div>
 
-          {/* Desktop Table */}
-          <div className="hidden lg:block overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-slate-50/50">
-                  <th className="px-8 py-5 text-slate-400 font-black text-[10px] uppercase tracking-[0.2em]">Oficina / Contato</th>
-                  <th className="px-8 py-5 text-slate-400 font-black text-[10px] uppercase tracking-[0.2em] text-center">Status de Acesso</th>
-                  <th className="px-8 py-5 text-slate-400 font-black text-[10px] uppercase tracking-[0.2em] text-center">Assinatura</th>
-                  <th className="px-8 py-5 text-slate-400 font-black text-[10px] uppercase tracking-[0.2em] text-right">Ações</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {loading ? (
-                  <tr><td colSpan={4} className="py-32 text-center text-slate-400 font-bold">Processando dados...</td></tr>
-                ) : filteredTenants.map((t, idx) => {
-                  return (
-                    <motion.tr key={t.id} className="hover:bg-slate-50/50 transition-colors group">
-                      <td className="px-8 py-6">
-                        <div className="flex items-center gap-5">
-                          <div className={cn("w-14 h-14 rounded-[1.25rem] flex items-center justify-center overflow-hidden shadow-lg shadow-slate-900/10", t.logo_url ? "bg-white border border-slate-200" : "bg-slate-900 text-white")}>
-                            {t.logo_url ? (
-                              <img src={t.logo_url} alt={t.name} className="w-full h-full object-contain p-2" />
-                            ) : (
-                              <span className="font-black text-xl">{t.name.charAt(0).toUpperCase()}</span>
-                            )}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  <div className="lg:col-span-2 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                    <h4 className="font-black text-slate-900 text-xs uppercase tracking-widest flex items-center gap-2 mb-8">
+                      <BarChart3 className="text-emerald-500" size={16} /> Volume por Plano
+                    </h4>
+                    <div className="space-y-6">
+                      {stats.planStats.map((p, i) => (
+                        <div key={i} className="space-y-2">
+                          <div className="flex justify-between items-end text-[10px] font-black uppercase tracking-tight">
+                            <span>{p.label}</span>
+                            <span className="text-emerald-600">{p.percentage}%</span>
                           </div>
-                          <div className="space-y-1">
-                            <h4 className="font-black text-slate-900 text-base tracking-tight leading-none">{t.name}</h4>
-                            <div className="flex items-center gap-2 mt-1">
-                              <span className="text-[10px] font-bold text-slate-400 flex items-center gap-1"><Mail size={10} /> {t.admin_email || 'N/A'}</span>
-                              <span className="w-1 h-1 bg-slate-300 rounded-full" />
-                              <select 
-                                value={t.plan_id || ""} 
-                                onChange={(e) => handleUpdateField(t.id, 'plan_id', e.target.value || null)}
-                                className="text-[10px] font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-100 outline-none cursor-pointer hover:bg-emerald-100 transition-all uppercase"
-                              >
-                                <option value="">Sem Plano</option>
-                                {plans.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                              </select>
-                            </div>
+                          <div className="h-2 bg-slate-50 rounded-full overflow-hidden border border-slate-100">
+                            <motion.div initial={{ width: 0 }} animate={{ width: `${p.percentage}%` }} transition={{ duration: 1 }} className={cn("h-full", i === 0 ? "bg-emerald-500" : "bg-slate-400")} />
                           </div>
                         </div>
-                      </td>
-                      <td className="px-8 py-6 text-center">
-                        <select 
-                          value={t.status || 'ACTIVE'} 
-                          onChange={(e) => handleUpdateField(t.id, 'status', e.target.value)}
-                          className={cn(
-                            "inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all cursor-pointer outline-none shadow-sm",
-                            STATUS_CONFIG[t.status || 'ACTIVE'].bg,
-                            STATUS_CONFIG[t.status || 'ACTIVE'].color,
-                            "border-transparent hover:border-current"
-                          )}
-                        >
-                          {Object.entries(STATUS_CONFIG).map(([val, cfg]) => (
-                            <option key={val} value={val} className="text-slate-900 font-medium">{cfg.label}</option>
-                          ))}
-                        </select>
-                      </td>
-                      <td className="px-8 py-6">
-                        <div className="flex flex-col items-center gap-1">
-                          <span className="text-sm font-black text-slate-900 tabular-nums">R$ {(t.subscription_value || 0).toLocaleString('pt-BR')}</span>
-                          <span className="text-[10px] font-bold text-slate-400 uppercase">DIA {t.due_day || 5}</span>
-                        </div>
-                      </td>
-                      <td className="px-8 py-6 text-right">
-                        <div className="flex justify-end gap-2">
-                          <button onClick={() => setUsersModal({ isOpen: true, tenant: t })} className="p-3 bg-white border border-slate-200 text-slate-400 hover:text-blue-600 hover:border-blue-200 hover:bg-blue-50 rounded-2xl transition-all shadow-sm"><Users size={18} /></button>
-                          <button onClick={() => { 
-                            setEditingTenant(t); 
-                            setForm({
-                              name: t.name,
-                              document: t.document || "",
-                              phone: t.phone || "",
-                              address: t.address || "",
-                              user_limit: t.user_limit,
-                              subscription_value: t.subscription_value || 0,
-                              due_day: t.due_day || 5,
-                              plan_id: t.plan_id || "",
-                              logo_url: t.logo_url || "",
-                              admin_name: t.admin_name || "",
-                              admin_email: t.admin_email || "",
-                              admin_password: ""
-                            }); 
-                            setShowModal(true); 
-                          }} className="p-3 bg-white border border-slate-200 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-2xl transition-all shadow-sm"><Edit2 size={18} /></button>
-                          <button onClick={() => setDeleteModal({ isOpen: true, tenant: t })} className="p-3 bg-white border border-slate-200 text-slate-400 hover:text-red-600 hover:border-red-200 hover:bg-red-50 rounded-2xl transition-all shadow-sm"><Trash2 size={18} /></button>
-                        </div>
-                      </td>
-                    </motion.tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                      ))}
+                    </div>
+                  </div>
 
-          {/* Mobile Card Grid */}
-          <div className="lg:hidden p-4 space-y-4">
-            {filteredTenants.map((t, idx) => (
-              <motion.div key={t.id} className="bg-slate-50/50 rounded-3xl p-5 border border-slate-100 space-y-4 shadow-sm">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className={cn("w-12 h-12 rounded-2xl flex items-center justify-center overflow-hidden shadow-lg", t.logo_url ? "bg-white border border-slate-200" : "bg-slate-900 text-white")}>
-                      {t.logo_url ? (
-                        <img src={t.logo_url} alt={t.name} className="w-full h-full object-contain p-1.5" />
-                      ) : (
-                        <span className="font-black text-lg">{t.name.charAt(0).toUpperCase()}</span>
-                      )}
+                  <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-center items-center text-center space-y-4">
+                    <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center text-red-500 border border-red-100">
+                      <AlertTriangle size={32} />
                     </div>
                     <div>
-                      <h4 className="font-black text-slate-900 text-base leading-none">{t.name}</h4>
-                      <div className="text-[10px] text-slate-400 font-bold mt-1 flex items-center gap-1"><Mail size={10} /> {t.admin_email || 'N/A'}</div>
+                      <h4 className="font-black text-slate-900 text-xs uppercase tracking-widest">Inadimplência</h4>
+                      <p className="text-2xl font-black text-red-600 leading-none mt-2">{stats.overdueCount}</p>
+                      <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1">Oficinas em atraso</p>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <div className="text-sm font-black text-slate-900">R$ {t.subscription_value?.toLocaleString('pt-BR')}</div>
-                    <div className="text-[9px] font-bold text-slate-400">DIA {t.due_day || 5}</div>
+                </div>
+              </motion.div>
+            )}
+
+            {activeTab === 'workshops' && (
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <h2 className="text-xl font-black text-slate-900 uppercase tracking-tight leading-none">Oficinas Parceiras</h2>
+                    <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest mt-1">Gestão da Rede</p>
+                  </div>
+                  <button 
+                    onClick={() => { setEditingTenant(null); setShowModal(true); }}
+                    className="h-10 px-5 bg-slate-900 text-white rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center gap-2 hover:bg-emerald-600 transition-all shadow-md"
+                  >
+                    <Plus size={14} className="text-emerald-400" /> Novo Parceiro
+                  </button>
+                </div>
+
+                <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                  <div className="p-4 border-b border-slate-100 bg-white flex flex-col sm:flex-row gap-4 items-center">
+                    <div className="relative w-full sm:max-w-sm">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                        <input 
+                          type="text" 
+                          placeholder="Buscar parceiro..." 
+                          value={searchTerm}
+                          onChange={(e) => setSearchTerm(e.target.value)}
+                          className="w-full h-10 bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-4 text-xs font-bold outline-none focus:ring-2 focus:ring-emerald-500/10 focus:border-emerald-500 transition-all"
+                        />
+                    </div>
+                    <div className="ml-auto">
+                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest px-3 py-1.5 bg-slate-50 rounded-lg border border-slate-100">
+                          {filteredTenants.length} Unidades
+                        </span>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 p-4 lg:p-6 bg-slate-50/30">
+                    {loading ? (
+                      <div className="col-span-full py-20 text-center text-slate-400 font-black text-[10px] uppercase tracking-widest animate-pulse italic">Processando Banco de Dados...</div>
+                    ) : filteredTenants.map((t) => (
+                      <motion.div 
+                        key={t.id} 
+                        layout
+                        className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between group hover:border-emerald-200 transition-all"
+                      >
+                        <div className="flex items-start justify-between gap-3 mb-4">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center shrink-0 shadow-sm border border-slate-100 p-1.5 overflow-hidden">
+                              {t.logo_url ? <img src={t.logo_url} className="w-full h-full object-contain" /> : <Building2 className="text-slate-200" size={20} />}
+                            </div>
+                            <div className="min-w-0">
+                              <h4 className="font-black text-slate-900 text-sm leading-tight truncate">{t.name}</h4>
+                              <p className="text-[9px] font-black text-emerald-600 uppercase tracking-widest truncate">{t.plan_name || 'Personalizado'}</p>
+                            </div>
+                          </div>
+                          <select 
+                            value={t.status || 'ACTIVE'} 
+                            onChange={(e) => handleUpdateField(t.id, 'status', e.target.value)}
+                            className={cn(
+                              "h-7 px-2 rounded-lg text-[8px] font-black uppercase tracking-tighter border-2 transition-all outline-none cursor-pointer shadow-sm",
+                              STATUS_CONFIG[t.status || 'ACTIVE'].bg,
+                              STATUS_CONFIG[t.status || 'ACTIVE'].color,
+                              STATUS_CONFIG[t.status || 'ACTIVE'].border
+                            )}
+                          >
+                            {Object.entries(STATUS_CONFIG).map(([val, cfg]) => (
+                              <option key={val} value={val} className="text-slate-900 font-bold">{cfg.label}</option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div className="space-y-2 mb-4 bg-slate-50/50 p-3 rounded-xl border border-slate-100">
+                          <div className="flex items-center justify-between text-[9px] font-black uppercase tracking-widest text-slate-400 italic">
+                            <span>Desde</span>
+                            <span className="text-slate-900">{new Date(t.created_at).toLocaleDateString('pt-BR')} ({calculateUsageTime(t.created_at)})</span>
+                          </div>
+                          <div className="h-px bg-slate-100 my-1" />
+                          <div className="flex items-center gap-2 text-[10px] font-bold text-slate-500">
+                            <Mail size={12} className="text-slate-300 shrink-0" />
+                            <span className="truncate">{t.admin_email}</span>
+                          </div>
+                          <div className="flex items-center justify-between pt-1">
+                            <span className="text-[10px] font-black text-slate-900">R$ {t.subscription_value?.toLocaleString('pt-BR')}</span>
+                            <span className="text-[8px] font-black text-slate-400 uppercase">Mensal</span>
+                          </div>
+                        </div>
+
+                        <div className="flex gap-1.5">
+                          <button onClick={() => setHistoryModal({ isOpen: true, tenant: t })} title="Atividade" className="w-8 h-8 bg-slate-50 text-slate-400 rounded-lg flex items-center justify-center hover:bg-blue-50 hover:text-blue-600 transition-all border border-slate-100">
+                            <History size={14} />
+                          </button>
+                          <button onClick={() => setUsersModal({ isOpen: true, tenant: t })} title="Colaboradores" className="flex-1 h-8 bg-slate-50 text-slate-600 rounded-lg text-[9px] font-black uppercase flex items-center justify-center gap-1.5 hover:bg-emerald-50 hover:text-emerald-600 transition-all border border-slate-100">
+                            <Users size={12} /> Usuários
+                          </button>
+                          <button onClick={() => { setEditingTenant(t); setShowModal(true); }} title="Editar" className="flex-1 h-8 bg-slate-900 text-white rounded-lg text-[9px] font-black uppercase flex items-center justify-center gap-1.5 hover:bg-slate-800 transition-all">
+                            <Edit2 size={12} /> Editar
+                          </button>
+                          <button onClick={() => setDeleteModal({ isOpen: true, tenant: t })} title="Remover" className="w-8 h-8 bg-red-50 text-red-500 rounded-lg flex items-center justify-center hover:bg-red-100 transition-all border border-red-100">
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      </motion.div>
+                    ))}
+                  </div>
+                </div>
+              </motion.div>
+            )}
+
+            {/* Plans Tab */}
+            {activeTab === 'plans' && (
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-xl font-black text-slate-900 uppercase tracking-tight leading-none">Modelos de Negócio</h2>
+                  <button onClick={() => setShowPlansModal(true)} className="h-10 px-5 bg-emerald-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-emerald-700 transition-all shadow-md">
+                    <Plus size={14} /> Criar Plano
+                  </button>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {plans.map((p, i) => (
+                    <div key={i} className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col gap-4 relative overflow-hidden group hover:border-emerald-200 transition-all">
+                      <div className="w-10 h-10 bg-slate-900 rounded-xl flex items-center justify-center text-emerald-400 shadow-lg">
+                        <Package size={20} />
+                      </div>
+                      <div>
+                        <h3 className="text-base font-black text-slate-900 uppercase tracking-tight">{p.name}</h3>
+                        <p className="text-slate-400 text-[9px] font-black uppercase tracking-widest">{p.months_duration === 1 ? 'Mensal' : `${p.months_duration} meses`}</p>
+                      </div>
+                      <div className="py-4 border-y border-slate-50 space-y-2 text-[10px] font-bold uppercase tracking-widest">
+                        <div className="flex justify-between"><span className="text-slate-400">Capacidade</span><span className="text-slate-900">{p.user_limit} Users</span></div>
+                        <div className="flex justify-between"><span className="text-slate-400">Infra</span><span className="text-emerald-600">Enterprise</span></div>
+                      </div>
+                      <div className="flex items-baseline gap-1 mt-auto">
+                        <span className="text-[10px] font-black text-slate-400">R$</span>
+                        <span className="text-2xl font-black text-slate-900">{p.monthly_value.toLocaleString('pt-BR')}</span>
+                        <span className="text-[9px] font-black text-slate-400">/mês</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+
+            {/* Profile Tab */}
+            {activeTab === 'profile' && (
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="max-w-xl mx-auto space-y-6">
+                <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm text-center space-y-4">
+                  <div className="w-24 h-24 bg-slate-900 rounded-2xl flex items-center justify-center text-emerald-400 mx-auto shadow-xl relative">
+                    <span className="text-3xl font-black uppercase">{user?.name?.charAt(0)}</span>
+                    <div className="absolute -bottom-2 -right-2 w-8 h-8 bg-emerald-500 rounded-lg flex items-center justify-center border-4 border-white text-white shadow-lg">
+                      <Shield size={14} />
+                    </div>
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-black text-slate-900 uppercase tracking-tight leading-none">{user?.name}</h2>
+                    <p className="text-emerald-600 font-black text-[9px] uppercase tracking-[0.3em] mt-2">Administrator Root</p>
+                  </div>
+                  <div className="pt-6 space-y-3">
+                    <div className="h-12 bg-slate-50 border border-slate-200 rounded-xl px-4 flex items-center justify-between text-xs font-bold text-slate-500">
+                      <span className="uppercase text-[10px] tracking-widest">E-mail</span>
+                      <span>{user?.email}</span>
+                    </div>
+                    <button className="w-full h-12 bg-slate-900 text-white font-black rounded-xl hover:bg-slate-800 transition-all text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg">
+                      <SettingsIcon size={16} className="text-emerald-400" /> Configurações da Conta
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+
+          </div>
+        </div>
+
+        {/* Notificações (Toast) */}
+        <AnimatePresence>
+          {toast && (
+            <motion.div initial={{ opacity: 0, y: 50 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 50 }} className={cn("fixed bottom-6 left-1/2 -translate-x-1/2 z-[200] px-5 py-3 rounded-xl shadow-2xl flex items-center gap-3 border border-slate-800/10 backdrop-blur-md", toast.type === 'success' ? 'bg-slate-900 text-white border-emerald-500/20' : 'bg-red-600 text-white')}>
+              {toast.type === 'success' ? <CheckCircle className="text-emerald-400" size={18} /> : <AlertCircle className="text-white" size={18} />}
+              <span className="font-black text-[10px] uppercase tracking-widest">{toast.message}</span>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Gaveta Lateral de Histórico (Side Drawer - 30% da tela) */}
+        <AnimatePresence>
+          {historyModal.isOpen && (
+            <>
+              {/* Backdrop */}
+              <motion.div 
+                initial={{ opacity: 0 }} 
+                animate={{ opacity: 1 }} 
+                exit={{ opacity: 0 }} 
+                onClick={() => setHistoryModal({ isOpen: false, tenant: null })}
+                className="absolute inset-0 bg-slate-900/40 backdrop-blur-xs z-[100]"
+              />
+              {/* Drawer */}
+              <motion.div 
+                initial={{ x: '100%' }} 
+                animate={{ x: 0 }} 
+                exit={{ x: '100%' }} 
+                transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+                className="absolute right-0 top-0 h-full w-full sm:w-[350px] lg:w-[30%] bg-white shadow-[-20px_0_50px_rgba(0,0,0,0.1)] z-[110] border-l border-slate-100 flex flex-col"
+              >
+                {/* Cabeçalho da Gaveta */}
+                <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm border border-slate-100">
+                      <Activity className="text-emerald-500" size={20} />
+                    </div>
+                    <div>
+                      <h3 className="font-black text-slate-900 text-sm uppercase tracking-widest leading-none">Histórico</h3>
+                      <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mt-1">Logs de Auditoria</p>
+                    </div>
+                  </div>
+                  <button 
+                    onClick={() => setHistoryModal({ isOpen: false, tenant: null })} 
+                    className="p-2 hover:bg-white hover:text-red-500 rounded-xl transition-all text-slate-400 border border-transparent hover:border-red-100 shadow-sm hover:shadow-md"
+                  >
+                    <X size={20} />
+                  </button>
+                </div>
+
+                {/* Conteúdo da Gaveta */}
+                <div className="flex-1 overflow-y-auto p-6 custom-scrollbar space-y-6">
+                  {/* Identificação do Parceiro */}
+                  <div className="p-4 bg-emerald-50/50 rounded-2xl border border-emerald-100 flex items-center gap-4">
+                    <div className="w-12 h-12 bg-white rounded-xl border border-emerald-100 flex items-center justify-center shadow-sm shrink-0">
+                      {historyModal.tenant?.logo_url ? <img src={historyModal.tenant?.logo_url} className="w-full h-full object-contain" /> : <Building2 className="text-emerald-600" size={24} />}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="font-black text-slate-900 text-sm truncate uppercase tracking-tight">{historyModal.tenant?.name}</p>
+                      <p className="text-[9px] font-black text-emerald-600 uppercase tracking-widest">{historyModal.tenant?.plan_name || 'Contrato Custom'}</p>
+                    </div>
+                  </div>
+
+                  {/* Linha do Tempo */}
+                  <div className="relative pl-4 space-y-8 before:absolute before:left-[19px] before:top-2 before:bottom-2 before:w-px before:bg-slate-100">
+                    <div className="relative pl-10">
+                      <div className="absolute left-0 top-1 w-2.5 h-2.5 bg-emerald-500 rounded-full border-4 border-white shadow-[0_0_0_1px_rgba(16,185,129,0.2)] z-10" />
+                      <p className="text-[10px] font-black text-slate-900 uppercase tracking-widest">Cadastro Concluído</p>
+                      <p className="text-[9px] font-bold text-slate-400 mt-1 leading-relaxed uppercase">Oficina integrada ao ecossistema MecaERP através do console administrativo.</p>
+                      <p className="text-[8px] font-black text-emerald-600 mt-2 bg-emerald-50 inline-block px-2 py-0.5 rounded-lg border border-emerald-100 uppercase">{new Date(historyModal.tenant?.created_at).toLocaleString('pt-BR')}</p>
+                    </div>
+
+                    <div className="relative pl-10">
+                      <div className="absolute left-0 top-1 w-2.5 h-2.5 bg-blue-500 rounded-full border-4 border-white shadow-[0_0_0_1px_rgba(59,130,246,0.2)] z-10" />
+                      <p className="text-[10px] font-black text-slate-900 uppercase tracking-widest">Estado: {STATUS_CONFIG[historyModal.tenant?.status || 'ACTIVE'].label}</p>
+                      <p className="text-[9px] font-bold text-slate-400 mt-1 leading-relaxed uppercase">Última validação de status efetuada pelo motor de monitoramento de assinaturas.</p>
+                      <p className="text-[8px] font-black text-blue-600 mt-2 bg-blue-50 inline-block px-2 py-0.5 rounded-lg border border-blue-100 uppercase tracking-widest">Evento Recente</p>
+                    </div>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2">
-                  <select 
-                    value={t.plan_id || ""} 
-                    onChange={(e) => handleUpdateField(t.id, 'plan_id', e.target.value || null)}
-                    className="flex-1 h-9 px-3 rounded-xl text-[10px] font-black text-emerald-600 bg-white border border-emerald-100 outline-none uppercase"
-                  >
-                    <option value="">Sem Plano</option>
-                    {plans.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                  </select>
-                  <select 
-                    value={t.status || 'ACTIVE'} 
-                    onChange={(e) => handleUpdateField(t.id, 'status', e.target.value)}
-                    className={cn(
-                      "flex-1 h-9 px-3 rounded-xl text-[10px] font-black uppercase tracking-wider border shadow-sm outline-none",
-                      STATUS_CONFIG[t.status || 'ACTIVE'].bg,
-                      STATUS_CONFIG[t.status || 'ACTIVE'].color,
-                      "border-current/10"
-                    )}
-                  >
-                    {Object.entries(STATUS_CONFIG).map(([val, cfg]) => (
-                      <option key={val} value={val} className="text-slate-900 font-medium">{cfg.label}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="grid grid-cols-3 gap-2 pt-2">
-                  <button onClick={() => setUsersModal({ isOpen: true, tenant: t })} className="h-12 bg-white border border-slate-200 text-blue-600 rounded-2xl font-bold text-[10px] flex items-center justify-center gap-2 shadow-sm"><Users size={16} /> USUÁRIOS</button>
-                  <button onClick={() => { 
-                    setEditingTenant(t); 
-                    setForm({
-                      name: t.name,
-                      document: t.document || "",
-                      phone: t.phone || "",
-                      address: t.address || "",
-                      user_limit: t.user_limit,
-                      subscription_value: t.subscription_value || 0,
-                      due_day: t.due_day || 5,
-                      plan_id: t.plan_id || "",
-                      logo_url: t.logo_url || "",
-                      admin_name: t.admin_name || "",
-                      admin_email: t.admin_email || "",
-                      admin_password: ""
-                    }); 
-                    setShowModal(true); 
-                  }} className="h-12 bg-white border border-slate-200 text-amber-600 rounded-2xl font-bold text-[10px] flex items-center justify-center gap-2 shadow-sm"><Edit2 size={16} /> EDITAR</button>
-                  <button onClick={() => setDeleteModal({ isOpen: true, tenant: t })} className="h-12 bg-white border border-slate-200 text-red-600 rounded-2xl flex items-center justify-center shadow-sm"><Trash2 size={16} /></button>
+                {/* Rodapé da Gaveta */}
+                <div className="p-6 bg-slate-50 border-t border-slate-100">
+                  <div className="flex items-center justify-between text-[9px] font-black text-slate-400 uppercase tracking-[0.2em]">
+                    <span>Logs Autenticados</span>
+                    <Shield size={12} className="text-emerald-500" />
+                  </div>
                 </div>
               </motion.div>
-            ))}
-          </div>
-        </div>
+            </>
+          )}
+        </AnimatePresence>
       </main>
 
       <SuperAdminModal isOpen={showModal} onClose={() => setShowModal(false)} editingTenant={editingTenant} form={form} setForm={setForm} onSubmit={handleSubmit} saving={saving} />
       <PricingPlansModal isOpen={showPlansModal} onClose={() => setShowPlansModal(false)} />
-      <DeleteConfirmationModal isOpen={deleteModal.isOpen} onClose={() => setDeleteModal({ isOpen: false, tenant: null })} onConfirm={handleDelete} title="Excluir Oficina" message="Tem certeza que deseja excluir esta oficina?" itemName={deleteModal.tenant?.name || ""} loading={saving} />
+      <DeleteConfirmationModal isOpen={deleteModal.isOpen} onClose={() => setDeleteModal({ isOpen: false, tenant: null })} onConfirm={handleDelete} title="Remover Parceiro" message="Deseja excluir permanentemente?" itemName={deleteModal.tenant?.name || ""} loading={saving} />
       <TenantUsersModal isOpen={usersModal.isOpen} onClose={() => setUsersModal({ isOpen: false, tenant: null })} tenant={usersModal.tenant} />
-
-      {/* Notifications */}
-      <AnimatePresence>
-        {toast && (
-          <motion.div initial={{ opacity: 0, y: 50, scale: 0.9 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 50, scale: 0.9 }} className={cn("fixed bottom-8 left-1/2 -translate-x-1/2 z-[200] px-6 py-4 rounded-[1.5rem] shadow-2xl flex items-center gap-3 border", toast.type === 'success' ? 'bg-slate-900 border-emerald-500/20 text-white' : 'bg-red-600 border-red-500/20 text-white')}>
-            {toast.type === 'success' ? <CheckCircle className="text-emerald-400" size={20} /> : <AlertCircle className="text-red-200" size={20} />}
-            <span className="font-bold text-sm tracking-tight">{toast.message}</span>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </div>
   );
 }
