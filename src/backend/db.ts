@@ -6,8 +6,22 @@ import bcryptLib from "bcryptjs";
 const db = new Database("mecaerp.db");
 
 export function initDb() {
+  // Pricing Plans
+  db.exec(\`
+    CREATE TABLE IF NOT EXISTS pricing_plans (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      description TEXT,
+      user_limit INTEGER NOT NULL,
+      monthly_value REAL NOT NULL,
+      months_duration INTEGER DEFAULT 1,
+      active BOOLEAN DEFAULT 1,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  \`);
+
   // Tenants (Oficinas)
-  db.exec(`
+  db.exec(\`
     CREATE TABLE IF NOT EXISTS tenants (
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
@@ -15,9 +29,14 @@ export function initDb() {
       address TEXT,
       phone TEXT,
       user_limit INTEGER DEFAULT 5,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      subscription_value REAL DEFAULT 0,
+      due_day INTEGER DEFAULT 5,
+      status TEXT CHECK(status IN ('ACTIVE', 'INACTIVE', 'TRIAL', 'OVERDUE')) DEFAULT 'ACTIVE',
+      plan_id TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (plan_id) REFERENCES pricing_plans(id)
     )
-  `);
+  \`);
 
   // Users
   db.exec(`
