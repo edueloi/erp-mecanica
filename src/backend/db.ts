@@ -30,7 +30,7 @@ export function initDb() {
       onboarding_url TEXT,
       support_url TEXT,
       default_user_limit INTEGER DEFAULT 5,
-      default_due_day INTEGER DEFAULT 5,
+      default_due_day INTEGER DEFAULT 5,`n      last_payment_date DATETIME,
       default_subscription_value REAL DEFAULT 0,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -47,7 +47,7 @@ export function initDb() {
       phone TEXT,
       user_limit INTEGER DEFAULT 5,
       subscription_value REAL DEFAULT 0,
-      due_day INTEGER DEFAULT 5,
+      due_day INTEGER DEFAULT 5,`n      last_payment_date DATETIME,
       status TEXT CHECK(status IN ('ACTIVE', 'INACTIVE', 'TRIAL', 'OVERDUE', 'BLOCKED', 'PENDING_PAYMENT')) DEFAULT 'ACTIVE',
       plan_id TEXT,
       logo_url TEXT,
@@ -452,7 +452,23 @@ export function initDb() {
     console.error("⚠️  Error adding part_id column:", e.message);
   }
 
-  // User Preferences (Configurações e Personalização)
+  
+  // Tenant Audit Logs (Hist�rico Completo)
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS tenant_audit_logs (
+      id TEXT PRIMARY KEY,
+      tenant_id TEXT NOT NULL,
+      user_id TEXT, -- Quem realizou a a��o (Super Admin ou Admin local)
+      action_type TEXT NOT NULL, -- USER_CREATED, USER_DELETED, STATUS_CHANGED, PAYMENT_RECORDED
+      description TEXT,
+      payment_date DATETIME,
+      payment_method TEXT,
+      old_status TEXT,
+      new_status TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (tenant_id) REFERENCES tenants(id)
+    )
+  `);`n`n  // User Preferences (Configurações e Personalização)
   db.exec(`
     CREATE TABLE IF NOT EXISTS user_preferences (
       id TEXT PRIMARY KEY,
@@ -1503,3 +1519,5 @@ export function initDb() {
 
 
 export default db;
+
+
