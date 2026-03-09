@@ -181,6 +181,20 @@ router.get("/tenants/:id/logs", requireAdminOrSeller, (req: AuthRequest, res) =>
   }
 });
 
+router.get("/tenants/:id/users", requireAdminOrSeller, (req: AuthRequest, res) => {
+  try {
+    const users = db.prepare(`
+      SELECT id, name, email, role, photo_url, created_at 
+      FROM users 
+      WHERE tenant_id = ? 
+      ORDER BY name ASC
+    `).all(req.params.id);
+    res.json(users);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // ==========================================
 // EQUIPE INTERNA (SUPER ADMIN / VENDEDOR)
 // ==========================================
@@ -188,7 +202,7 @@ router.get("/tenants/:id/logs", requireAdminOrSeller, (req: AuthRequest, res) =>
 router.get("/team", requireSuperAdmin, (req: AuthRequest, res) => {
   try {
     const team = db.prepare(`
-      SELECT id, name, email, role, phone, cpf, profession, permissions, created_at 
+      SELECT id, name, surname, email, role, phone, cpf, profession, photo_url, permissions, created_at 
       FROM users 
       WHERE role IN ('SUPER_ADMIN', 'VENDEDOR')
       ORDER BY created_at DESC
@@ -207,7 +221,7 @@ router.get("/team", requireSuperAdmin, (req: AuthRequest, res) => {
 });
 
 router.post("/team", requireSuperAdmin, (req: AuthRequest, res) => {
-  const { name, email, password, role, phone, cpf, profession, permissions } = req.body;
+  const { name, email, password, role, phone, cpf, profession, permissions, photo_url } = req.body;
   try {
     // Check if email already exists
     const existing = db.prepare("SELECT id FROM users WHERE email = ?").get(email);
@@ -219,9 +233,9 @@ router.post("/team", requireSuperAdmin, (req: AuthRequest, res) => {
     const permsStr = permissions ? JSON.stringify(permissions) : '{}';
     
     db.prepare(`
-      INSERT INTO users (id, tenant_id, name, email, password, role, phone, cpf, profession, permissions)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(uuidv4(), 'system-tenant-id', name, email, hash, role, phone || null, cpf || null, profession || null, permsStr);
+      INSERT INTO users (id, tenant_id, name, email, password, role, phone, cpf, profession, photo_url, permissions)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(uuidv4(), 'system-tenant-id', name, email, hash, role, phone || null, cpf || null, profession || null, photo_url || null, permsStr);
     
     res.json({ message: "Membro da equipe criado com sucesso!" });
   } catch (error: any) {
@@ -232,7 +246,7 @@ router.post("/team", requireSuperAdmin, (req: AuthRequest, res) => {
 
 router.patch("/team/:id", requireSuperAdmin, (req: AuthRequest, res) => {
   const { id } = req.params;
-  const { name, email, password, role, phone, cpf, profession, permissions } = req.body;
+  const { name, email, password, role, phone, cpf, profession, permissions, photo_url } = req.body;
   
   try {
     const userToEdit = db.prepare("SELECT role, email FROM users WHERE id = ?").get(id) as any;
@@ -266,6 +280,7 @@ router.patch("/team/:id", requireSuperAdmin, (req: AuthRequest, res) => {
     if (cpf !== undefined) { updates.push("cpf = ?"); values.push(cpf || null); }
     if (profession !== undefined) { updates.push("profession = ?"); values.push(profession || null); }
     if (permissions) { updates.push("permissions = ?"); values.push(JSON.stringify(permissions)); }
+    if (photo_url !== undefined) { updates.push("photo_url = ?"); values.push(photo_url || null); }
 
     if (updates.length > 0) {
         db.prepare(`UPDATE users SET ${updates.join(", ")} WHERE id = ?`).run(...values, id);

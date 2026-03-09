@@ -221,7 +221,7 @@ export default function SuperAdmin() {
 
   // Formulário para Membro da Equipe
   const [teamForm, setTeamForm] = useState({
-    name: "", email: "", password: "", role: "VENDEDOR", phone: "", cpf: "", profession: "", permission_profile_id: ""
+    name: "", email: "", password: "", role: "VENDEDOR", phone: "", cpf: "", profession: "", permission_profile_id: "", photo_url: ""
   });
 
   const [permissionsForm, setPermissionsForm] = useState({
@@ -484,7 +484,8 @@ export default function SuperAdmin() {
       phone: member.phone || "",
       cpf: member.cpf || "",
       profession: member.profession || "",
-      permission_profile_id: member.permission_profile_id || ""
+      permission_profile_id: member.permission_profile_id || "",
+      photo_url: member.photo_url || ""
     });
     setShowTeamModal(true);
   };
@@ -511,7 +512,7 @@ export default function SuperAdmin() {
 
       setShowTeamModal(false);
       setEditingMember(null);
-      setTeamForm({ name: "", email: "", password: "", role: "VENDEDOR", phone: "", cpf: "", profession: "", permission_profile_id: "" });
+      setTeamForm({ name: "", email: "", password: "", role: "VENDEDOR", phone: "", cpf: "", profession: "", permission_profile_id: "", photo_url: "" });
       loadData();
     } catch (err: any) {
       showToast(err.response?.data?.error || "Erro ao salvar", "error");
@@ -908,7 +909,7 @@ export default function SuperAdmin() {
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
                 <div className="flex items-center justify-between">
                   <h2 className="text-xl font-black text-slate-900 uppercase">Equipe Interna</h2>
-                  <button onClick={() => { setEditingMember(null); setTeamForm({ name: "", email: "", password: "", role: "VENDEDOR", phone: "", cpf: "", profession: "", permission_profile_id: "" }); setShowTeamModal(true); }} className="h-10 px-6 bg-slate-900 text-white rounded-xl font-black text-[10px] uppercase flex items-center gap-2 hover:bg-emerald-600 transition-all shadow-lg shadow-slate-900/10">
+                  <button onClick={() => { setEditingMember(null); setTeamForm({ name: "", email: "", password: "", role: "VENDEDOR", phone: "", cpf: "", profession: "", permission_profile_id: "", photo_url: "" }); setShowTeamModal(true); }} className="h-10 px-6 bg-slate-900 text-white rounded-xl font-black text-[10px] uppercase flex items-center gap-2 hover:bg-emerald-600 transition-all shadow-lg shadow-slate-900/10">
                     <Plus size={16} /> Novo Membro
                   </button>
                 </div>
@@ -919,71 +920,105 @@ export default function SuperAdmin() {
                     <p className="text-slate-400 font-bold text-xs uppercase">Nenhum membro na equipe ainda</p>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                     {team.map((m) => (
-                      <div key={m.id} className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm relative group hover:border-emerald-200 transition-all flex flex-col">
-                        <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-all">
-                            {(isMasterRoot || (user?.permissions?.gerenciar_equipe && m.role !== 'SUPER_ADMIN' && m.email !== 'admin@mecaerp.com.br')) && m.email !== user?.email && (
-                                <>
-                                    <button 
-                                        onClick={() => handleEditTeamMember(m)} 
-                                        className="w-8 h-8 rounded-lg bg-slate-50 text-slate-400 hover:bg-slate-100 hover:text-slate-600 flex items-center justify-center transition-all"
-                                        title="Editar"
-                                    >
-                                        <Edit2 size={14} />
-                                    </button>
-                                    <button 
-                                        onClick={() => setDeleteTeamConfig({ isOpen: true, member: m })} 
-                                        className="w-8 h-8 rounded-lg bg-red-50 text-red-400 hover:bg-red-100 hover:text-red-500 flex items-center justify-center transition-all"
-                                        title="Excluir"
-                                    >
-                                        <Trash2 size={14} />
-                                    </button>
-                                </>
-                            )}
-                        </div>
-
-                        <div className="flex items-center gap-4 mb-6">
-                          <div className="w-14 h-14 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-center overflow-hidden shrink-0">
-                            {m.photo_url ? (
-                              <img src={m.photo_url} className="w-full h-full object-cover" />
-                            ) : (
-                              <UserCircle className="text-slate-300" size={32} />
-                            )}
-                          </div>
-                          <div className="min-w-0">
-                            <h3 className="font-black text-slate-900 uppercase text-sm truncate">{m.name}</h3>
-                            <div className="flex items-center gap-1.5 mt-0.5">
-                              <Shield size={10} className={m.role === 'SUPER_ADMIN' ? 'text-emerald-500' : 'text-blue-500'} />
-                              <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{m.role === 'SUPER_ADMIN' ? 'Administrador' : 'Vendedor'}</p>
+                      <div key={m.id} className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm relative group hover:shadow-2xl hover:shadow-slate-200/50 hover:border-emerald-200 transition-all duration-500 flex flex-col overflow-hidden">
+                        {/* Status/Role Badge Overlay */}
+                        <div className="absolute top-0 right-0 p-6 flex flex-col items-end gap-2">
+                           <div className={cn(
+                             "px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest border shadow-sm backdrop-blur-md",
+                             m.role === 'SUPER_ADMIN' 
+                               ? "bg-emerald-50/80 text-emerald-600 border-emerald-100" 
+                               : "bg-blue-50/80 text-blue-600 border-blue-100"
+                           )}>
+                             {m.role === 'SUPER_ADMIN' ? 'Admin' : 'Vendedor'}
+                           </div>
+                           
+                           {/* Action Buttons */}
+                           <div className="flex gap-1.5 opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0 transition-all duration-300">
+                                {(isMasterRoot || (user?.permissions?.gerenciar_equipe && m.role !== 'SUPER_ADMIN' && m.email !== 'admin@mecaerp.com.br')) && m.email !== user?.email && (
+                                    <>
+                                        <button 
+                                            onClick={() => handleEditTeamMember(m)} 
+                                            className="w-10 h-10 rounded-xl bg-white shadow-lg text-slate-400 hover:text-blue-600 flex items-center justify-center transition-all border border-slate-100"
+                                            title="Editar"
+                                        >
+                                            <Edit2 size={16} />
+                                        </button>
+                                        <button 
+                                            onClick={() => setDeleteTeamConfig({ isOpen: true, member: m })} 
+                                            className="w-10 h-10 rounded-xl bg-white shadow-lg text-slate-400 hover:text-red-500 flex items-center justify-center transition-all border border-slate-100"
+                                            title="Excluir"
+                                        >
+                                            <Trash2 size={16} />
+                                        </button>
+                                    </>
+                                )}
                             </div>
-                          </div>
                         </div>
 
-                        <div className="space-y-3">
-                          <div className="flex items-center gap-3 text-slate-500">
-                            <Mail size={14} className="shrink-0" />
-                            <span className="text-xs font-bold truncate">{m.email}</span>
-                          </div>
-                          {m.phone && (
-                            <div className="flex items-center gap-3 text-slate-500">
-                              <Phone size={14} className="shrink-0" />
-                              <span className="text-xs font-bold">{m.phone}</span>
+                        {/* Top Accent Bar */}
+                        <div className={cn("h-2 w-full", m.role === 'SUPER_ADMIN' ? "bg-emerald-500" : "bg-blue-500")} />
+
+                        <div className="p-6 sm:p-8 pt-10">
+                            <div className="flex flex-col items-center text-center mb-8">
+                                <div className="relative mb-4">
+                                    <div className={cn(
+                                        "w-24 h-24 rounded-[2.5rem] p-1.5 border-4 border-white shadow-2xl relative z-10 overflow-hidden",
+                                        m.role === 'SUPER_ADMIN' ? "bg-emerald-50" : "bg-blue-50"
+                                    )}>
+                                        <div className="w-full h-full rounded-[2rem] overflow-hidden bg-slate-100 flex items-center justify-center">
+                                            {m.photo_url ? (
+                                                <img src={m.photo_url} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
+                                            ) : (
+                                                <div className={cn("w-full h-full flex items-center justify-center", m.role === 'SUPER_ADMIN' ? 'bg-emerald-50 text-emerald-500' : 'bg-blue-50 text-blue-500')}>
+                                                    {m.role === 'SUPER_ADMIN' ? <Shield size={40} /> : <TrendingUp size={40} />}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                    <div className={cn(
+                                        "absolute -inset-2 blur-2xl opacity-20 transition-opacity group-hover:opacity-40",
+                                        m.role === 'SUPER_ADMIN' ? "bg-emerald-500" : "bg-blue-500"
+                                    )} />
+                                </div>
+                                
+                                <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight italic line-clamp-1">{m.name} {m.surname || ''}</h3>
+                                <div className="mt-2 inline-flex items-center gap-2 px-3 py-1 bg-slate-50 border border-slate-100 rounded-lg">
+                                    <Briefcase size={12} className={m.role === 'SUPER_ADMIN' ? "text-emerald-500" : "text-blue-500"} />
+                                    <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{m.profession || 'Colaborador'}</span>
+                                </div>
                             </div>
-                          )}
-                          <div className="flex items-center gap-3 text-emerald-600 bg-emerald-50/50 p-2 rounded-xl border border-emerald-100/50">
-                            <Briefcase size={14} className="shrink-0" />
-                            <span className="text-[10px] font-black uppercase tracking-wider">{m.profession || 'Cargo não definido'}</span>
-                          </div>
-                        </div>
 
-                        <div className="mt-6 pt-4 border-t border-slate-50 flex items-center justify-between">
-                            <p className="text-[8px] font-black text-slate-300 uppercase tracking-widest flex items-center gap-1">
-                                <Clock size={10} /> Desde {new Date(m.created_at).toLocaleDateString('pt-BR')}
-                            </p>
-                            <div className="flex -space-x-1.5 overflow-hidden">
-                                <div className="w-5 h-5 rounded-full border border-white bg-slate-100 flex items-center justify-center"><TrendingUp size={8} /></div>
-                                <div className="w-5 h-5 rounded-full border border-white bg-slate-100 flex items-center justify-center"><Activity size={8} /></div>
+                            <div className="space-y-3 bg-slate-50/50 p-6 rounded-3xl border border-slate-100">
+                                <div className="flex items-center gap-3 text-slate-600">
+                                    <div className="w-8 h-8 rounded-lg bg-white shadow-sm border border-slate-100 flex items-center justify-center shrink-0">
+                                        <Mail size={14} className="text-slate-400" />
+                                    </div>
+                                    <span className="text-xs font-bold truncate">{m.email}</span>
+                                </div>
+                                {m.phone && (
+                                    <div className="flex items-center gap-3 text-slate-600">
+                                        <div className="w-8 h-8 rounded-lg bg-white shadow-sm border border-slate-100 flex items-center justify-center shrink-0">
+                                            <Phone size={14} className="text-slate-400" />
+                                        </div>
+                                        <span className="text-xs font-bold">{m.phone}</span>
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="mt-8 flex items-center justify-between">
+                                <div className="flex flex-col">
+                                    <p className="text-[8px] font-black text-slate-300 uppercase tracking-widest">Membro desde</p>
+                                    <p className="text-[10px] font-black text-slate-600 mt-1 flex items-center gap-1.5">
+                                        <Calendar size={12} className="text-slate-400" />
+                                        {new Date(m.created_at).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}
+                                    </p>
+                                </div>
+                                <div className="flex -space-x-2">
+                                    <div className="w-8 h-8 rounded-full bg-slate-100 border-2 border-white flex items-center justify-center text-slate-400 shadow-sm"><TrendingUp size={12} /></div>
+                                    <div className="w-8 h-8 rounded-full bg-slate-900 border-2 border-white flex items-center justify-center text-white shadow-sm"><CheckCircle size={12} /></div>
+                                </div>
                             </div>
                         </div>
                       </div>
@@ -1385,9 +1420,41 @@ export default function SuperAdmin() {
             <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
               <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} className="bg-white w-full max-w-lg rounded-[2.5rem] shadow-2xl overflow-hidden relative">
                 <div className="bg-slate-900 p-6 sm:p-8 text-white relative flex items-center justify-between overflow-hidden">
-                  <div className="relative z-10">
-                    <h3 className="font-black uppercase tracking-[0.2em] text-xs opacity-70 mb-1">Gerenciar Acessos</h3>
-                    <h2 className="text-2xl font-black uppercase tracking-tight">{editingMember ? 'Editar Colaborador' : 'Novo Colaborador'}</h2>
+                  <div className="relative z-10 flex items-center gap-4">
+                    <div className="relative group">
+                        <div className="w-16 h-16 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center overflow-hidden">
+                            {teamForm.photo_url ? (
+                                <img src={teamForm.photo_url} className="w-full h-full object-cover" />
+                            ) : (
+                                <UserCircle size={32} className="text-white/40" />
+                            )}
+                        </div>
+                        <button 
+                            type="button"
+                            onClick={() => (document.getElementById('team_photo_input') as HTMLInputElement)?.click()}
+                            className="absolute -bottom-1 -right-1 w-6 h-6 bg-white text-slate-900 rounded-lg flex items-center justify-center shadow-lg hover:bg-emerald-500 hover:text-white transition-all"
+                        >
+                            <Edit2 size={12} />
+                        </button>
+                        <input 
+                            id="team_photo_input"
+                            type="file" 
+                            className="hidden" 
+                            accept="image/*"
+                            onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) {
+                                    const reader = new FileReader();
+                                    reader.onloadend = () => setTeamForm({ ...teamForm, photo_url: reader.result as string });
+                                    reader.readAsDataURL(file);
+                                }
+                            }}
+                        />
+                    </div>
+                    <div>
+                        <h3 className="font-black uppercase tracking-[0.2em] text-[8px] sm:text-xs opacity-70 mb-1">Gerenciar Acessos</h3>
+                        <h2 className="text-lg sm:text-2xl font-black uppercase tracking-tight">{editingMember ? 'Editar Colaborador' : 'Novo Colaborador'}</h2>
+                    </div>
                   </div>
                   <button onClick={() => setShowTeamModal(false)} className="w-10 h-10 rounded-2xl bg-white/10 flex items-center justify-center hover:bg-white/20 transition-all group relative z-10"><X size={20} className="group-hover:rotate-90 transition-all duration-300" /></button>
                   <Briefcase size={120} className="absolute -right-10 -bottom-10 text-white/5 rotate-12" />

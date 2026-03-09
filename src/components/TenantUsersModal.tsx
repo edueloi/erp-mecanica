@@ -114,8 +114,14 @@ export default function TenantUsersModal({
                       className="p-4 bg-slate-50 rounded-2xl border border-slate-100 flex items-center justify-between group hover:bg-white hover:shadow-md transition-all duration-200"
                     >
                       <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-slate-400 font-bold border border-slate-200 group-hover:border-blue-200 group-hover:text-blue-600 transition-colors">
-                          {u.name ? u.name.charAt(0).toUpperCase() : '?'}
+                        <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-slate-400 font-bold border border-slate-200 group-hover:border-blue-200 group-hover:text-blue-600 transition-colors overflow-hidden">
+                          {u.photo_url ? (
+                            <img src={u.photo_url} alt={u.name} className="w-full h-full object-cover" />
+                          ) : tenant?.logo_url ? (
+                            <img src={tenant.logo_url} alt={u.name} className="w-full h-full object-cover opacity-40" />
+                          ) : (
+                            u.name ? u.name.charAt(0).toUpperCase() : '?'
+                          )}
                         </div>
                         <div>
                           <h4 className="text-sm font-bold text-slate-900 leading-none mb-1">{u.name}</h4>

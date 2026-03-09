@@ -29,6 +29,7 @@ import {
   Plus,
   Trash2,
   Edit2,
+  ChevronRight,
 } from "lucide-react";
 import { useSettings } from "../contexts/SettingsContext";
 import * as ibgeService from "../services/ibgeService";
@@ -105,7 +106,8 @@ export default function Settings() {
       finance: false,
       whatsapp: false,
       settings: false
-    }
+    },
+    photo_url: ""
   });
 
   const loadUsers = async () => {
@@ -810,7 +812,8 @@ export default function Settings() {
                         finance: false,
                         whatsapp: false,
                         settings: false
-                      }
+                      },
+                      photo_url: ""
                     });
                     setShowUserModal(true);
                   }}
@@ -822,96 +825,114 @@ export default function Settings() {
                 </button>
               </div>
 
-              <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
-                <table className="w-full text-left border-collapse">
-                  <thead className="bg-slate-50 border-b border-slate-200">
-                    <tr>
-                      <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Nome / E-mail</th>
-                      <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Cargo</th>
-                      <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Data Cadastro</th>
-                      <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider text-right">Ações</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {usersList.length === 0 ? (
-                      <tr>
-                        <td colSpan={4} className="px-6 py-12 text-center text-slate-500">
-                          <Users className="w-12 h-12 mx-auto mb-4 opacity-10" />
-                          Nenhum usuário cadastrado.
-                        </td>
-                      </tr>
-                    ) : (
-                      usersList.map((user) => (
-                        <tr key={user.id} className="hover:bg-slate-50 transition-colors">
-                          <td className="px-6 py-4">
-                            <div className="font-medium text-slate-900">{user.name}</div>
-                            <div className="text-sm text-slate-500">{user.email}</div>
-                          </td>
-                          <td className="px-6 py-4">
-                            <span className={`px-2 py-1 rounded-lg text-xs font-bold ${
-                              user.role === 'ADMIN' ? 'bg-amber-100 text-amber-700' :
-                              user.role === 'SUPER_ADMIN' ? 'bg-purple-100 text-purple-700' :
-                              'bg-slate-100 text-slate-600'
-                            }`}>
-                              {user.role}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 text-sm text-slate-500">
-                            {new Date(user.created_at).toLocaleDateString()}
-                          </td>
-                          <td className="px-6 py-4 text-right">
-                            <div className="flex justify-end gap-2">
-                              <button 
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {usersList.length === 0 ? (
+                  <div className="col-span-full py-20 text-center bg-white rounded-3xl border border-slate-200 shadow-sm">
+                    <Users className="w-16 h-16 mx-auto mb-4 opacity-10 text-slate-400" />
+                    <p className="text-slate-500 font-bold uppercase tracking-widest text-xs">Nenhum membro na equipe ainda</p>
+                  </div>
+                ) : (
+                  usersList.map((user) => (
+                    <div key={user.id} className="bg-white rounded-[2rem] border border-slate-200 shadow-sm hover:shadow-xl hover:border-slate-300 transition-all duration-300 group flex flex-col p-6">
+                       <div className="flex items-start justify-between mb-6">
+                          <div className="relative group-hover:scale-105 transition-transform duration-500">
+                             <div className="w-16 h-16 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-center overflow-hidden shadow-inner">
+                                {user.photo_url ? (
+                                   <img src={user.photo_url} alt={user.name} className="w-full h-full object-cover" />
+                                ) : (
+                                   <div className="w-full h-full flex items-center justify-center bg-slate-50 text-slate-400 font-bold text-xl uppercase italic">
+                                      {user.name.charAt(0)}
+                                   </div>
+                                )}
+                             </div>
+                             <div className={`absolute -top-2 -right-2 w-6 h-6 rounded-full border-2 border-white flex items-center justify-center shadow-lg ${
+                               user.role === 'ADMIN' ? 'bg-amber-500' : 
+                               user.role === 'SUPER_ADMIN' ? 'bg-purple-500' : 'bg-slate-500'
+                             }`}>
+                                <Shield className="text-white" size={12} />
+                             </div>
+                          </div>
+                          <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-all translate-y-2 group-hover:translate-y-0 duration-300">
+                             <button 
                                 onClick={() => {
-                                  setEditingUser(user);
-                                  setUserForm({
-                                    name: user.name,
-                                    email: user.email,
-                                    password: "",
-                                    role: user.role,
-                                    permissions: typeof user.permissions === 'string' 
-                                      ? JSON.parse(user.permissions) 
-                                      : (user.permissions || {
-                                          dashboard: true,
-                                          clients: true,
-                                          vehicles: true,
-                                          workOrders: true,
-                                          appointments: true,
-                                          inventory: false,
-                                          finance: false,
-                                          whatsapp: false,
-                                          settings: false
-                                        })
-                                  });
-                                  setShowUserModal(true);
+                                   setEditingUser(user);
+                                   setUserForm({
+                                      name: user.name,
+                                      email: user.email,
+                                      password: "",
+                                      role: user.role,
+                                      permissions: typeof user.permissions === 'string' 
+                                        ? JSON.parse(user.permissions) 
+                                        : (user.permissions || {
+                                            dashboard: true,
+                                            clients: true,
+                                            vehicles: true,
+                                            workOrders: true,
+                                            appointments: true,
+                                            inventory: false,
+                                            finance: false,
+                                            whatsapp: false,
+                                            settings: false
+                                          }),
+                                      photo_url: user.photo_url || ""
+                                   });
+                                   setShowUserModal(true);
                                 }}
-                                className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
-                              >
-                                <Edit2 className="w-4 h-4" />
-                              </button>
-                              <button 
+                                className="w-9 h-9 rounded-xl bg-slate-100 text-slate-500 hover:bg-slate-900 hover:text-white flex items-center justify-center transition-all"
+                                title="Editar"
+                             >
+                                <Edit2 size={14} />
+                             </button>
+                             <button 
                                 onClick={async () => {
-                                  if (window.confirm(`Deseja realmente excluir o usuário ${user.name}?`)) {
-                                    try {
-                                      await api.delete(`/users/${user.id}`);
-                                      showToast("Usuário excluído com sucesso!");
-                                      loadUsers();
-                                    } catch (error: any) {
-                                      showToast(error.response?.data?.error || "Erro ao excluir usuário", "error");
-                                    }
-                                  }
+                                   if (window.confirm(`Deseja realmente excluir o usuário ${user.name}?`)) {
+                                      try {
+                                         await api.delete(`/users/${user.id}`);
+                                         showToast("Usuário excluído com sucesso!");
+                                         loadUsers();
+                                      } catch (error: any) {
+                                         showToast(error.response?.data?.error || "Erro ao excluir usuário", "error");
+                                      }
+                                   }
                                 }}
-                                className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
+                                className="w-9 h-9 rounded-xl bg-red-50 text-red-500 hover:bg-red-500 hover:text-white flex items-center justify-center transition-all"
+                                title="Excluir"
+                             >
+                                <Trash2 size={14} />
+                             </button>
+                          </div>
+                       </div>
+
+                       <div className="flex-1">
+                          <h4 className="font-black text-slate-900 leading-tight uppercase italic mb-1 line-clamp-1">{user.name}</h4>
+                          <p className="text-xs text-slate-500 font-medium mb-4 truncate">{user.email}</p>
+                          
+                          <div className="flex flex-wrap gap-2">
+                             <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border shadow-sm ${
+                               user.role === 'ADMIN' ? 'bg-amber-50 text-amber-600 border-amber-100/50' :
+                               user.role === 'SUPER_ADMIN' ? 'bg-purple-50 text-purple-600 border-purple-100/50' :
+                               'bg-slate-50 text-slate-600 border-slate-100/50'
+                             }`}>
+                                {user.role === 'ADMIN' ? 'Admin' : 
+                                 user.role === 'MECHANIC' ? 'Mecânico' :
+                                 user.role === 'ATTENDANT' ? 'Atendente' : 
+                                 user.role === 'FINANCE' ? 'Financeiro' : user.role}
+                             </span>
+                          </div>
+                       </div>
+
+                       <div className="mt-6 pt-4 border-t border-slate-50 flex items-center justify-between">
+                          <div className="flex flex-col">
+                             <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Desde</span>
+                             <span className="text-[10px] font-bold text-slate-600">{new Date(user.created_at).toLocaleDateString()}</span>
+                          </div>
+                          <div className="h-8 w-8 rounded-lg bg-slate-50 flex items-center justify-center text-slate-300">
+                             <ChevronRight size={16} />
+                          </div>
+                       </div>
+                    </div>
+                  ))
+                )}
               </div>
 
               {/* User Modal */}
@@ -953,6 +974,45 @@ export default function Settings() {
                       }}
                       className="p-6 overflow-y-auto space-y-6"
                     >
+                      {/* Foto do Usuário */}
+                      <div className="flex flex-col items-center mb-6">
+                        <div className="relative group cursor-pointer" onClick={() => (document.getElementById('user_photo_input') as HTMLInputElement)?.click()}>
+                          <div className="w-24 h-24 rounded-3xl bg-slate-100 border-4 border-white shadow-xl flex items-center justify-center overflow-hidden">
+                            {userForm.photo_url ? (
+                              <img src={userForm.photo_url} className="w-full h-full object-cover" />
+                            ) : (
+                              <Users className="text-slate-300" size={40} />
+                            )}
+                            <div className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                              <Upload className="text-white" size={24} />
+                            </div>
+                          </div>
+                          <button 
+                            type="button"
+                            className="absolute -bottom-2 -right-2 w-8 h-8 rounded-xl bg-white shadow-lg text-slate-500 border border-slate-100 flex items-center justify-center"
+                          >
+                            <Edit2 size={14} />
+                          </button>
+                        </div>
+                        <input 
+                          id="user_photo_input"
+                          type="file" 
+                          className="hidden" 
+                          accept="image/*"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              const reader = new FileReader();
+                              reader.onloadend = () => {
+                                setUserForm({ ...userForm, photo_url: reader.result as string });
+                              };
+                              reader.readAsDataURL(file);
+                            }
+                          }}
+                        />
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-2">Foto de Perfil</p>
+                      </div>
+
                       <div className="grid grid-cols-2 gap-4">
                         <div className="col-span-2">
                           <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Nome Completo</label>

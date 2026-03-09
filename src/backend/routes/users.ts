@@ -12,7 +12,7 @@ router.use(authenticateToken);
 router.get("/", (req: AuthRequest, res) => {
   try {
     const users = db.prepare(`
-      SELECT id, name, email, role, permissions, created_at 
+      SELECT id, name, email, role, photo_url, permissions, created_at 
       FROM users 
       WHERE tenant_id = ? 
       ORDER BY name ASC
