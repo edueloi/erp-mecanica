@@ -63,24 +63,48 @@ router.post("/", async (req: AuthRequest, res) => {
   }
 });
 
-// Update user
+// Update user or own profile
 router.patch("/:id", async (req: AuthRequest, res) => {
-  if (req.user?.role !== "ADMIN" && req.user?.role !== "SUPER_ADMIN" && req.user?.id !== req.params.id) {
+  const { id } = req.params;
+  const isUpdatingSelf = req.user?.id === id;
+  
+  if (req.user?.role !== "ADMIN" && req.user?.role !== "SUPER_ADMIN" && !isUpdatingSelf) {
     return res.status(403).json({ error: "Access denied." });
   }
 
-  const { name, email, role, password, permissions } = req.body;
-  const { id } = req.params;
+  const { name, email, role, password, permissions, photo_url, surname, biography, education, profession, phone, cpf } = req.body;
 
   try {
-    if (password) {
-      const hashedPassword = await bcrypt.hash(password, 10);
-      db.prepare("UPDATE users SET name = ?, email = ?, role = ?, password = ?, permissions = ? WHERE id = ? AND tenant_id = ?")
-        .run(name, email, role, hashedPassword, JSON.stringify(permissions || {}), id, req.user!.tenant_id);
-    } else {
-      db.prepare("UPDATE users SET name = ?, email = ?, role = ?, permissions = ? WHERE id = ? AND tenant_id = ?")
-        .run(name, email, role, JSON.stringify(permissions || {}), id, req.user!.tenant_id);
+    const fieldsToUpdate: any = { name, email, photo_url, surname, biography, education, profession, phone, cpf };
+    
+    // Only admins can change roles and permissions
+    if (role && (req.user?.role === "ADMIN" || req.user?.role === "SUPER_ADMIN")) {
+      fieldsToUpdate.role = role;
     }
+    if (permissions && (req.user?.role === "ADMIN" || req.user?.role === "SUPER_ADMIN")) {
+      fieldsToUpdate.permissions = typeof permissions === 'string' ? permissions : JSON.stringify(permissions);
+    }
+    if (password) {
+      fieldsToUpdate.password = await bcrypt.hash(password, 10);
+    }
+
+    // Remove undefined fields
+    Object.keys(fieldsToUpdate).forEach(key => fieldsToUpdate[key] === undefined && delete fieldsToUpdate[key]);
+
+    const keys = Object.keys(fieldsToUpdate);
+    if (keys.length === 0) return res.json({ message: "Nada para atualizar." });
+
+    const setClause = keys.map(k => `${k} = ?`).join(", ");
+    const values = Object.values(fieldsToUpdate);
+
+    if (req.user?.role === "SUPER_ADMIN") {
+      // Super Admin can update anyone globally
+      db.prepare(`UPDATE users SET ${setClause} WHERE id = ?`).run(...values, id);
+    } else {
+      // Admins and users updating themselves are restricted to their tenant
+      db.prepare(`UPDATE users SET ${setClause} WHERE id = ? AND tenant_id = ?`).run(...values, id, req.user!.tenant_id);
+    }
+    
     res.json({ message: "Usuário atualizado com sucesso." });
   } catch (error: any) {
     res.status(500).json({ error: error.message });

@@ -262,4 +262,57 @@ router.get("/plans", requireAdminOrSeller, (req, res) => {
   }
 });
 
+// ==========================================
+// PERMISSION PROFILES (PERFIS DE ACESSO)
+// ==========================================
+
+router.get("/permission-profiles", requireSuperAdmin, (req, res) => {
+  try {
+    const profiles = db.prepare("SELECT * FROM permission_profiles ORDER BY name ASC").all();
+    res.json(profiles.map((p: any) => ({ ...p, permissions: JSON.parse(p.permissions) })));
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post("/permission-profiles", requireSuperAdmin, (req, res) => {
+  const { name, description, permissions } = req.body;
+  try {
+    const id = uuidv4();
+    db.prepare(`
+      INSERT INTO permission_profiles (id, name, description, permissions)
+      VALUES (?, ?, ?, ?)
+    `).run(id, name, description || null, JSON.stringify(permissions || {}));
+    res.json({ message: "Perfil de acesso criado!", id });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.patch("/permission-profiles/:id", requireSuperAdmin, (req, res) => {
+  const { id } = req.params;
+  const { name, description, permissions } = req.body;
+  try {
+    const profile = db.prepare("SELECT id FROM permission_profiles WHERE id = ?").get(id);
+    if (!profile) return res.status(404).json({ error: "Perfil não encontrado" });
+
+    if (name) db.prepare("UPDATE permission_profiles SET name = ? WHERE id = ?").run(name, id);
+    if (description !== undefined) db.prepare("UPDATE permission_profiles SET description = ? WHERE id = ?").run(description, id);
+    if (permissions) db.prepare("UPDATE permission_profiles SET permissions = ? WHERE id = ?").run(JSON.stringify(permissions), id);
+
+    res.json({ message: "Perfil de acesso atualizado" });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.delete("/permission-profiles/:id", requireSuperAdmin, (req, res) => {
+  try {
+    db.prepare("DELETE FROM permission_profiles WHERE id = ?").run(req.params.id);
+    res.json({ message: "Perfil removido" });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 export default router;

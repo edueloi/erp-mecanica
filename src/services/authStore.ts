@@ -3,12 +3,18 @@ import { create } from 'zustand';
 interface User {
   id: string;
   name: string;
+  surname?: string;
   email: string;
   role: string;
   tenant_id: string;
   tenant_name: string;
   permissions?: any;
   photo_url?: string;
+  phone?: string;
+  cpf?: string;
+  profession?: string;
+  biography?: string;
+  education?: string;
 }
 
 interface AuthState {
@@ -17,6 +23,7 @@ interface AuthState {
   isAuthenticated: boolean;
   login: (user: User, token: string) => void;
   logout: () => void;
+  setUser: (user: User) => void;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
@@ -33,4 +40,8 @@ export const useAuthStore = create<AuthState>((set) => ({
     localStorage.removeItem('mecaerp_user');
     set({ user: null, token: null, isAuthenticated: false });
   },
+  setUser: (user) => {
+    localStorage.setItem('mecaerp_user', JSON.stringify(user));
+    set({ user });
+  }
 }));

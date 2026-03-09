@@ -34,8 +34,17 @@ import {
   Zap,
   Layers,
   Briefcase,
-  Menu
+  Menu,
+  Eye,
+  EyeOff,
+  Lock,
+  FileText,
+  BookOpen,
+  User as UserIcon,
+  Fingerprint,
+  Key
 } from "lucide-react";
+import { useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAuthStore } from "../services/authStore";
 import api from "../services/api";
@@ -58,7 +67,7 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; icon: any; b
   BLOCKED: { label: "Bloqueado", color: "text-red-600", bg: "bg-red-50", border: "border-red-100", icon: Ban },
 };
 
-type AdminTab = 'dashboard' | 'workshops' | 'plans' | 'profile' | 'team';
+type AdminTab = 'dashboard' | 'workshops' | 'plans' | 'profile' | 'team' | 'permissions';
 
 export default function SuperAdmin() {
   const { tab } = useParams<{ tab: string }>();
@@ -69,14 +78,17 @@ export default function SuperAdmin() {
   const [tenants, setTenants] = useState<any[]>([]);
   const [plans, setPlans] = useState<any[]>([]);
   const [team, setTeam] = useState<any[]>([]);
+  const [permissionProfiles, setPermissionProfiles] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   
   // Modals state
   const [showModal, setShowModal] = useState(false);
   const [showPlansModal, setShowPlansModal] = useState(false);
   const [showTeamModal, setShowTeamModal] = useState(false);
+  const [showPermissionsModal, setShowPermissionsModal] = useState(false);
   const [saving, setSaving] = useState(false);
   const [editingTenant, setEditingTenant] = useState<any | null>(null);
+  const [editingProfile, setEditingProfile] = useState<any | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   
@@ -87,10 +99,86 @@ export default function SuperAdmin() {
     isOpen: false, tenant: null, payment_method: 'PIX', payment_date: new Date().toISOString().split('T')[0] 
   });
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [showTeamPassword, setShowTeamPassword] = useState(false);
 
   const logout = useAuthStore(state => state.logout);
   const user = useAuthStore(state => state.user);
+  const setUser = useAuthStore(state => state.setUser);
   const isVendedor = user?.role === 'VENDEDOR';
+  const isMasterRoot = user?.email === 'admin@mecaerp.com.br';
+
+  const [profileForm, setProfileForm] = useState({
+    name: user?.name || "",
+    surname: user?.surname || "",
+    email: user?.email || "",
+    phone: user?.phone || "",
+    cpf: user?.cpf || "",
+    profession: user?.profession || "",
+    biography: user?.biography || "",
+    education: user?.education || "",
+    photo_url: user?.photo_url || "",
+    password: ""
+  });
+
+  const profileFileInputRef = useRef<HTMLInputElement>(null);
+  const [showProfilePassword, setShowProfilePassword] = useState(false);
+
+  useEffect(() => {
+    if (user) {
+      setProfileForm({
+        name: user.name || "",
+        surname: user.surname || "",
+        email: user.email || "",
+        phone: user.phone || "",
+        cpf: user.cpf || "",
+        profession: user.profession || "",
+        biography: user.biography || "",
+        education: user.education || "",
+        photo_url: user.photo_url || "",
+        password: ""
+      });
+    }
+  }, [user]);
+
+  const handleProfilePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        // Logic: Replace old photo by just setting the new state. 
+        // Backend handles storage if it's base64 or just replaces the record.
+        setProfileForm({ ...profileForm, photo_url: reader.result as string });
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleProfileSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (isMasterRoot) {
+      showToast("Este acesso é restrito e não pode ser alterado por aqui.", "error");
+      return;
+    }
+    setSaving(true);
+    try {
+      // Create a copy without empty password
+      const dataToSave = { ...profileForm };
+      if (!dataToSave.password) delete (dataToSave as any).password;
+
+      await api.patch(`/users/${user?.id}`, dataToSave);
+      
+      // Update local store
+      const updatedUser = { ...user, ...dataToSave } as any;
+      delete updatedUser.password;
+      setUser(updatedUser);
+      
+      showToast("Perfil atualizado com sucesso!");
+    } catch (err: any) {
+      showToast(err.response?.data?.error || "Erro ao atualizar perfil", "error");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const [form, setForm] = useState({
     name: "", document: "", phone: "", address: "", user_limit: 5, subscription_value: 0, due_day: 5, plan_id: "", logo_url: "", admin_name: "", admin_email: "", admin_password: "", admin_photo: ""
@@ -122,7 +210,23 @@ export default function SuperAdmin() {
 
   // Formulário para Membro da Equipe
   const [teamForm, setTeamForm] = useState({
-    name: "", email: "", password: "", role: "VENDEDOR", phone: "", cpf: "", profession: ""
+    name: "", email: "", password: "", role: "VENDEDOR", phone: "", cpf: "", profession: "", permission_profile_id: ""
+  });
+
+  const [permissionsForm, setPermissionsForm] = useState({
+    name: "",
+    description: "",
+    permissions: {
+        can_view_dashboard: true,
+        can_manage_clients: false,
+        can_manage_vehicles: false,
+        can_manage_work_orders: false,
+        can_manage_finance: false,
+        can_manage_inventory: false,
+        can_manage_team: false,
+        can_manage_settings: false,
+        can_view_reports: false
+    }
   });
 
   const showToast = (message: string, type: 'success' | 'error' = 'success') => {
@@ -141,8 +245,12 @@ export default function SuperAdmin() {
       setPlans(Array.isArray(plansRes.data) ? plansRes.data : []);
       
       if (!isVendedor) {
-        const teamRes = await api.get("/superadmin/team");
+        const [teamRes, profilesRes] = await Promise.all([
+          api.get("/superadmin/team"),
+          api.get("/superadmin/permission-profiles")
+        ]);
         setTeam(Array.isArray(teamRes.data) ? teamRes.data : []);
+        setPermissionProfiles(Array.isArray(profilesRes.data) ? profilesRes.data : []);
       }
     } catch (err: any) {
       showToast("Erro ao carregar dados", "error");
@@ -256,14 +364,53 @@ export default function SuperAdmin() {
     }
   };
 
+  const handlePermissionsSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      if (editingProfile) {
+        await api.patch(`/superadmin/permission-profiles/${editingProfile.id}`, permissionsForm);
+        showToast("Perfil atualizado");
+      } else {
+        await api.post("/superadmin/permission-profiles", permissionsForm);
+        showToast("Perfil criado");
+      }
+      setShowPermissionsModal(false);
+      loadData();
+    } catch (err: any) {
+      showToast(err.response?.data?.error || "Erro ao salvar perfil", "error");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const deletePermissionProfile = async (id: string) => {
+    if (confirm("Remover este perfil de permissões?")) {
+      try {
+        await api.delete(`/superadmin/permission-profiles/${id}`);
+        showToast("Perfil removido");
+        loadData();
+      } catch (err) {
+        showToast("Erro ao remover", "error");
+      }
+    }
+  };
+
   const handleTeamSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
     try {
-      await api.post("/superadmin/team", teamForm);
+      // Find selected permissions if any
+      const selectedProfile = permissionProfiles.find(p => p.id === teamForm.permission_profile_id);
+      const finalData = { 
+          ...teamForm, 
+          permissions: selectedProfile ? selectedProfile.permissions : {} 
+      };
+
+      await api.post("/superadmin/team", finalData);
       showToast("Membro adicionado!");
       setShowTeamModal(false);
-      setTeamForm({ name: "", email: "", password: "", role: "VENDEDOR", phone: "", cpf: "", profession: "" });
+      setTeamForm({ name: "", email: "", password: "", role: "VENDEDOR", phone: "", cpf: "", profession: "", permission_profile_id: "" });
       loadData();
     } catch (err: any) {
       showToast(err.response?.data?.error || "Erro", "error");
@@ -271,6 +418,7 @@ export default function SuperAdmin() {
       setSaving(false);
     }
   };
+
 
   const handleDelete = async () => {
     if (!deleteModal.tenant) return;
@@ -308,6 +456,7 @@ export default function SuperAdmin() {
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'workshops', label: isVendedor ? 'Minha Carteira' : 'Parceiros', icon: Building2 },
     !isVendedor && { id: 'team', label: 'Equipe', icon: Briefcase },
+    !isVendedor && { id: 'permissions', label: 'Permissões', icon: Fingerprint },
     !isVendedor && { id: 'plans', label: 'Planos', icon: Package },
     { id: 'profile', label: 'Meu Perfil', icon: UserCircle },
   ].filter(Boolean) as any[];
@@ -482,21 +631,122 @@ export default function SuperAdmin() {
             )}
 
             {activeTab === 'team' && (
-              <div className="space-y-6">
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
                 <div className="flex items-center justify-between">
-                  <h2 className="text-xl font-black text-slate-900 uppercase">Equipe</h2>
-                  <button onClick={() => setShowTeamModal(true)} className="h-10 px-5 bg-slate-900 text-white rounded-xl font-black text-[10px] uppercase flex items-center gap-2"><Plus size={14} /> Novo Membro</button>
+                  <h2 className="text-xl font-black text-slate-900 uppercase">Equipe Interna</h2>
+                  <button onClick={() => setShowTeamModal(true)} className="h-10 px-6 bg-slate-900 text-white rounded-xl font-black text-[10px] uppercase flex items-center gap-2 hover:bg-emerald-600 transition-all shadow-lg shadow-slate-900/10">
+                    <Plus size={16} /> Novo Membro
+                  </button>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  {team.map((m) => (
-                    <div key={m.id} className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm relative">
-                      <button onClick={() => deleteTeamMember(m.id)} className="absolute top-4 right-4 text-slate-300 hover:text-red-500"><Trash2 size={16} /></button>
-                      <h3 className="font-black text-slate-900 uppercase">{m.name}</h3>
-                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{m.role}</p>
-                    </div>
-                  ))}
+                
+                {team.length === 0 ? (
+                  <div className="bg-white p-20 rounded-3xl border border-slate-200 text-center space-y-4">
+                    <Users size={48} className="mx-auto text-slate-200" />
+                    <p className="text-slate-400 font-bold text-xs uppercase">Nenhum membro na equipe ainda</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {team.map((m) => (
+                      <div key={m.id} className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm relative group hover:border-emerald-200 transition-all">
+                        <button 
+                          onClick={() => deleteTeamMember(m.id)} 
+                          className="absolute top-4 right-4 w-8 h-8 rounded-lg bg-slate-50 text-slate-300 hover:bg-red-50 hover:text-red-500 flex items-center justify-center transition-all opacity-0 group-hover:opacity-100"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+
+                        <div className="flex items-center gap-4 mb-6">
+                          <div className="w-14 h-14 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-center overflow-hidden shrink-0">
+                            {m.photo_url ? (
+                              <img src={m.photo_url} className="w-full h-full object-cover" />
+                            ) : (
+                              <UserCircle className="text-slate-300" size={32} />
+                            )}
+                          </div>
+                          <div className="min-w-0">
+                            <h3 className="font-black text-slate-900 uppercase text-sm truncate">{m.name}</h3>
+                            <div className="flex items-center gap-1.5 mt-0.5">
+                              <Shield size={10} className={m.role === 'SUPER_ADMIN' ? 'text-emerald-500' : 'text-blue-500'} />
+                              <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{m.role === 'SUPER_ADMIN' ? 'Administrador' : 'Vendedor'}</p>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="space-y-3">
+                          <div className="flex items-center gap-3 text-slate-500">
+                            <Mail size={14} className="shrink-0" />
+                            <span className="text-xs font-bold truncate">{m.email}</span>
+                          </div>
+                          {m.phone && (
+                            <div className="flex items-center gap-3 text-slate-500">
+                              <Phone size={14} className="shrink-0" />
+                              <span className="text-xs font-bold">{m.phone}</span>
+                            </div>
+                          )}
+                          <div className="flex items-center gap-3 text-emerald-600 bg-emerald-50/50 p-2 rounded-xl border border-emerald-100/50">
+                            <Briefcase size={14} className="shrink-0" />
+                            <span className="text-[10px] font-black uppercase tracking-wider">{m.profession || 'Cargo não definido'}</span>
+                          </div>
+                        </div>
+
+                        <div className="mt-6 pt-4 border-t border-slate-50 flex items-center justify-between">
+                            <p className="text-[8px] font-black text-slate-300 uppercase tracking-widest flex items-center gap-1">
+                                <Clock size={10} /> Desde {new Date(m.created_at).toLocaleDateString('pt-BR')}
+                            </p>
+                            <div className="flex -space-x-1.5 overflow-hidden">
+                                <div className="w-5 h-5 rounded-full border border-white bg-slate-100 flex items-center justify-center"><TrendingUp size={8} /></div>
+                                <div className="w-5 h-5 rounded-full border border-white bg-slate-100 flex items-center justify-center"><Activity size={8} /></div>
+                            </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </motion.div>
+            )}
+
+            {activeTab === 'permissions' && (
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-xl font-black text-slate-900 uppercase">Gestão de Permissões</h2>
+                  <button onClick={() => { setEditingProfile(null); setPermissionsForm({ name: "", description: "", permissions: { can_view_dashboard: true, can_manage_clients: false, can_manage_vehicles: false, can_manage_work_orders: false, can_manage_finance: false, can_manage_inventory: false, can_manage_team: false, can_manage_settings: false, can_view_reports: false } }); setShowPermissionsModal(true); }} className="h-10 px-6 bg-slate-900 text-white rounded-xl font-black text-[10px] uppercase flex items-center gap-2 hover:bg-emerald-600 transition-all shadow-lg">
+                    <Plus size={16} /> Criar Perfil de Acesso
+                  </button>
                 </div>
-              </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {permissionProfiles.map((profile) => (
+                        <div key={profile.id} className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm hover:border-emerald-200 transition-all group">
+                            <div className="flex items-start justify-between mb-4">
+                                <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center">
+                                    <Key size={24} />
+                                </div>
+                                <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-all">
+                                    <button onClick={() => { setEditingProfile(profile); setPermissionsForm({ name: profile.name, description: profile.description || "", permissions: profile.permissions }); setShowPermissionsModal(true); }} className="w-8 h-8 rounded-lg bg-slate-50 text-slate-400 hover:bg-slate-100 hover:text-slate-600 flex items-center justify-center"><Edit2 size={14} /></button>
+                                    <button onClick={() => deletePermissionProfile(profile.id)} className="w-8 h-8 rounded-lg bg-red-50 text-red-400 hover:bg-red-100 hover:text-red-600 flex items-center justify-center"><Trash2 size={14} /></button>
+                                </div>
+                            </div>
+                            <h3 className="text-sm font-black text-slate-900 uppercase truncate mb-1">{profile.name}</h3>
+                            <p className="text-[10px] text-slate-500 font-bold mb-4 line-clamp-2 min-h-[30px]">{profile.description || 'Sem descrição definida'}</p>
+                            
+                            <div className="flex flex-wrap gap-1.5 border-t border-slate-50 pt-4">
+                                {Object.entries(profile.permissions).filter(([_, val]) => val).map(([key]) => (
+                                    <span key={key} className="px-2 py-0.5 bg-slate-100 text-slate-500 rounded-md text-[8px] font-black uppercase">
+                                        {key.replace('can_', '').replace(/_/g, ' ')}
+                                    </span>
+                                ))}
+                                {Object.values(profile.permissions).every(v => !v) && <span className="text-[8px] text-slate-300 italic font-bold">Nenhuma permissão ativa</span>}
+                            </div>
+                        </div>
+                    ))}
+                    {permissionProfiles.length === 0 && (
+                        <div className="md:col-span-2 lg:col-span-3 bg-white p-20 rounded-3xl border border-slate-200 text-center space-y-4">
+                            <Fingerprint size={48} className="mx-auto text-slate-200" />
+                            <p className="text-slate-400 font-bold text-[10px] uppercase tracking-widest">Crie perfis de acesso para sua equipe</p>
+                        </div>
+                    )}
+                </div>
+              </motion.div>
             )}
 
             {activeTab === 'plans' && (
@@ -554,52 +804,201 @@ export default function SuperAdmin() {
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
                 <div className="flex items-center justify-between">
                   <h2 className="text-xl font-black text-slate-900 uppercase">Meu Perfil</h2>
+                  {!isMasterRoot && (
+                    <button 
+                      onClick={handleProfileSubmit}
+                      disabled={saving}
+                      className="h-10 px-6 bg-emerald-600 text-white rounded-xl font-black text-[10px] uppercase shadow-lg shadow-emerald-500/20 hover:bg-emerald-700 transition-all flex items-center gap-2"
+                    >
+                      {saving ? 'Salvando...' : 'Salvar Alterações'}
+                    </button>
+                  )}
                 </div>
                 
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                  <div className="lg:col-span-1 space-y-6">
-                    <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm text-center">
-                      <div className="relative inline-block mb-4">
-                        <div className="w-24 h-24 rounded-3xl bg-slate-100 border border-slate-200 flex items-center justify-center overflow-hidden">
-                          {user?.photo_url ? (
-                            <img src={user.photo_url} alt={user.name} className="w-full h-full object-cover" />
-                          ) : (
-                            <UserCircle className="text-slate-300" size={48} />
-                          )}
+                {isMasterRoot ? (
+                  <div className="bg-white p-12 rounded-3xl border border-slate-200 shadow-sm text-center space-y-4">
+                    <Shield size={48} className="mx-auto text-emerald-500" />
+                    <h3 className="text-lg font-black text-slate-900 uppercase">Acesso Master Administrador</h3>
+                    <p className="text-sm text-slate-500 max-w-md mx-auto">
+                      Este perfil ({user?.email}) é a conta raiz do sistema. Por segurança, seus dados são fixos e só podem ser alterados através das configurações de ambiente do servidor.
+                    </p>
+                    <div className="pt-6 grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-lg mx-auto">
+                        <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 italic text-[10px] text-slate-400 font-bold uppercase">Nome: {user?.name}</div>
+                        <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 italic text-[10px] text-slate-400 font-bold uppercase">Função: {user?.role}</div>
+                    </div>
+                  </div>
+                ) : (
+                  <form onSubmit={handleProfileSubmit} className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div className="lg:col-span-1 space-y-6">
+                      <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm text-center">
+                        <div className="relative inline-block mb-4">
+                          <div className="w-32 h-32 rounded-[2.5rem] bg-slate-100 border-4 border-white shadow-xl flex items-center justify-center overflow-hidden">
+                            {profileForm.photo_url ? (
+                              <img src={profileForm.photo_url} alt={user?.name} className="w-full h-full object-cover" />
+                            ) : (
+                              <UserCircle className="text-slate-300" size={64} />
+                            )}
+                          </div>
+                          <button 
+                            type="button"
+                            onClick={() => profileFileInputRef.current?.click()}
+                            className="absolute -bottom-2 -right-2 w-10 h-10 bg-slate-900 text-white rounded-2xl flex items-center justify-center shadow-lg hover:bg-emerald-600 transition-all border-4 border-white"
+                          >
+                            <Plus size={18} />
+                          </button>
+                          <input 
+                            ref={profileFileInputRef}
+                            type="file" 
+                            accept="image/*" 
+                            className="hidden" 
+                            onChange={handleProfilePhotoUpload} 
+                          />
                         </div>
-                        <button className="absolute -bottom-2 -right-2 w-8 h-8 bg-slate-900 text-white rounded-xl flex items-center justify-center shadow-lg hover:bg-emerald-600 transition-all border-4 border-white">
-                          <Plus size={14} />
-                        </button>
+                        <h3 className="text-lg font-black text-slate-900 uppercase leading-tight">{profileForm.name} {profileForm.surname}</h3>
+                        <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mt-1">{profileForm.profession || user?.role}</p>
+                        
+                        <div className="mt-6 pt-6 border-t border-slate-50 flex items-center justify-center gap-6">
+                            <div className="text-center">
+                                <p className="text-[10px] font-black text-slate-400 uppercase">Sistema</p>
+                                <p className="text-xs font-bold text-slate-700">{user?.role}</p>
+                            </div>
+                            <div className="w-px h-8 bg-slate-100" />
+                            <div className="text-center">
+                                <p className="text-[10px] font-black text-slate-400 uppercase">Cargo</p>
+                                <p className="text-xs font-bold text-slate-700 truncate max-w-[100px]">{profileForm.profession || '---'}</p>
+                            </div>
+                        </div>
                       </div>
-                      <h3 className="text-lg font-black text-slate-900 uppercase">{user?.name}</h3>
-                      <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mt-1">{user?.role}</p>
+                      
+                      <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
+                        <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                            <Lock size={12} className="text-blue-500" /> Segurança
+                        </h4>
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Nova Senha</label>
+                            <div className="relative">
+                                <input 
+                                    type={showProfilePassword ? "text" : "password"} 
+                                    placeholder="Deixe vazio para manter"
+                                    value={profileForm.password}
+                                    onChange={(e) => setProfileForm({...profileForm, password: e.target.value})}
+                                    className="w-full h-12 bg-slate-50 border border-slate-200 rounded-xl px-4 pr-10 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all" 
+                                />
+                                <button 
+                                    type="button"
+                                    onClick={() => setShowProfilePassword(!showProfilePassword)}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                                >
+                                    {showProfilePassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                                </button>
+                            </div>
+                        </div>
+                      </div>
                     </div>
                     
-                    <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
-                      <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Segurança</h4>
-                      <button className="w-full h-12 bg-slate-50 text-slate-600 rounded-xl font-black text-[10px] uppercase flex items-center justify-center gap-2 hover:bg-slate-100 border border-slate-200 transition-all">
-                        <Shield size={14} /> Alterar Senha
-                      </button>
-                    </div>
-                  </div>
-                  
-                  <div className="lg:col-span-2">
-                    <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm space-y-6">
-                      <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Dados Pessoais</h4>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="space-y-1">
-                          <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Nome Completo</label>
-                          <input disabled value={user?.name} className="w-full h-12 bg-slate-50 border border-slate-200 rounded-xl px-4 text-sm font-bold text-slate-500" />
+                    <div className="lg:col-span-2 space-y-6">
+                      <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm space-y-8">
+                        <div>
+                            <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2 mb-6">
+                                <UserIcon size={12} className="text-emerald-500" /> Identidade & Bio
+                            </h4>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="space-y-1">
+                                    <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Nome</label>
+                                    <input 
+                                        value={profileForm.name} 
+                                        onChange={(e) => setProfileForm({...profileForm, name: e.target.value})}
+                                        className="w-full h-12 bg-slate-50 border border-slate-200 rounded-xl px-4 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all" 
+                                    />
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Sobrenome</label>
+                                    <input 
+                                        value={profileForm.surname} 
+                                        onChange={(e) => setProfileForm({...profileForm, surname: e.target.value})}
+                                        placeholder="Seu sobrenome"
+                                        className="w-full h-12 bg-slate-50 border border-slate-200 rounded-xl px-4 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all" 
+                                    />
+                                </div>
+                                <div className="md:col-span-2 space-y-1">
+                                    <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Biografia / Resumo Profissional</label>
+                                    <textarea 
+                                        rows={3}
+                                        value={profileForm.biography} 
+                                        onChange={(e) => setProfileForm({...profileForm, biography: e.target.value})}
+                                        placeholder="Conte um pouco sobre você..."
+                                        className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-4 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all resize-none" 
+                                    />
+                                </div>
+                            </div>
                         </div>
-                        <div className="space-y-1">
-                          <label className="text-[10px] font-black text-slate-400 uppercase ml-1">E-mail</label>
-                          <input disabled value={user?.email} className="w-full h-12 bg-slate-50 border border-slate-200 rounded-xl px-4 text-sm font-bold text-slate-500" />
+
+                        <div>
+                            <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2 mb-6">
+                                <Briefcase size={12} className="text-blue-500" /> Atuação & Carreira
+                            </h4>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="space-y-1">
+                                    <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Cargo no Sistema</label>
+                                    <select 
+                                        value={profileForm.profession} 
+                                        onChange={(e) => setProfileForm({...profileForm, profession: e.target.value})}
+                                        className="w-full h-12 bg-slate-50 border border-slate-200 rounded-xl px-4 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all appearance-none" 
+                                    >
+                                        <option value="">Selecione sua função</option>
+                                        <option value="Vendedor Externo">Vendedor Externo</option>
+                                        <option value="Vendedor Interno">Vendedor Interno</option>
+                                        <option value="Consultor de Vendas">Consultor de Vendas</option>
+                                        <option value="Marketing">Marketing</option>
+                                        <option value="Engenheiro de Software">Engenheiro de Software</option>
+                                        <option value="Analista de Sistema">Analista de Sistema</option>
+                                        <option value="Gerente de Projetos">Gerente de Projetos</option>
+                                        <option value="Gerente de Tecnologia">Gerente de Tecnologia</option>
+                                        <option value="Arquiteto de Dados">Arquiteto de Dados</option>
+                                        <option value="Engenheiro de Dados">Engenheiro de Dados</option>
+                                        <option value="Produtor">Produtor</option>
+                                        <option value="Outros / Tecnologia">Outros / Tecnologia</option>
+                                    </select>
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Escolaridade</label>
+                                    <input 
+                                        value={profileForm.education} 
+                                        onChange={(e) => setProfileForm({...profileForm, education: e.target.value})}
+                                        placeholder="Ex: Graduação em TI"
+                                        className="w-full h-12 bg-slate-50 border border-slate-200 rounded-xl px-4 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all" 
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div>
+                            <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2 mb-6">
+                                <Mail size={12} className="text-purple-500" /> Contato Corporativo
+                            </h4>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="space-y-1">
+                                    <label className="text-[10px] font-black text-slate-400 uppercase ml-1">E-mail</label>
+                                    <input 
+                                        disabled
+                                        value={profileForm.email} 
+                                        className="w-full h-12 bg-slate-100 border border-slate-200 rounded-xl px-4 text-sm font-bold text-slate-500 cursor-not-allowed" 
+                                    />
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Telefone</label>
+                                    <input 
+                                        value={profileForm.phone} 
+                                        onChange={(e) => setProfileForm({...profileForm, phone: e.target.value})}
+                                        className="w-full h-12 bg-slate-50 border border-slate-200 rounded-xl px-4 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all" 
+                                    />
+                                </div>
+                            </div>
                         </div>
                       </div>
-                      <p className="text-[9px] text-slate-400 italic">Dica: Para alterar seus dados, contate o administrador do sistema raiz.</p>
                     </div>
-                  </div>
-                </div>
+                  </form>
+                )}
               </motion.div>
             )}
           </div>
@@ -674,20 +1073,113 @@ export default function SuperAdmin() {
         <AnimatePresence>
           {showTeamModal && (
             <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-              <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-white w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden p-8">
-                <div className="flex justify-between mb-6">
-                  <h3 className="font-black uppercase tracking-widest text-sm">Criar Acesso</h3>
-                  <button onClick={() => setShowTeamModal(false)}><X size={20} /></button>
+              <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} className="bg-white w-full max-w-lg rounded-[2.5rem] shadow-2xl overflow-hidden relative">
+                <div className="bg-slate-900 p-8 text-white relative flex items-center justify-between overflow-hidden">
+                  <div className="relative z-10">
+                    <h3 className="font-black uppercase tracking-[0.2em] text-xs opacity-70 mb-1">Gerenciar Acessos</h3>
+                    <h2 className="text-2xl font-black uppercase tracking-tight">Novo Colaborador</h2>
+                  </div>
+                  <button onClick={() => setShowTeamModal(false)} className="w-10 h-10 rounded-2xl bg-white/10 flex items-center justify-center hover:bg-white/20 transition-all group relative z-10"><X size={20} className="group-hover:rotate-90 transition-all duration-300" /></button>
+                  <Briefcase size={120} className="absolute -right-10 -bottom-10 text-white/5 rotate-12" />
                 </div>
-                <form onSubmit={handleTeamSubmit} className="space-y-4">
-                  <input required placeholder="Nome" value={teamForm.name} onChange={e=>setTeamForm({...teamForm, name: e.target.value})} className="w-full h-12 bg-slate-50 border border-slate-200 rounded-xl px-4 text-sm font-bold" />
-                  <select value={teamForm.role} onChange={e=>setTeamForm({...teamForm, role: e.target.value})} className="w-full h-12 bg-slate-50 border border-slate-200 rounded-xl px-4 text-sm font-bold">
-                    <option value="VENDEDOR">Vendedor</option>
-                    <option value="SUPER_ADMIN">Super Admin</option>
-                  </select>
-                  <input required type="email" placeholder="E-mail" value={teamForm.email} onChange={e=>setTeamForm({...teamForm, email: e.target.value})} className="w-full h-12 bg-slate-50 border border-slate-200 rounded-xl px-4 text-sm font-bold" />
-                  <input required type="password" placeholder="Senha" value={teamForm.password} onChange={e=>setTeamForm({...teamForm, password: e.target.value})} className="w-full h-12 bg-slate-50 border border-slate-200 rounded-xl px-4 text-sm font-bold" />
-                  <button type="submit" disabled={saving} className="w-full h-14 bg-slate-900 text-white rounded-xl font-black text-xs uppercase tracking-widest hover:bg-emerald-600">Criar Agora</button>
+                
+                <form onSubmit={handleTeamSubmit} className="p-8 space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-slate-400 uppercase ml-1 tracking-widest">Identificação</label>
+                      <input 
+                        required 
+                        placeholder="Nome Completo" 
+                        value={teamForm.name} 
+                        onChange={e=>setTeamForm({...teamForm, name: e.target.value})} 
+                        className="w-full h-12 bg-slate-50 border border-slate-200 rounded-2xl px-5 text-sm font-bold text-slate-700 focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none transition-all" 
+                      />
+                    </div>
+                       <div className="space-y-1">
+                    <label className="text-[10px] font-black text-slate-400 uppercase ml-1 tracking-widest">Nível de Acesso</label>
+                    <select 
+                      value={teamForm.role} 
+                      onChange={e=>setTeamForm({...teamForm, role: e.target.value})} 
+                      className="w-full h-12 bg-slate-50 border border-slate-200 rounded-2xl px-5 text-sm font-bold text-slate-700 focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none transition-all appearance-none"
+                    >
+                      <option value="VENDEDOR">Vendedor Comercial</option>
+                      <option value="SUPER_ADMIN">Administrador Global</option>
+                    </select>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-slate-400 uppercase ml-1 tracking-widest">Perfil de Permissões</label>
+                    <select 
+                      value={teamForm.permission_profile_id} 
+                      onChange={e=>setTeamForm({...teamForm, permission_profile_id: e.target.value})} 
+                      className="w-full h-12 bg-slate-50 border border-slate-200 rounded-2xl px-5 text-sm font-bold text-slate-700 focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none transition-all appearance-none"
+                    >
+                      <option value="">Acesso Padrão</option>
+                      {permissionProfiles.map(p => (
+                          <option key={p.id} value={p.id}>{p.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-slate-400 uppercase ml-1 tracking-widest">Cargo / Função Especializada</label>
+                    <select 
+                        value={teamForm.profession} 
+                        onChange={(e) => setTeamForm({...teamForm, profession: e.target.value})}
+                        className="w-full h-12 bg-slate-50 border border-slate-200 rounded-2xl px-5 text-sm font-bold text-slate-700 focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none transition-all appearance-none" 
+                    >
+                        <option value="">Selecione a função</option>
+                        <option value="Vendedor Externo">Vendedor Externo</option>
+                        <option value="Vendedor Interno">Vendedor Interno</option>
+                        <option value="Consultor de Vendas">Consultor de Vendas</option>
+                        <option value="Marketing">Marketing</option>
+                        <option value="Engenheiro de Software">Engenheiro de Software</option>
+                        <option value="Analista de Sistema">Analista de Sistema</option>
+                        <option value="Gerente de Projetos">Gerente de Projetos</option>
+                        <option value="Gerente de Tecnologia">Gerente de Tecnologia</option>
+                        <option value="Arquiteto de Dados">Arquiteto de Dados</option>
+                        <option value="Engenheiro de Dados">Engenheiro de Dados</option>
+                        <option value="Produtor">Produtor</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-slate-400 uppercase ml-1 tracking-widest">Acesso ao Sistema</label>
+                      <div className="relative">
+                        <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={18} />
+                        <input required type="email" placeholder="E-mail Corporativo" value={teamForm.email} onChange={e=>setTeamForm({...teamForm, email: e.target.value})} className="w-full h-14 bg-slate-50 border border-slate-200 rounded-2xl pl-12 pr-5 text-sm font-bold text-slate-700 focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none transition-all" />
+                      </div>
+                    </div>
+
+                    <div className="space-y-1">
+                      <div className="relative">
+                        <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={18} />
+                        <input 
+                          required 
+                          type={showTeamPassword ? "text" : "password"} 
+                          placeholder="Senha de Acesso" 
+                          value={teamForm.password} 
+                          onChange={e=>setTeamForm({...teamForm, password: e.target.value})} 
+                          className="w-full h-14 bg-slate-50 border border-slate-200 rounded-2xl pl-12 pr-12 text-sm font-bold text-slate-700 focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none transition-all" 
+                        />
+                        <button 
+                          type="button" 
+                          onClick={() => setShowTeamPassword(!showTeamPassword)}
+                          className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                        >
+                          {showTeamPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="pt-2 flex gap-3">
+                    <button type="button" onClick={() => setShowTeamModal(false)} className="flex-1 h-14 bg-slate-50 text-slate-500 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-slate-100 transition-all">Cancelar</button>
+                    <button type="submit" disabled={saving} className="flex-[2] h-14 bg-slate-900 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-emerald-600 shadow-xl shadow-slate-900/10 hover:shadow-emerald-500/20 transition-all flex items-center justify-center gap-2">
+                      {saving ? 'Criando...' : <><Shield size={16} /> Finalizar Cadastro</>}
+                    </button>
+                  </div>
                 </form>
               </motion.div>
             </div>
@@ -710,6 +1202,82 @@ export default function SuperAdmin() {
                   <button onClick={() => setActivationModal({...activationModal, isOpen: false})} className="flex-1 h-12 bg-slate-100 text-slate-500 font-black rounded-xl uppercase text-xs">Sair</button>
                   <button onClick={confirmActivation} className="flex-1 h-12 bg-emerald-600 text-white font-black rounded-xl uppercase text-xs">Ativar</button>
                 </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
+        <AnimatePresence>
+          {showPermissionsModal && (
+            <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+              <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} className="bg-white w-full max-w-2xl rounded-[2.5rem] shadow-2xl overflow-hidden relative">
+                <div className="bg-emerald-600 p-8 text-white relative flex items-center justify-between">
+                  <div>
+                    <h3 className="font-black uppercase tracking-[0.2em] text-[10px] opacity-70 mb-1">Configurações de Segurança</h3>
+                    <h2 className="text-2xl font-black uppercase tracking-tight">{editingProfile ? 'Editar Perfil' : 'Novo Perfil de Acesso'}</h2>
+                  </div>
+                  <button onClick={() => setShowPermissionsModal(false)} className="w-10 h-10 rounded-2xl bg-white/10 flex items-center justify-center hover:bg-white/20 transition-all group"><X size={20} /></button>
+                </div>
+                
+                <form onSubmit={handlePermissionsSubmit} className="p-8 space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Nome do Perfil</label>
+                      <input 
+                        required 
+                        placeholder="Ex: Marketing, Analista..." 
+                        value={permissionsForm.name} 
+                        onChange={e=>setPermissionsForm({...permissionsForm, name: e.target.value})} 
+                        className="w-full h-12 bg-slate-50 border border-slate-200 rounded-2xl px-5 text-sm font-bold text-slate-700" 
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Descrição Breve</label>
+                      <input 
+                        placeholder="Para que serve este perfil?" 
+                        value={permissionsForm.description} 
+                        onChange={e=>setPermissionsForm({...permissionsForm, description: e.target.value})} 
+                        className="w-full h-12 bg-slate-50 border border-slate-200 rounded-2xl px-5 text-sm font-bold text-slate-700" 
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest pl-1 border-b border-slate-100 pb-2">O que este usuário poderá ver/fazer?</h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                        {Object.entries(permissionsForm.permissions).map(([key, val]) => (
+                            <label key={key} className={cn(
+                                "flex items-center justify-between p-4 rounded-2xl border-2 transition-all cursor-pointer group",
+                                val ? "bg-emerald-50 border-emerald-500 shadow-sm" : "bg-slate-50 border-slate-100 opacity-60 hover:opacity-100 hover:border-slate-200"
+                            )}>
+                                <div className="min-w-0">
+                                    <p className={cn("text-[9px] font-black uppercase tracking-wider", val ? "text-emerald-700" : "text-slate-500")}>
+                                        {key.replace('can_', '').replace(/_/g, ' ')}
+                                    </p>
+                                </div>
+                                <div className="relative inline-flex items-center cursor-pointer">
+                                    <input 
+                                        type="checkbox" 
+                                        className="sr-only peer" 
+                                        checked={val}
+                                        onChange={(e) => setPermissionsForm({
+                                            ...permissionsForm, 
+                                            permissions: { ...permissionsForm.permissions, [key]: e.target.checked }
+                                        })}
+                                    />
+                                    <div className="w-10 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500 shadow-inner"></div>
+                                </div>
+                            </label>
+                        ))}
+                    </div>
+                  </div>
+
+                  <div className="pt-4 flex gap-3">
+                    <button type="button" onClick={() => setShowPermissionsModal(false)} className="flex-1 h-12 bg-slate-50 text-slate-500 rounded-xl font-black text-xs uppercase hover:bg-slate-100 transition-all">Cancelar</button>
+                    <button type="submit" disabled={saving} className="flex-[2] h-12 bg-slate-900 text-white rounded-xl font-black text-xs uppercase hover:bg-emerald-600 transition-all flex items-center justify-center gap-2 shadow-xl shadow-slate-900/10">
+                      {saving ? 'Gravando...' : <><CheckCircle size={16} /> Salvar Perfil</>}
+                    </button>
+                  </div>
+                </form>
               </motion.div>
             </div>
           )}
