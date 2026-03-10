@@ -45,20 +45,33 @@ const LandingChatBot = () => {
   }, [messages, isTyping]);
 
   const knowledgeBase = [
+    // ==========================================
+    // 1. IDENTIDADE, APRESENTAÇÃO E CRIADORES
+    // ==========================================
     {
       id: 'who_am_i',
-      keywords: ['quem e voce', 'quem e vc', 'seu nome', 'o que voce e', 'quem fala', 'identidade', 'voce e humano', 'ia', 'bot', 'robô'],
-      response: "Eu sou o **MecaAI**, a Inteligência Especializada em Gestão Automotiva do MecaERP. \n\nFui treinado para conhecer cada detalhe do sistema e ajudar donos de oficinas a dominarem seus negócios. Fui desenvolvido pela **Develoi**, sob a engenharia do **Eng. Eduardo Eloi**. Como posso te ajudar agora?",
+      keywords: ['quem e voce', 'quem e vc', 'seu nome', 'o que voce e', 'quem fala', 'identidade', 'voce e humano', 'ia', 'bot', 'robô', 'inteligencia'],
+      response: "Eu sou o **MecaAI**, a Inteligência Especializada em Gestão Automotiva do MecaERP. \n\nFui treinado para conhecer cada detalhe do sistema e ajudar donos de oficinas a dominarem seus negócios. Como posso te ajudar a triplicar seus resultados hoje?",
     },
     {
       id: 'develoi_eduardo',
       keywords: ['quem criou', 'quem desenvolveu', 'dono', 'develoi', 'quem e eduardo', 'eduardo eloi', 'criador', 'equipe develoi', 'empresa', 'fundador', 'quem fez'],
-      response: "O MecaERP é a maior inovação da **Develoi Soluções Digitais**, liderada pelo **Eng. Eduardo Eloi**. Nossa equipe criou este ecossistema para elevar o nível das oficinas mecânicas no Brasil. Quer saber mais sobre nossa tecnologia?",
+      response: "O MecaERP é a maior inovação da **Develoi Soluções Digitais**, liderada pelo **Eng. Eduardo Eloi**. Nossa equipe criou este ecossistema para elevar o nível das oficinas mecânicas e centros automotivos no Brasil. Quer saber mais sobre a nossa tecnologia?",
+    },
+
+    // ==========================================
+    // 2. PLANOS, PREÇOS E CONTRATAÇÃO
+    // ==========================================
+    {
+      id: 'pricing_general',
+      keywords: ['preco', 'valor', 'quanto custa', 'mensalidade', 'plano', 'assinatura', 'pagar', 'comprar', 'custo', 'tabela', 'valores', 'cobrança', 'preços', 'mensal', 'anual', 'planos'],
+      response: "Nossos planos são transparentes, sem taxa de adesão e sem fidelidade:\n\n• **Start:** R$ 197/mês\n• **Pro:** R$ 297/mês (O mais vendido!)\n• **Elite:** R$ 497/mês\n\nTodos possuem **14 dias de teste grátis**. Gostaria de saber os detalhes de algum deles?",
+      showTopics: true
     },
     {
       id: 'plan_start',
       keywords: ['plano start', 'plano de 197', 'o que tem no start', 'funcionalidades start', 'inicio', 'basico', 'essencial'],
-      response: "O **Plano Start (R$ 197/mês)** é perfeito para quem está começando a digitalizar a oficina. \n\nEle inclui:\n• Gestão Completa de OS\n• Controle Financeiro Essencial\n• Gestão de Clientes e Veículos\n• Dashboard de Vendas\n\nDeseja testar o Start agora por **14 dias grátis**?",
+      response: "O **Plano Start (R$ 197/mês)** é perfeito para quem quer organizar a casa. \n\nInclui:\n• Gestão Completa de Ordem de Serviço (OS)\n• Controle Financeiro Básico\n• Gestão de Clientes e Veículos\n• Dashboard de Vendas\n\nQuer começar seu **teste grátis de 14 dias** agora?",
       hasAction: true,
       actionLabel: "Testar Start Grátis",
       actionType: 'link',
@@ -67,55 +80,152 @@ const LandingChatBot = () => {
     {
       id: 'plan_pro',
       keywords: ['plano pro', 'plano de 297', 'o que tem no pro', 'melhor plano', 'recomendado', 'completo', 'favorito', 'mais vendido'],
-      response: "O **Plano Pro (R$ 297/mês)** é o nosso campeão de vendas! \n\nAlém de tudo do Start, ele libera:\n• **Integração total com WhatsApp**\n• **Checklist Digital HD (Fotos)**\n• Relatórios de Lucratividade Avançados\n• Controle de Estoque de Precisão\n\nÉ o plano ideal para quem quer escala. Quer ver o Pro em ação?",
+      response: "O **Plano Pro (R$ 297/mês)** é o nosso campeão! Ele pega tudo do Start e adiciona os motores de crescimento:\n\n• **Integração total com WhatsApp**\n• **Checklist Digital HD (Fotos)**\n• Relatórios de Lucratividade Avançados\n• Controle de Estoque de Precisão\n\nÉ o plano ideal para quem quer escala e automação. Vamos testar?",
     },
     {
       id: 'plan_elite',
-      keywords: ['plano elite', 'plano de 497', 'o que tem no elite', 'multi-oficinas', 'corporativo', 'grande porte'],
-      response: "O **Plano Elite (R$ 497/mês)** é para quem domina o mercado. \n\nEle inclui todas as funções e suporte prioritário, sendo otimizado para **grandes centros automotivos** ou **redes de oficinas**. Gestão de elite para resultados de elite.",
+      keywords: ['plano elite', 'plano de 497', 'o que tem no elite', 'multi-oficinas', 'corporativo', 'grande porte', 'rede'],
+      response: "O **Plano Elite (R$ 497/mês)** é gestão de alto nível. \n\nAlém de todas as funções do Pro, ele é otimizado para **grandes centros automotivos** ou **redes de oficinas**, com suporte prioritário e recursos corporativos.",
+    },
+
+    // ==========================================
+    // 3. ORDENS DE SERVIÇO (OS) E ORÇAMENTOS
+    // ==========================================
+    {
+      id: 'work_orders_os',
+      keywords: ['os', 'ordem de servico', 'abrir os', 'orcamento', 'orçamento', 'pdf', 'imprimir os', 'aprovar', 'reprovado', 'status os', 'enviar orcamento'],
+      response: "A gestão de **Ordem de Serviço (OS)** do MecaERP é a mais rápida do mercado. Você cria orçamentos detalhados com peças e mão de obra, envia em PDF com a sua logo direto pro WhatsApp do cliente, e ele pode aprovar pelo celular! Você acompanha tudo por um painel Kanban (status visual).",
+    },
+
+    // ==========================================
+    // 4. FINANCEIRO E LUCRATIVIDADE
+    // ==========================================
+    {
+      id: 'finance_cashflow',
+      keywords: ['financeiro', 'lucro', 'caixa', 'pagamento', 'contas', 'dfc', 'margem', 'quanto ganhei', 'dinheiro', 'finance', 'fluxo', 'lucratividade', 'faturamento', 'dre', 'resultado'],
+      response: "Com o **Financeiro Master**, você para de 'achar' que tem lucro e passa a ter certeza. O sistema gera seu DRE e Fluxo de Caixa automaticamente. Você sabe exatamente qual a sua margem de lucro por peça, por serviço e por mecânico.",
     },
     {
-      id: 'pricing',
-      keywords: ['preco', 'valor', 'quanto custa', 'mensalidade', 'plano', 'assinatura', 'pagar', 'comprar', 'custo', 'tabela', 'valores', 'cobrança', 'preços'],
-      response: "Nossos planos são transparentes e sem fidelidade:\n\n• **Start:** R$ 197\n• **Pro:** R$ 297 (Recomendado)\n• **Elite:** R$ 497\n\nTodos com **14 dias grátis**. Qual desses faz mais sentido para o seu pátio hoje?",
+      id: 'accounts_payable_receivable',
+      keywords: ['contas a pagar', 'contas a receber', 'inadimplencia', 'fiado', 'boleto', 'recebimentos', 'pendencias', 'calote', 'devedores'],
+      response: "Temos um controle rigoroso de **Contas a Pagar e Receber**. O sistema te avisa quem está devendo (fiado/pendente) e avisa os dias de pagar seus fornecedores. Chega de esquecer cobranças e tomar prejuízo por desorganização!",
     },
     {
-      id: 'contact',
-      keywords: ['contato', 'whatsapp', 'zap', 'telefone', 'falar com humano', 'suporte', 'atendimento', 'vendedor', 'comercial', 'numero', 'ajuda', 'socorro', 'equipe', 'pessoal', 'gente', 'falar com alguem', 'pessoa real'],
-      response: "Nada supera o olho no olho. Chame nossa equipe de especialistas agora mesmo pelo WhatsApp (**15 99811-8548**). \n\nQuer que eu abra a conversa no seu celular agora?",
-      hasAction: true,
-      actionLabel: "Falar com Humano Agora",
-      actionMsg: "Olá! O MecaAI me recomendou falar com vocês. Gostaria de uma consultoria personalizada."
+      id: 'mechanic_commissions',
+      keywords: ['comissao', 'mecanico', 'pagar funcionario', 'produtividade', 'porcentagem', 'funcionario', 'equipe', 'rateio', 'pagamento mecanico', 'holerite', 'produção'],
+      response: "O cálculo de **Comissões** é 100% automático. Você configura a porcentagem de cada mecânico por serviço ou peça. No fim do período, o sistema cospe um relatório exato de quanto pagar para cada um. Acabou a briga na hora do acerto!",
+    },
+
+    // ==========================================
+    // 5. ESTOQUE E FORNECEDORES
+    // ==========================================
+    {
+      id: 'stock_management',
+      keywords: ['estoque', 'pecas', 'inventario', 'faltando', 'compra', 'produto', 'codigo de barras', 'prateleira', 'quantidade mínima', 'curva abc', 'controle de pecas'],
+      response: "O controle de **Estoque** avisa quando uma peça atingiu a quantidade mínima. Você gerencia o custo médio, usa leitor de código de barras e sabe exatamente onde está o seu dinheiro parado. Nunca mais perca venda por falta de filtro ou óleo!",
     },
     {
-      id: 'whatsapp_automation',
-      keywords: ['whatsapp', 'zap', 'notificacao', 'automacao', 'mensagem', 'enviar', 'agendamento', 'aviso', 'revisao', 'status', 'comando', 'aprovar', 'chatbot', 'integracao zap'],
-      response: "A automação de WhatsApp do MecaERP envia **Orçamentos**, avisos de **veículo pronto** e **lembretes de manutenção** automaticamente. É o sistema trabalhando enquanto você foca no pátio. Isso aumenta sua conversão em até 35%!",
+      id: 'suppliers_purchases',
+      keywords: ['fornecedor', 'comprar peça', 'pedido de compra', 'autopeças', 'distribuidor', 'compras', 'entrada de nota', 'xml entrada'],
+      response: "Você pode cadastrar todos os seus **Fornecedores** e registrar Pedidos de Compra direto no sistema. Quando a peça chega, você dá entrada no estoque rapidamente, já atualizando as contas a pagar.",
+    },
+
+    // ==========================================
+    // 6. CLIENTES, CRM E MARKETING
+    // ==========================================
+    {
+      id: 'client_crm',
+      keywords: ['cliente', 'cadastro', 'crm', 'historico do cliente', 'fidelização', 'aniversario', 'marketing', 'vender mais', 'lembrar cliente'],
+      response: "O MecaERP é também um **CRM Automotivo**. Você tem o cadastro completo do cliente, sabe quantas vezes ele veio e quanto já gastou. O sistema pode enviar mensagens de aniversário e promoções, fidelizando seu cliente para sempre.",
+    },
+
+    // ==========================================
+    // 7. VEÍCULOS, CHECKLIST E GARANTIA
+    // ==========================================
+    {
+      id: 'vehicle_history',
+      keywords: ['historico', 'placa', 'o que foi feito', 'fipe', 'veiculo', 'carro', 'busca placa', 'manutencao anterior', 'frota'],
+      response: "Nós temos **Busca Inteligente por Placa**! Você digita a placa e puxa os dados na hora. Além disso, o histórico do veículo é eterno: saiba exatamente qual óleo foi colocado no carro do cliente há 2 anos atrás com um clique.",
     },
     {
       id: 'checklist_hd',
-      keywords: ['checklist', 'vistoria', 'fotos', 'avaria', 'risco', 'danos', 'carro', 'entrada', 'laudo', 'vistoriar', 'blindagem', 'fotos entrada'],
-      response: "Com o **Checklist HD**, você blinda sua oficina. Tire fotos das avarias na entrada e o cliente assina digitalmente no celular. Laudo oficial inalterável com carimbo MecaERP. Segurança jurídica total para você e seu cliente.",
+      keywords: ['checklist', 'vistoria', 'fotos', 'avaria', 'risco', 'danos', 'carro', 'entrada', 'laudo', 'vistoriar', 'blindagem', 'fotos entrada', 'estado do carro'],
+      response: "Com o **Checklist HD**, você blinda sua oficina contra clientes mal-intencionados. Fotografe riscos, painel e avarias na entrada. O cliente assina digitalmente no celular dele. É um laudo profissional e inalterável.",
     },
     {
-      id: 'finance_master',
-      keywords: ['financeiro', 'lucro', 'caixa', 'pagamento', 'contas', 'dfc', 'margem', 'quanto ganhei', 'dinheiro', 'finance', 'estoque', 'fluxo', 'lucratividade', 'contas a pagar'],
-      response: "O **Financeiro Master** é focado em lucro real. Você tem DFC (Fluxo de Caixa) automático e sabe a margem de contribuição de cada OS. Gestão financeira de nível profissional para sua oficina parar de queimar dinheiro.",
+      id: 'warranty_terms',
+      keywords: ['garantia', 'termo', 'retorno', 'defeito', 'peca com defeito', 'rm', 'rma', 'tempo de garantia', 'vencimento'],
+      response: "Gerencie as **Garantias** sem dor de cabeça. O sistema emite o Termo de Garantia para o cliente assinar e te avisa se um veículo voltar dentro do prazo estipulado. Controle rigoroso de retornos de oficina.",
+    },
+
+    // ==========================================
+    // 8. WHATSAPP E AUTOMAÇÃO
+    // ==========================================
+    {
+      id: 'whatsapp_automation',
+      keywords: ['whatsapp', 'zap', 'notificacao', 'automacao', 'mensagem', 'enviar', 'aviso', 'revisao', 'status', 'bot', 'integracao zap', 'avisar cliente', 'mensagem automatica'],
+      response: "O MecaERP tem um **Motor de WhatsApp Integrado**! Ele envia automações como:\n• Link da OS para aprovação\n• Aviso de 'Veículo Pronto para Retirada'\n• Lembretes de revisão futura (ex: troca de correia daqui 6 meses).\n\nEle vende por você!",
+    },
+
+    // ==========================================
+    // 9. AGENDA E PRODUTIVIDADE
+    // ==========================================
+    {
+      id: 'scheduling_agenda',
+      keywords: ['agendamento', 'calendario', 'marcar', 'reserva', 'horario', 'agenda', 'box', 'elevador', 'planejamento', 'tempo'],
+      response: "A **Agenda Inteligente** organiza sua oficina. Você marca horários, define em qual elevador/box o carro vai ficar e aloca o mecânico. Acabou a fila de espera e a desorganização no pátio!",
+    },
+
+    // ==========================================
+    // 10. FISCAL E NFE/NFSE
+    // ==========================================
+    {
+      id: 'nfe_taxes',
+      keywords: ['nota fiscal', 'nfe', 'nfse', 'imposto', 'fiscal', 'emitir nota', 'xml', 'contador', 'contabilidade', 'cupom', 'sat', 'tributo', 'nf'],
+      response: "Emitimos **Notas Fiscais de Serviço (NFSe)** e de **Produtos (NFe/NFCe)**! Com um clique dentro da OS, a nota é gerada, autorizada pela SEFAZ e os XMLs já ficam disponíveis para você enviar para o seu contador. Sem retrabalho.",
+    },
+
+    // ==========================================
+    // 11. DADOS, SUPORTE E SEGURANÇA
+    // ==========================================
+    {
+      id: 'data_migration',
+      keywords: ['migrar', 'outro sistema', 'importar', 'trazer dados', 'excel', 'planilha', 'mudar de sistema', 'cadastro antigo'],
+      response: "Se você usa outro sistema ou planilhas, não se preocupe! Nós temos **Ferramentas de Importação** em lote. Você sobe suas planilhas de Clientes, Peças e Fornecedores e o MecaERP cadastra tudo em segundos.",
+    },
+    {
+      id: 'support_onboarding',
+      keywords: ['suporte', 'ajuda', 'treinamento', 'implantacao', 'como usar', 'duvida', 'video aula', 'aprender', 'dificil', 'facil', 'ensinar'],
+      response: "Temos um **Onboarding Especializado**. Nossa equipe pega na sua mão para implantar o sistema. Você terá tutoriais em vídeo, manuais e um suporte humano rápido via WhatsApp. O MecaERP foi feito para ser fácil!",
     },
     {
       id: 'security_cloud',
-      keywords: ['segurança', 'protecao', 'hack', 'perder dados', 'nuvem', 'backup', 'lgpd', 'criptografia', 'estabilidade', 'confiavel', 'onde ficam dados', 'aws', 'amazon'],
-      response: "Segurança de banco: Seus dados estão na **AWS (Amazon)** com criptografia **AES-256** e backups de hora em hora. Total conformidade com a **LGPD**. Estabilidade de 99.9% para você nunca ficar na mão.",
+      keywords: ['segurança', 'protecao', 'hack', 'perder dados', 'nuvem', 'backup', 'lgpd', 'criptografia', 'estabilidade', 'confiavel', 'onde ficam dados', 'aws', 'amazon', 'internet', 'offline'],
+      response: "O sistema roda 100% na nuvem, hospedado em servidores **AWS (Amazon)** — a mesma estrutura dos grandes bancos. Fazemos backups automatizados de hora em hora e tudo é criptografado seguindo as normas da **LGPD**. Você nunca vai perder seus dados.",
     },
+
+    // ==========================================
+    // 12. CONTATO HUMANO E AÇÕES DE VENDA
+    // ==========================================
     {
-      id: 'tech_info',
-      keywords: ['tecnologia', 'stack', 'react', 'node', 'banco de dados', 'backend', 'frontend', 'prisma', 'postgres', 'como foi feito', 'linguagem', 'arquitetura'],
-      response: "Somos tecnologia de ponta: **React 18** no frontend, **Node.js** com **Prisma** no back e banco **PostgreSQL**. A mesma stack usada pelas maiores techs do mundo, agora na sua oficina.",
+      id: 'contact',
+      keywords: ['contato', 'falar com humano', 'atendimento', 'vendedor', 'comercial', 'numero', 'socorro', 'pessoal', 'gente', 'falar com alguem', 'pessoa real', 'consultor', 'telefone', 'chamar no zap'],
+      response: "A tecnologia é ótima, mas nada substitui uma boa conversa com um especialista. Chame nossa equipe comercial agora mesmo pelo WhatsApp (**15 99811-8548**). \n\nQuer que eu abra a conversa no seu celular ou computador agora?",
+      hasAction: true,
+      actionLabel: "Falar com Consultor no WhatsApp",
+      actionMsg: "Olá! O MecaAI me atendeu no site e eu gostaria de falar com um especialista sobre o MecaERP."
     },
+
+    // ==========================================
+    // 13. FALLBACKS E TRATAMENTO DE ERROS
+    // ==========================================
     {
       id: 'frustration_recovery',
-      keywords: ['viajando', 'burra', 'nao entende', 'errado', 'ruim', 'nao faz sentido', 'horrivel', 'lixo', 'pessimo', 'fraco', 'fraca', 'ta ruim', 'mal feita'],
-      response: "Desculpe pelo transtorno! 🧠 Estou em treinamento neural constante. \n\nComo sou uma inteligência focada exclusivamente no **universo MecaERP**, posso ter falhado na interpretação. Que tal falarmos sobre **Checklist HD** ou **WhatsApp Automático**? Ou se preferir, te chamo um humano agora!",
+      keywords: ['viajando', 'burra', 'nao entende', 'errado', 'ruim', 'nao faz sentido', 'horrivel', 'lixo', 'pessimo', 'fraco', 'fraca', 'ta ruim', 'mal feita', 'nao responde', 'nada a ver'],
+      response: "Peço sinceras desculpas. 🧠 Como sou uma inteligência artificial focada puramente nas funções do **MecaERP**, posso não ter compreendido o contexto da sua frase.\n\nPara não tomar seu tempo, vou te transferir para a nossa equipe humana. Pode ser?",
+      hasAction: true,
+      actionLabel: "Falar com Humano",
+      actionMsg: "Olá, o robô do site não conseguiu me entender direito. Quero tirar uma dúvida."
     }
   ];
 
