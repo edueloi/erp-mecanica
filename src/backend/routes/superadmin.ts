@@ -155,13 +155,62 @@ router.delete("/tenants/:id", requireSuperAdmin, (req: AuthRequest, res) => {
   const { id } = req.params;
   try {
     const transaction = db.transaction(() => {
+      // 1. WhatsApp & Communications
+      db.prepare("DELETE FROM whatsapp_automation_rules WHERE tenant_id = ?").run(id);
+      db.prepare("DELETE FROM whatsapp_templates WHERE tenant_id = ?").run(id);
+      db.prepare("DELETE FROM whatsapp_messages WHERE tenant_id = ?").run(id);
+      db.prepare("DELETE FROM whatsapp_conversations WHERE tenant_id = ?").run(id);
+
+      // 2. Action Plans / Kanban
+      // These tables don't always have tenant_id directly, need to delete by board link if needed, 
+      // but most implementation here uses tenant_id in main entities.
+      db.prepare("DELETE FROM action_card_links WHERE card_id IN (SELECT id FROM action_cards WHERE board_id IN (SELECT id FROM action_boards WHERE tenant_id = ?))").run(id);
+      db.prepare("DELETE FROM action_card_history WHERE board_id IN (SELECT id FROM action_boards WHERE tenant_id = ?)").run(id);
+      db.prepare("DELETE FROM action_cards WHERE board_id IN (SELECT id FROM action_boards WHERE tenant_id = ?)").run(id);
+      db.prepare("DELETE FROM action_columns WHERE board_id IN (SELECT id FROM action_boards WHERE tenant_id = ?)").run(id);
+      db.prepare("DELETE FROM action_boards WHERE tenant_id = ?").run(id);
+
+      // 3. Financial & Cashflow
+      db.prepare("DELETE FROM receivable_payments WHERE receivable_id IN (SELECT id FROM accounts_receivable WHERE tenant_id = ?)").run(id);
+      db.prepare("DELETE FROM accounts_receivable WHERE tenant_id = ?").run(id);
+      db.prepare("DELETE FROM cash_closes WHERE tenant_id = ?").run(id);
+      db.prepare("DELETE FROM cashflow_transactions WHERE tenant_id = ?").run(id);
+      db.prepare("DELETE FROM cash_accounts WHERE tenant_id = ?").run(id);
+
+      // 4. Work Orders & Checklists
+      db.prepare("DELETE FROM vehicle_checklist_items WHERE checklist_id IN (SELECT id FROM vehicle_checklists WHERE tenant_id = ?)").run(id);
+      db.prepare("DELETE FROM vehicle_checklists WHERE tenant_id = ?").run(id);
+      db.prepare("DELETE FROM work_order_items WHERE work_order_id IN (SELECT id FROM work_orders WHERE tenant_id = ?)").run(id);
+      db.prepare("DELETE FROM work_orders WHERE tenant_id = ?").run(id);
+      db.prepare("DELETE FROM vehicle_entries WHERE tenant_id = ?").run(id);
+
+      // 5. Inventory & Suppliers
+      db.prepare("DELETE FROM purchase_order_items WHERE purchase_order_id IN (SELECT id FROM purchase_orders WHERE tenant_id = ?)").run(id);
+      db.prepare("DELETE FROM purchase_orders WHERE tenant_id = ?").run(id);
+      db.prepare("DELETE FROM stock_movements WHERE tenant_id = ?").run(id);
+      db.prepare("DELETE FROM supplier_parts WHERE supplier_id IN (SELECT id FROM suppliers WHERE tenant_id = ?)").run(id);
+      db.prepare("DELETE FROM suppliers WHERE tenant_id = ?").run(id);
+      db.prepare("DELETE FROM parts WHERE tenant_id = ?").run(id);
+      db.prepare("DELETE FROM services WHERE tenant_id = ?").run(id);
+
+      // 6. Clients & Vehicles
+      db.prepare("DELETE FROM appointments WHERE tenant_id = ?").run(id);
+      db.prepare("DELETE FROM vehicles WHERE tenant_id = ?").run(id);
+      db.prepare("DELETE FROM clients WHERE tenant_id = ?").run(id);
+
+      // 7. Settings & Audit
+      db.prepare("DELETE FROM user_preferences WHERE tenant_id = ?").run(id);
+      db.prepare("DELETE FROM tenant_settings WHERE tenant_id = ?").run(id);
       db.prepare("DELETE FROM tenant_audit_logs WHERE tenant_id = ?").run(id);
+
+      // 8. Users & Tenant
       db.prepare("DELETE FROM users WHERE tenant_id = ?").run(id);
       db.prepare("DELETE FROM tenants WHERE id = ?").run(id);
     });
     transaction();
-    res.json({ message: "Excluído com sucesso" });
+    res.json({ message: "Parceiro e todos os dados relacionados foram excluídos com sucesso" });
   } catch (error: any) {
+    console.error(`Erro ao excluir parceiro ${id}:`, error);
     res.status(500).json({ error: error.message });
   }
 });

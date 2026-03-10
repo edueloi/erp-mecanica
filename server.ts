@@ -22,6 +22,7 @@ import actionPlansRoutes from "./src/backend/routes/actionPlans";
 import checklistRoutes from "./src/backend/routes/checklists";
 import entryRoutes from "./src/backend/routes/entries";
 import superadminRoutes from "./src/backend/routes/superadmin";
+import serviceRoutes from "./src/backend/routes/services";
 
 dotenv.config();
 
@@ -73,6 +74,8 @@ async function startServer() {
   console.log("Registered /api/entries");
   app.use("/api/superadmin", superadminRoutes);
   console.log("Registered /api/superadmin");
+  app.use("/api/services", serviceRoutes);
+  console.log("Registered /api/services");
 
   // Error handling middleware
   app.use((err: any, req: any, res: any, next: any) => {

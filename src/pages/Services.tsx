@@ -46,65 +46,31 @@ export default function Services() {
   const [isNewModalOpen, setIsNewModalOpen] = useState(false);
   const [isDetailDrawerOpen, setIsDetailDrawerOpen] = useState(false);
   const [selectedService, setSelectedService] = useState<Service | null>(null);
+  
+  const [formData, setFormData] = useState({
+    name: '',
+    code: '',
+    category: 'OUTROS' as ServiceCategory,
+    description: '',
+    estimated_time: '01:00',
+    default_price: 0,
+    estimated_cost: 0,
+    status: 'ACTIVE' as ServiceStatus,
+    type: 'LABOR' as ServiceType,
+    warranty_days: 90,
+    allow_discount: true,
+    requires_diagnosis: false,
+    compatible_vehicles: ''
+  });
 
   const fetchServices = async () => {
     setLoading(true);
     try {
-      // Mocking for now as we don't have the backend endpoint yet
-      // In a real scenario: const res = await api.get('/services');
-      const mockServices: Service[] = [
-        {
-          id: '1',
-          name: 'Troca de Óleo e Filtro',
-          code: 'SRV-001',
-          category: 'REVISAO',
-          description: 'Troca de óleo do motor e filtro de óleo.',
-          estimated_time: '00:45',
-          default_price: 150.00,
-          estimated_cost: 80.00,
-          status: 'ACTIVE',
-          type: 'WITH_PART',
-          warranty_days: 90,
-          allow_discount: true,
-          requires_diagnosis: false,
-          compatible_vehicles: 'Universal'
-        },
-        {
-          id: '2',
-          name: 'Alinhamento e Balanceamento',
-          code: 'SRV-002',
-          category: 'SUSPENSAO',
-          description: 'Alinhamento 3D e balanceamento das 4 rodas.',
-          estimated_time: '01:00',
-          default_price: 120.00,
-          estimated_cost: 30.00,
-          status: 'ACTIVE',
-          type: 'LABOR',
-          warranty_days: 30,
-          allow_discount: true,
-          requires_diagnosis: false,
-          compatible_vehicles: 'Universal'
-        },
-        {
-          id: '3',
-          name: 'Revisão 10.000km',
-          code: 'REV-010',
-          category: 'REVISAO',
-          description: 'Revisão completa de 10 mil km.',
-          estimated_time: '03:00',
-          default_price: 450.00,
-          estimated_cost: 200.00,
-          status: 'ACTIVE',
-          type: 'COMPOSITE',
-          warranty_days: 180,
-          allow_discount: false,
-          requires_diagnosis: true,
-          compatible_vehicles: 'Universal'
-        }
-      ];
-      setServices(mockServices);
+      const res = await api.get('/services');
+      setServices(Array.isArray(res.data) ? res.data : []);
     } catch (err) {
-      console.error(err);
+      console.error('Error fetching services:', err);
+      setServices([]);
     } finally {
       setLoading(false);
     }
@@ -113,6 +79,23 @@ export default function Services() {
   useEffect(() => {
     fetchServices();
   }, []);
+
+  const handleCreateService = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await api.post('/services', formData);
+      setIsNewModalOpen(false);
+      setFormData({
+        name: '', code: '', category: 'OUTROS', description: '',
+        estimated_time: '01:00', default_price: 0, estimated_cost: 0,
+        status: 'ACTIVE', type: 'LABOR', warranty_days: 90,
+        allow_discount: true, requires_diagnosis: false, compatible_vehicles: ''
+      });
+      fetchServices();
+    } catch (err) {
+      console.error('Error creating service:', err);
+    }
+  };
 
   const calculateMargin = (price: number, cost: number) => {
     if (price === 0) return 0;
@@ -126,7 +109,7 @@ export default function Services() {
   };
 
   const filteredServices = services.filter(s => 
-    (s.name.toLowerCase().includes(search.toLowerCase()) || s.code.toLowerCase().includes(search.toLowerCase())) &&
+    (s.name?.toLowerCase().includes(search.toLowerCase()) || s.code?.toLowerCase().includes(search.toLowerCase())) &&
     (categoryFilter === '' || s.category === categoryFilter)
   );
 
@@ -242,8 +225,8 @@ export default function Services() {
                     </div>
                   </td>
                   <td className="px-4 py-3">
-                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold border uppercase tracking-tight ${categoryMap[service.category].color}`}>
-                      {categoryMap[service.category].label}
+                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold border uppercase tracking-tight ${categoryMap[service.category]?.color || categoryMap.OUTROS.color}`}>
+                      {categoryMap[service.category]?.label || 'Outros'}
                     </span>
                   </td>
                   <td className="px-4 py-3">
@@ -323,27 +306,37 @@ export default function Services() {
                 </button>
               </div>
               
-              <div className="p-6 overflow-y-auto space-y-6">
+              <form onSubmit={handleCreateService} className="p-6 overflow-y-auto space-y-6">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="col-span-2">
                     <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1.5">Nome do Serviço</label>
                     <input 
                       type="text" 
+                      required
                       className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-slate-900/10 focus:border-slate-900 transition-all outline-none"
                       placeholder="Ex: Troca de Pastilhas de Freio"
+                      value={formData.name}
+                      onChange={e => setFormData({...formData, name: e.target.value})}
                     />
                   </div>
                   <div>
                     <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1.5">Código Interno</label>
                     <input 
                       type="text" 
+                      required
                       className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-slate-900/10 focus:border-slate-900 transition-all outline-none"
                       placeholder="Ex: SRV-001"
+                      value={formData.code}
+                      onChange={e => setFormData({...formData, code: e.target.value})}
                     />
                   </div>
                   <div>
                     <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1.5">Categoria</label>
-                    <select className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-slate-900/10 focus:border-slate-900 transition-all outline-none cursor-pointer">
+                    <select 
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-slate-900/10 focus:border-slate-900 transition-all outline-none cursor-pointer"
+                      value={formData.category}
+                      onChange={e => setFormData({...formData, category: e.target.value as ServiceCategory})}
+                    >
                       <option value="">Selecione...</option>
                       {Object.entries(categoryMap).map(([key, value]) => (
                         <option key={key} value={key}>{value.label}</option>
@@ -360,6 +353,8 @@ export default function Services() {
                       <input 
                         type="time" 
                         className="w-full pl-9 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-slate-900/10 focus:border-slate-900 transition-all outline-none"
+                        value={formData.estimated_time}
+                        onChange={e => setFormData({...formData, estimated_time: e.target.value})}
                       />
                     </div>
                   </div>
@@ -369,8 +364,12 @@ export default function Services() {
                       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-bold">R$</span>
                       <input 
                         type="number" 
+                        step="0.01"
+                        required
                         className="w-full pl-9 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-slate-900/10 focus:border-slate-900 transition-all outline-none font-bold"
                         placeholder="0,00"
+                        value={formData.default_price}
+                        onChange={e => setFormData({...formData, default_price: parseFloat(e.target.value) || 0})}
                       />
                     </div>
                   </div>
@@ -380,8 +379,12 @@ export default function Services() {
                       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-bold">R$</span>
                       <input 
                         type="number" 
+                        step="0.01"
+                        required
                         className="w-full pl-9 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-slate-900/10 focus:border-slate-900 transition-all outline-none"
                         placeholder="0,00"
+                        value={formData.estimated_cost}
+                        onChange={e => setFormData({...formData, estimated_cost: parseFloat(e.target.value) || 0})}
                       />
                     </div>
                   </div>
@@ -393,11 +396,23 @@ export default function Services() {
                   </h3>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="flex items-center gap-3">
-                      <input type="checkbox" id="allow_discount" className="w-4 h-4 rounded border-slate-300 text-slate-900 focus:ring-slate-900" />
+                      <input 
+                        type="checkbox" 
+                        id="allow_discount" 
+                        className="w-4 h-4 rounded border-slate-300 text-slate-900 focus:ring-slate-900" 
+                        checked={formData.allow_discount}
+                        onChange={e => setFormData({...formData, allow_discount: e.target.checked})}
+                      />
                       <label htmlFor="allow_discount" className="text-xs font-medium text-slate-700">Permite desconto na OS</label>
                     </div>
                     <div className="flex items-center gap-3">
-                      <input type="checkbox" id="requires_diag" className="w-4 h-4 rounded border-slate-300 text-slate-900 focus:ring-slate-900" />
+                      <input 
+                        type="checkbox" 
+                        id="requires_diag" 
+                        className="w-4 h-4 rounded border-slate-300 text-slate-900 focus:ring-slate-900" 
+                        checked={formData.requires_diagnosis}
+                        onChange={e => setFormData({...formData, requires_diagnosis: e.target.checked})}
+                      />
                       <label htmlFor="requires_diag" className="text-xs font-medium text-slate-700">Requer diagnóstico prévio</label>
                     </div>
                   </div>
@@ -407,12 +422,17 @@ export default function Services() {
                       <input 
                         type="number" 
                         className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-slate-900/10"
-                        defaultValue={90}
+                        value={formData.warranty_days}
+                        onChange={e => setFormData({...formData, warranty_days: parseInt(e.target.value) || 0})}
                       />
                     </div>
                     <div>
                       <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1.5">Tipo de Serviço</label>
-                      <select className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-slate-900/10">
+                      <select 
+                        className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-slate-900/10"
+                        value={formData.type}
+                        onChange={e => setFormData({...formData, type: e.target.value as ServiceType})}
+                      >
                         <option value="LABOR">Mão de Obra</option>
                         <option value="WITH_PART">Serviço com Peça</option>
                         <option value="COMPOSITE">Serviço Composto (Pacote)</option>
@@ -427,21 +447,24 @@ export default function Services() {
                     rows={3}
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-slate-900/10 focus:border-slate-900 transition-all outline-none resize-none"
                     placeholder="Descreva detalhadamente o que é realizado neste serviço..."
+                    value={formData.description}
+                    onChange={e => setFormData({...formData, description: e.target.value})}
                   />
                 </div>
-              </div>
-
-              <div className="p-6 border-t border-slate-100 flex gap-3 shrink-0 bg-slate-50/50 rounded-b-2xl">
-                <button 
-                  onClick={() => setIsNewModalOpen(false)}
-                  className="flex-1 py-3 border border-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 transition-all"
-                >
-                  Cancelar
-                </button>
-                <button className="flex-2 py-3 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-slate-800 transition-all shadow-lg shadow-slate-900/20">
-                  Salvar Serviço
-                </button>
-              </div>
+                
+                <div className="p-6 border-t border-slate-100 flex gap-3 shrink-0 bg-slate-50/50 rounded-b-2xl">
+                  <button 
+                    type="button"
+                    onClick={() => setIsNewModalOpen(false)}
+                    className="flex-1 py-3 border border-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 transition-all"
+                  >
+                    Cancelar
+                  </button>
+                  <button type="submit" className="flex-2 py-3 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-slate-800 transition-all shadow-lg shadow-slate-900/20">
+                    Salvar Serviço
+                  </button>
+                </div>
+              </form>
             </motion.div>
           </div>
         )}
@@ -521,8 +544,8 @@ export default function Services() {
                       </div>
                       <div>
                         <p className="text-[10px] font-bold text-slate-400 uppercase">Categoria</p>
-                        <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold border uppercase tracking-tight mt-1 ${categoryMap[selectedService.category].color}`}>
-                          {categoryMap[selectedService.category].label}
+                        <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold border uppercase tracking-tight mt-1 ${categoryMap[selectedService.category]?.color || categoryMap.OUTROS.color}`}>
+                          {categoryMap[selectedService.category]?.label || 'Outros'}
                         </span>
                       </div>
                       <div>
@@ -545,27 +568,7 @@ export default function Services() {
                     <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
                       <Package size={12} /> Peças Vinculadas (Padrão)
                     </h3>
-                    {selectedService.type === 'WITH_PART' ? (
-                      <div className="border border-slate-100 rounded-xl overflow-hidden">
-                        <div className="bg-slate-50 px-4 py-2 border-b border-slate-100 grid grid-cols-4 text-[10px] font-bold text-slate-400 uppercase">
-                          <div className="col-span-2">Peça</div>
-                          <div className="text-center">Qtd</div>
-                          <div className="text-right">Custo</div>
-                        </div>
-                        <div className="px-4 py-3 grid grid-cols-4 items-center text-xs">
-                          <div className="col-span-2 font-bold text-slate-700">Óleo 5W30 Sintético</div>
-                          <div className="text-center font-mono text-slate-500">4.5L</div>
-                          <div className="text-right font-bold text-slate-900">R$ 180,00</div>
-                        </div>
-                        <div className="px-4 py-3 grid grid-cols-4 items-center text-xs bg-slate-50/50">
-                          <div className="col-span-2 font-bold text-slate-700">Filtro de Óleo</div>
-                          <div className="text-center font-mono text-slate-500">1un</div>
-                          <div className="text-right font-bold text-slate-900">R$ 45,00</div>
-                        </div>
-                      </div>
-                    ) : (
-                      <p className="text-xs text-slate-400 italic">Nenhuma peça vinculada a este serviço.</p>
-                    )}
+                    <p className="text-xs text-slate-400 italic">Nenhuma peça vinculada a este serviço.</p>
                   </div>
                 </div>
               </div>

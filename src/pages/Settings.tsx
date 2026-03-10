@@ -95,11 +95,31 @@ export default function Settings() {
   // Profile Form state
   const [profileForm, setProfileForm] = useState({
     name: currentUser?.name || "",
+    surname: currentUser?.surname || "",
     email: currentUser?.email || "",
     phone: currentUser?.phone || "",
     photo_url: currentUser?.photo_url || "",
     profession: currentUser?.profession || "",
+    biography: currentUser?.biography || "",
+    education: currentUser?.education || "",
+    cpf: currentUser?.cpf || "",
   });
+
+  useEffect(() => {
+    if (currentUser) {
+      setProfileForm({
+        name: currentUser.name || "",
+        surname: currentUser.surname || "",
+        email: currentUser.email || "",
+        phone: currentUser.phone || "",
+        photo_url: currentUser.photo_url || "",
+        profession: currentUser.profession || "",
+        biography: currentUser.biography || "",
+        education: currentUser.education || "",
+        cpf: currentUser.cpf || "",
+      });
+    }
+  }, [currentUser]);
 
   // User Management states
   const [usersList, setUsersList] = useState<any[]>([]);

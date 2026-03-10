@@ -10,6 +10,27 @@ export function initDb() {
   db.exec(`CREATE TABLE IF NOT EXISTS tenants (id TEXT PRIMARY KEY, name TEXT NOT NULL, document TEXT, address TEXT, phone TEXT, user_limit INTEGER DEFAULT 5, subscription_value REAL DEFAULT 0, due_day INTEGER DEFAULT 5, last_payment_date DATETIME, status TEXT DEFAULT 'ACTIVE', plan_id TEXT, seller_id TEXT, logo_url TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)`);
   db.exec('CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, name TEXT NOT NULL, email TEXT NOT NULL, password TEXT NOT NULL, role TEXT NOT NULL, cpf TEXT, phone TEXT, profession TEXT, photo_url TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)');
   
+  // Services Catalog
+  db.exec(`CREATE TABLE IF NOT EXISTS services (
+    id TEXT PRIMARY KEY, 
+    tenant_id TEXT NOT NULL,
+    name TEXT NOT NULL,
+    code TEXT,
+    category TEXT,
+    description TEXT,
+    estimated_time TEXT,
+    default_price REAL DEFAULT 0,
+    estimated_cost REAL DEFAULT 0,
+    status TEXT DEFAULT 'ACTIVE',
+    type TEXT DEFAULT 'LABOR',
+    warranty_days INTEGER DEFAULT 90,
+    allow_discount BOOLEAN DEFAULT 1,
+    requires_diagnosis BOOLEAN DEFAULT 0,
+    compatible_vehicles TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
+
   // Migrations for new profile fields
   try { db.exec('ALTER TABLE users ADD COLUMN phone TEXT'); } catch (e) {}
   try { db.exec('ALTER TABLE users ADD COLUMN cpf TEXT'); } catch (e) {}
@@ -18,6 +39,9 @@ export function initDb() {
   try { db.exec('ALTER TABLE users ADD COLUMN biography TEXT'); } catch (e) {}
   try { db.exec('ALTER TABLE users ADD COLUMN education TEXT'); } catch (e) {}
   try { db.exec('ALTER TABLE users ADD COLUMN permissions TEXT'); } catch (e) {}
+
+  // Tenant migrations
+  try { db.exec('ALTER TABLE tenants ADD COLUMN last_payment_date DATETIME'); } catch (e) {}
 
   // Work Order items long description
   try { db.exec('ALTER TABLE work_order_items ADD COLUMN long_description TEXT'); } catch (e) {}
