@@ -1,45 +1,85 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { MessageSquare, X, Send, Bot, ChevronRight } from 'lucide-react';
+import { MessageSquare, X, Send, Bot, ChevronRight, Sparkles, User, Brain } from 'lucide-react';
 
 const LandingChatBot = () => {
   const [isOpen, setIsOpen] = useState(false);
+  const [inputValue, setInputValue] = useState('');
   const [messages, setMessages] = useState([
-    { text: "Olá! Sou o assistente inteligente do MecaERP. Como posso ajudar sua oficina hoje?", isBot: true }
+    { text: "Olá! Sou o MecaAI, a inteligência avançada do MecaERP. Analisei os dados de milhares de oficinas e estou pronto para te mostrar como dobrar sua eficiência. O que você quer saber sobre o sistema?", isBot: true }
   ]);
   const [isTyping, setIsTyping] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
-  const faq = [
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [messages, isTyping]);
+
+  const knowledgeBase = [
     { 
-      q: "O que é o MecaERP?", 
-      a: "O MecaERP é o sistema de gestão mais completo para oficinas. Automatizamos tudo: OS, Agenda, WhatsApp, Checklist Digital e Financeiro Master." 
+      keywords: ['whatsapp', 'zap', 'mensagem', 'enviar'], 
+      response: "Nossa integração com WhatsApp é total. O MecaERP envia automaticamente: 1. Confirmação de agendamento; 2. Link para aprovação de orçamento; 3. Aviso de veículo pronto; 4. Lembretes de manutenção após 6 meses. Tudo isso sem você apertar um botão!" 
     },
     { 
-      q: "Tem teste grátis?", 
-      a: "Sim! Você pode testar todas as funcionalidades por 14 dias sem compromisso. Não pedimos cartão de crédito para iniciar." 
+      keywords: ['preço', 'valor', 'custo', 'pagar', 'plano', 'mensalidade'], 
+      response: "Temos planos que cabem no seu bolso: o Start (R$ 197), o Pro (R$ 297 - mais vendido) e o Elite (R$ 497). O melhor? O sistema se paga no primeiro mês apenas com as peças que você deixaria de cobrar por esquecimento!" 
     },
     { 
-      q: "Como funciona o WhatsApp?", 
-      a: "O sistema envia status, orçamentos e avisos de revisão automaticamente. Seus clientes recebem tudo no celular e podem aprovar orçamentos com um clique." 
+      keywords: ['os', 'ordem', 'serviço', 'pdf', 'papel'], 
+      response: "Adeus blocos de papel! No MecaERP você cria uma OS em segundos, o técnico anexa fotos do problema direto pelo celular e você gera um PDF profissional com sua logo para o cliente." 
     },
     { 
-      q: "É difícil de usar?", 
-      a: "Pelo contrário! Criamos o sistema focado na agilidade do pátio. Em menos de 15 minutos sua oficina já está rodando 100% digital." 
+      keywords: ['checklist', 'vistor', 'fotos', 'entrada'], 
+      response: "O Checklist Digital é seu escudo jurídico. Tire fotos de todos os ângulos do veículo na entrada, marque avarias e evite que o cliente reclame de riscos que já estavam lá. Transparência total!" 
     },
     { 
-      q: "Tem suporte técnico?", 
-      a: "Temos um suporte humano especializado via chat e WhatsApp dedicado a ajudar você a lucrar mais com a ferramenta." 
+      keywords: ['financeiro', 'lucro', 'caixa', 'pagar', 'receber'], 
+      response: "Nosso financeiro é focado em lucro real. Você verá a margem de cada serviço, controle de estoque inteligente e fluxo de caixa automático. Você saberá exatamente para onde cada centavo está indo." 
+    },
+    { 
+      keywords: ['teste', 'grátis', 'testar', 'experimentar'], 
+      response: "Você pode testar o sistema completo por 14 dias GRATIS. Não pedimos cartão de crédito. É só cadastrar e começar a usar agora mesmo!" 
+    },
+    { 
+      keywords: ['suporte', 'ajuda', 'ajuda', 'dificuldade'], 
+      response: "Nosso suporte é reconhecido como o melhor do Brasil. Temos especialistas que entendem de oficina prontos para te atender via chat e WhatsApp em tempo real." 
+    },
+    { 
+      keywords: ['ia', 'artificial', 'inteligência'], 
+      response: "Eu sou o MecaAI! Dentro do sistema, analiso seus dados financeiros para te dar insights de onde você está perdendo dinheiro e quais serviços são mais lucrativos para sua oficina." 
     }
   ];
 
-  const handleQuestion = (question: string, answer: string) => {
-    setMessages(prev => [...prev, { text: question, isBot: false }]);
+  const getAIResponse = (input: string) => {
+    const lowInput = input.toLowerCase();
+    
+    // Check for keywords
+    for (const item of knowledgeBase) {
+      if (item.keywords.some(k => lowInput.includes(k))) {
+        return item.response;
+      }
+    }
+
+    // Default "Smart" generic responses
+    if (lowInput.length < 5) return "Pode me dar mais detalhes? Quero entender exatamente como o MecaERP pode ajudar sua oficina.";
+    
+    return "Interessante sua pergunta! O MecaERP foi desenhado justamente para resolver esses desafios do dia a dia. Que tal fazer um teste grátis de 14 dias para ver isso na prática? Posso te ajudar com os planos ou alguma funcionalidade específica agora?";
+  };
+
+  const handleSend = (text: string) => {
+    if (!text.trim()) return;
+    
+    setMessages(prev => [...prev, { text, isBot: false }]);
+    setInputValue('');
     setIsTyping(true);
     
     setTimeout(() => {
-      setMessages(prev => [...prev, { text: answer, isBot: true }]);
+      const response = getAIResponse(text);
+      setMessages(prev => [...prev, { text: response, isBot: true }]);
       setIsTyping(false);
-    }, 800);
+    }, 1200);
   };
 
   return (
@@ -50,82 +90,108 @@ const LandingChatBot = () => {
             initial={{ opacity: 0, scale: 0.9, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.9, y: 20 }}
-            className="mb-4 w-[350px] sm:w-[400px] bg-white rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.15)] border border-slate-100 overflow-hidden flex flex-col"
+            className="mb-4 w-[350px] sm:w-[420px] bg-white rounded-[2rem] shadow-[0_25px_60px_-15px_rgba(0,0,0,0.2)] border border-slate-100 overflow-hidden flex flex-col"
           >
             {/* Header */}
-            <div className="bg-blue-600 p-6 text-white flex justify-between items-center">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
-                  <Bot size={22} className="text-white" />
+            <div className="bg-slate-900 p-6 text-white flex justify-between items-center relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 blur-2xl -z-0" />
+              <div className="flex items-center gap-4 relative z-10">
+                <div className="w-12 h-12 bg-blue-600 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-600/20">
+                  <Brain size={24} className="text-white" />
                 </div>
                 <div>
-                  <h4 className="text-sm font-bold leading-none mb-1">MecaBot</h4>
+                  <h4 className="text-sm font-black leading-none mb-1 shadow-sm">MecaAI <span className="text-blue-400 text-[10px] ml-1 uppercase tracking-widest">Advanced</span></h4>
                   <div className="flex items-center gap-1.5">
                     <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
-                    <span className="text-[10px] font-bold opacity-80 uppercase tracking-widest">Online Agora</span>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Processando em Tempo Real</span>
                   </div>
                 </div>
               </div>
-              <button onClick={() => setIsOpen(false)} className="hover:bg-white/10 p-1.5 rounded-lg transition-colors">
+              <button 
+                onClick={() => setIsOpen(false)} 
+                className="hover:bg-white/10 p-2 rounded-xl transition-colors"
+              >
                 <X size={20} />
               </button>
             </div>
 
-            {/* Messages */}
-            <div className="h-[350px] overflow-y-auto p-6 space-y-4 bg-slate-50/50">
+            {/* Messages Area */}
+            <div 
+              ref={scrollRef}
+              className="h-[400px] overflow-y-auto p-6 space-y-6 bg-slate-50/30 scroll-smooth"
+            >
               {messages.map((msg, i) => (
                 <motion.div
                   key={i}
-                  initial={{ opacity: 0, x: msg.isBot ? -10 : 10 }}
-                  animate={{ opacity: 1, x: 0 }}
+                  initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
                   className={`flex ${msg.isBot ? 'justify-start' : 'justify-end'}`}
                 >
-                  <div className={`max-w-[85%] p-3.5 rounded-2xl text-xs font-medium leading-relaxed ${
-                    msg.isBot 
-                    ? 'bg-white text-slate-700 shadow-sm border border-slate-100 rounded-tl-none' 
-                    : 'bg-blue-600 text-white shadow-lg shadow-blue-500/20 rounded-tr-none'
-                  }`}>
-                    {msg.text}
+                  <div className={`flex gap-3 max-w-[90%] ${msg.isBot ? 'flex-row' : 'flex-row-reverse'}`}>
+                    <div className={`w-8 h-8 rounded-lg shrink-0 flex items-center justify-center mt-1 ${
+                      msg.isBot ? 'bg-blue-600/10 text-blue-600' : 'bg-slate-200 text-slate-500'
+                    }`}>
+                      {msg.isBot ? <Bot size={16} /> : <User size={16} />}
+                    </div>
+                    <div className={`p-4 rounded-2xl text-[13px] font-medium leading-relaxed shadow-sm ${
+                      msg.isBot 
+                      ? 'bg-white text-slate-700 border border-slate-100 rounded-tl-none' 
+                      : 'bg-slate-900 text-white rounded-tr-none'
+                    }`}>
+                      {msg.text}
+                    </div>
                   </div>
                 </motion.div>
               ))}
               {isTyping && (
-                <div className="flex justify-start">
-                  <div className="bg-white p-3 rounded-2xl border border-slate-100 flex gap-1 items-center">
-                    <div className="w-1 h-1 bg-slate-300 rounded-full animate-bounce" />
-                    <div className="w-1 h-1 bg-slate-300 rounded-full animate-bounce [animation-delay:0.2s]" />
-                    <div className="w-1 h-1 bg-slate-300 rounded-full animate-bounce [animation-delay:0.4s]" />
+                <div className="flex justify-start pl-11">
+                  <div className="bg-white px-4 py-3 rounded-2xl border border-slate-100 flex gap-1.5 items-center shadow-sm">
+                    <div className="w-1.5 h-1.5 bg-blue-600 rounded-full animate-bounce [animation-duration:0.6s]" />
+                    <div className="w-1.5 h-1.5 bg-blue-600 rounded-full animate-bounce [animation-duration:0.6s] [animation-delay:0.2s]" />
+                    <div className="w-1.5 h-1.5 bg-blue-600 rounded-full animate-bounce [animation-duration:0.6s] [animation-delay:0.4s]" />
                   </div>
                 </div>
               )}
             </div>
 
-            {/* Quick Replies */}
-            <div className="p-4 border-t border-slate-100 bg-white">
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3 px-2">Dúvidas Frequentes</p>
-              <div className="flex flex-wrap gap-2">
-                {faq.map((item, i) => (
+            {/* Suggestions / FAQ Quick Chips */}
+            <div className="px-6 py-4 border-t border-slate-100 bg-white">
+              <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-none">
+                {['Como funciona o WhatsApp?', 'Quais os planos?', 'O que é Checklist Digital?', 'Financeiro'].map((q, i) => (
                   <button
                     key={i}
-                    onClick={() => handleQuestion(item.q, item.a)}
-                    className="text-[10px] font-bold text-slate-600 bg-slate-50 hover:bg-blue-50 hover:text-blue-600 px-3 py-2 rounded-lg border border-slate-100 hover:border-blue-100 transition-all text-left flex items-center gap-2 group"
+                    onClick={() => handleSend(q)}
+                    className="whitespace-nowrap px-4 py-2 bg-slate-50 hover:bg-blue-50 text-slate-600 hover:text-blue-600 text-[11px] font-bold rounded-full border border-slate-100 hover:border-blue-100 transition-all active:scale-95"
                   >
-                    {item.q}
-                    <ChevronRight size={10} className="group-hover:translate-x-0.5 transition-transform" />
+                    {q}
                   </button>
                 ))}
               </div>
             </div>
 
-            {/* Footer */}
-            <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
-              <span className="text-[9px] font-bold text-slate-400 uppercase tracking-[0.2em]">Inteligência Artificial MecaERP</span>
-              <button 
-                onClick={() => window.location.href = '/login'}
-                className="text-[10px] font-bold text-blue-600 hover:underline"
-              >
-                Testar Grátis
-              </button>
+            {/* Input Footer */}
+            <div className="p-4 bg-white border-t border-slate-100">
+              <div className="relative flex items-center">
+                <input
+                  type="text"
+                  value={inputValue}
+                  onChange={(e) => setInputValue(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && handleSend(inputValue)}
+                  placeholder="Pergunte qualquer coisa sobre o sistema..."
+                  className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3.5 pr-14 text-sm font-medium focus:outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-500/5 transition-all"
+                />
+                <button
+                  onClick={() => handleSend(inputValue)}
+                  disabled={!inputValue.trim()}
+                  className="absolute right-2 w-10 h-10 bg-blue-600 text-white rounded-xl flex items-center justify-center hover:bg-blue-700 disabled:opacity-30 disabled:hover:bg-blue-600 transition-all active:scale-90"
+                >
+                  <Send size={18} />
+                </button>
+              </div>
+              <div className="mt-4 flex items-center justify-center gap-2 text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">
+                <Sparkles size={12} className="text-blue-500" />
+                Dúvida técnica? MecaAI ajuda você
+              </div>
             </div>
           </motion.div>
         )}
@@ -133,10 +199,15 @@ const LandingChatBot = () => {
 
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="w-14 h-14 bg-blue-600 rounded-full flex items-center justify-center text-white shadow-[0_10px_30px_rgba(37,99,235,0.4)] hover:scale-110 active:scale-95 transition-all group relative"
+        className="w-16 h-16 bg-blue-600 rounded-[1.5rem] flex items-center justify-center text-white shadow-[0_15px_40px_rgba(37,99,235,0.4)] hover:scale-110 active:scale-95 transition-all group relative overflow-hidden"
       >
-        <div className="absolute inset-0 bg-blue-600 rounded-full animate-ping opacity-20 group-hover:block" />
-        {isOpen ? <X size={24} /> : <MessageSquare size={24} />}
+        <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
+        {isOpen ? <X size={28} /> : (
+          <div className="relative">
+            <MessageSquare size={28} />
+            <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 border-2 border-white rounded-full" />
+          </div>
+        )}
       </button>
     </div>
   );
