@@ -238,8 +238,8 @@ router.patch("/:id", (req: AuthRequest, res) => {
         db.prepare("DELETE FROM work_order_items WHERE work_order_id = ?").run(req.params.id);
         
         const stmt = db.prepare(`
-          INSERT INTO work_order_items (id, work_order_id, type, description, quantity, unit_price, total_price, cost_price, mechanic_id, warranty_days, sku, status, part_id)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          INSERT INTO work_order_items (id, work_order_id, type, description, long_description, quantity, unit_price, total_price, cost_price, mechanic_id, warranty_days, sku, status, part_id)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `);
         
         let total = 0;
@@ -287,6 +287,7 @@ router.patch("/:id", (req: AuthRequest, res) => {
             req.params.id, 
             item.type, 
             item.description, 
+            item.long_description || null,
             item.quantity, 
             item.unit_price, 
             itemTotal,

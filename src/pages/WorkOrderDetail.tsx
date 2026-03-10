@@ -380,14 +380,18 @@ export default function WorkOrderDetail() {
     if (services.length > 0) {
       autoTable(doc, {
         startY: currentY,
-        head: [['Serviços', 'Executante', 'Valor']],
+        head: [['Serviços', 'Descrição Detalhada', 'Executante', 'Valor']],
         body: services.map((i: any) => [
           i.description, 
+          i.long_description || '---',
           users.find(u => u.id === i.mechanic_id)?.name || 'N/A',
           `R$ ${parseFloat(i.unit_price).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
         ]),
         headStyles: { fillColor: [40, 40, 40] },
-        styles: { fontSize: 8 }
+        styles: { fontSize: 8 },
+        columnStyles: {
+          1: { cellWidth: 60 } // Give more width to description
+        }
       });
       currentY = (doc as any).lastAutoTable.finalY + 5;
     }
@@ -661,7 +665,7 @@ export default function WorkOrderDetail() {
                   <table className="w-full text-left border-collapse">
                     <thead>
                       <tr className="bg-slate-50/50 border-b border-slate-100">
-                        <th className="px-6 py-3 text-xs font-bold text-slate-400 uppercase">Descrição</th>
+                        <th className="px-6 py-3 text-xs font-bold text-slate-400 uppercase">Serviço / Descrição Detalhada</th>
                         <th className="px-6 py-3 text-xs font-bold text-slate-400 uppercase">Responsável</th>
                         <th className="px-6 py-3 text-xs font-bold text-slate-400 uppercase text-right">Valor</th>
                         <th className="px-6 py-3 w-16"></th>
@@ -680,36 +684,45 @@ export default function WorkOrderDetail() {
                         wo.items.filter((i: any) => i.type === 'SERVICE').map((item: any) => (
                           <tr key={item.id} className="group hover:bg-slate-50">
                             <td className="px-6 py-4">
-                              <input 
-                                type="text" 
-                                className="w-full bg-transparent border-none focus:ring-0 text-sm font-medium p-0"
-                                value={item.description}
-                                onChange={e => updateItem(item.id, 'description', e.target.value)}
-                                placeholder="Nome do serviço..."
-                              />
+                              <div className="space-y-2">
+                                <input 
+                                  type="text" 
+                                  className="w-full bg-transparent border-none focus:ring-0 text-sm font-black p-0 uppercase italic text-slate-900"
+                                  value={item.description}
+                                  onChange={e => updateItem(item.id, 'description', e.target.value)}
+                                  placeholder="NOME DO SERVIÇO (EX: TROCA DE ÓLEO)"
+                                />
+                                <textarea 
+                                  rows={2}
+                                  className="w-full bg-slate-50/50 border border-slate-100 rounded-lg px-3 py-2 text-xs font-medium focus:ring-2 focus:ring-slate-900 focus:bg-white outline-none transition-all resize-none"
+                                  value={item.long_description || ''}
+                                  onChange={e => updateItem(item.id, 'long_description', e.target.value)}
+                                  placeholder="Descreva o que inclui este serviço... (Ex: Sangria do óleo, troca de filtros, higienização...)"
+                                />
+                              </div>
                             </td>
-                            <td className="px-6 py-4">
+                            <td className="px-6 py-4 align-top pt-6">
                               <select 
-                                className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs focus:ring-2 focus:ring-slate-900"
+                                className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold focus:ring-2 focus:ring-slate-900"
                                 value={item.mechanic_id || ''}
                                 onChange={e => updateItem(item.id, 'mechanic_id', e.target.value)}
                               >
-                                <option value="">Selecione...</option>
+                                <option value="">Responsável...</option>
                                 {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
                               </select>
                             </td>
-                            <td className="px-6 py-4 text-right">
+                            <td className="px-6 py-4 text-right align-top pt-6">
                               <div className="flex items-center justify-end gap-2">
-                                <span className="text-xs text-slate-400">R$</span>
+                                <span className="text-xs font-bold text-slate-400">R$</span>
                                 <input 
                                   type="number" 
-                                  className="w-32 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm font-bold text-right focus:ring-2 focus:ring-slate-900"
+                                  className="w-32 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm font-black text-right focus:ring-2 focus:ring-slate-900 text-slate-900"
                                   value={item.unit_price}
                                   onChange={e => updateItem(item.id, 'unit_price', parseFloat(e.target.value))}
                                 />
                               </div>
                             </td>
-                            <td className="px-6 py-4 text-right">
+                            <td className="px-6 py-4 text-right align-top pt-6">
                               <button onClick={() => removeItem(item.id)} className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg opacity-0 group-hover:opacity-100 transition-all">
                                 <Trash2 size={16} />
                               </button>
