@@ -366,19 +366,19 @@ const LandingPage = () => {
             </p>
           </div>
           <div>
-            <h4 className="text-[10px] font-black uppercase text-slate-900 tracking-widest mb-6">Empresa</h4>
-            <ul className="space-y-3">
-              <li><a href="#" className="text-xs font-semibold text-slate-500 hover:text-blue-600">Sobre nós</a></li>
-              <li><a href="#" className="text-xs font-semibold text-slate-500 hover:text-blue-600">Blog</a></li>
-              <li><a href="#" className="text-xs font-semibold text-slate-500 hover:text-blue-600">Contato</a></li>
+            <h4 className="text-[10px] font-black uppercase text-slate-900 tracking-widest mb-6 font-primary">Empresa</h4>
+            <ul className="space-y-4">
+              <li><a href="#funcionalidades" className="text-xs font-bold text-slate-500 hover:text-blue-600 transition-colors">Funcionalidades</a></li>
+              <li><a href="#precos" className="text-xs font-bold text-slate-500 hover:text-blue-600 transition-colors">Planos e Preços</a></li>
+              <li><a href="https://wa.me/5515998118548" target="_blank" rel="noopener noreferrer" className="text-xs font-bold text-slate-500 hover:text-blue-600 transition-colors">Suporte & Contato</a></li>
             </ul>
           </div>
           <div>
-            <h4 className="text-[10px] font-black uppercase text-slate-900 tracking-widest mb-6">Jurídico</h4>
-            <ul className="space-y-3">
-              <li><a href="#" className="text-xs font-semibold text-slate-500 hover:text-blue-600">Privacidade</a></li>
-              <li><a href="#" className="text-xs font-semibold text-slate-500 hover:text-blue-600">Termos de Uso</a></li>
-              <li><a href="#" className="text-xs font-semibold text-slate-500 hover:text-blue-600">LGPD</a></li>
+            <h4 className="text-[10px] font-black uppercase text-slate-900 tracking-widest mb-6 font-primary">Jurídico</h4>
+            <ul className="space-y-4">
+              <li><Link to="/termos" className="text-xs font-bold text-slate-500 hover:text-blue-600 transition-colors">Termos de Uso</Link></li>
+              <li><Link to="/privacidade" className="text-xs font-bold text-slate-500 hover:text-blue-600 transition-colors">Privacidade</Link></li>
+              <li><Link to="/lgpd" className="text-xs font-bold text-slate-500 hover:text-blue-600 transition-colors">LGPD</Link></li>
             </ul>
           </div>
         </div>
