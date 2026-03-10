@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useBlocker } from 'react-router-dom';
 import { 
   ArrowLeft, Printer, Save, Plus, Trash2, CheckCircle2, AlertCircle,
@@ -63,6 +63,15 @@ export default function WorkOrderDetail() {
   const showNotification = (type: 'success' | 'error' | 'info', title: string, message: string) => {
     setNotification({ show: true, type, title, message });
   };
+
+  useEffect(() => {
+    if (notification.show) {
+      const timer = setTimeout(() => {
+        setNotification(prev => ({ ...prev, show: false }));
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [notification.show]);
 
   const fetchWO = async () => {
     try {
@@ -163,7 +172,9 @@ export default function WorkOrderDetail() {
   };
 
   const handleSave = async () => {
-    if (id === 'new' && (!wo.client_id || !wo.vehicle_id)) {
+    console.log('DEBUG: Attempting to save WO', { id, client_id: wo?.client_id, vehicle_id: wo?.vehicle_id, wo });
+    
+    if (id === 'new' && (!wo?.client_id || !wo?.vehicle_id)) {
       showNotification('error', 'Erro', 'Selecione um cliente e um veículo para continuar.');
       return;
     }
@@ -185,9 +196,15 @@ export default function WorkOrderDetail() {
         showNotification('success', 'Sucesso', 'OS salva com sucesso!');
         fetchWO();
       }
-    } catch (err) {
-      showNotification('error', 'Erro', 'Não foi possível salvar a OS. Tente novamente.');
-    } finally {
+    } catch (err: any) {
+      console.error('DEBUG: Save failed', err);
+      const errorMsg = err.response?.data?.error || err.message || 'Erro desconhecido';
+      
+      if (errorMsg.includes('no such table: main.users_old')) {
+        showNotification('error', 'Manutenção Automática', 'Detectamos um problema no banco de dados e aplicamos uma correção. Por favor, tente Salvar novamente agora.');
+      } else {
+        showNotification('error', 'Não foi possível salvar', errorMsg);
+      }
       setSaving(false);
     }
   };
@@ -305,7 +322,7 @@ export default function WorkOrderDetail() {
 
   const handleSendQuote = async (method: 'whatsapp' | 'email') => {
     try {
-      const total = wo.items.reduce((sum: number, i: any) => sum + (i.quantity * i.unit_price), 0) + (wo.taxes || 0) - (wo.discount || 0);
+      const total = (wo.items || []).reduce((sum: number, i: any) => sum + (i.quantity * i.unit_price), 0) + (wo.taxes || 0) - (wo.discount || 0);
       const message = `📋 *Orçamento ${wo.number}*\n\n` +
         `Cliente: ${wo.client_name}\n` +
         `Veículo: ${wo.brand} ${wo.model} - ${wo.plate}\n\n` +
@@ -722,7 +739,9 @@ export default function WorkOrderDetail() {
                   <h3 className="text-lg font-bold text-slate-900 mb-4">Informações da OS</h3>
                   <div className="grid grid-cols-2 gap-6">
                     <div>
-                      <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Cliente</label>
+                      <label className="block text-xs font-bold text-slate-400 uppercase mb-2">
+                        Cliente <span className="text-red-500">*</span>
+                      </label>
                       {id === 'new' ? (
                         <select 
                           required
@@ -738,7 +757,9 @@ export default function WorkOrderDetail() {
                       )}
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Veículo</label>
+                      <label className="block text-xs font-bold text-slate-400 uppercase mb-2">
+                        Veículo <span className="text-red-500">*</span>
+                      </label>
                       {id === 'new' ? (
                         <select 
                           required
@@ -760,7 +781,7 @@ export default function WorkOrderDetail() {
                           }}
                         >
                           <option value="">Selecione um veículo...</option>
-                          {vehicles.filter(v => v.client_id === wo.client_id).map(v => (
+                          {vehicles.filter(v => v.client_id === wo?.client_id).map(v => (
                             <option key={v.id} value={v.id}>{v.plate} - {v.model}</option>
                           ))}
                         </select>
@@ -990,7 +1011,7 @@ export default function WorkOrderDetail() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-50">
-                      {wo.items.filter((i: any) => i.type === 'SERVICE').map((item: any) => (
+                      {(wo.items || []).filter((i: any) => i.type === 'SERVICE').map((item: any) => (
                         <tr key={item.id} className="group hover:bg-slate-50">
                           <td className="px-6 py-4 text-sm font-bold text-slate-900 uppercase">{item.description}</td>
                           <td className="px-6 py-4 text-center text-sm font-medium text-slate-600">{item.quantity}</td>
@@ -1010,7 +1031,7 @@ export default function WorkOrderDetail() {
                       <tr className="bg-slate-50/30">
                         <td colSpan={3} className="px-6 py-4 text-right text-sm font-bold text-slate-400">Total Serviços:</td>
                         <td className="px-6 py-4 text-right text-lg font-black text-slate-900">
-                          R$ {wo.items.filter((i:any) => i.type === 'SERVICE').reduce((sum:number, i:any) => sum + (i.quantity * i.unit_price), 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                          R$ {(wo.items || []).filter((i:any) => i.type === 'SERVICE').reduce((sum:number, i:any) => sum + (i.quantity * i.unit_price), 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                         </td>
                         <td></td>
                       </tr>
@@ -1101,7 +1122,7 @@ export default function WorkOrderDetail() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-50">
-                      {wo.items.filter((i: any) => i.type === 'PART').map((item: any) => (
+                      {(wo.items || []).filter((i: any) => i.type === 'PART').map((item: any) => (
                         <tr key={item.id} className="group hover:bg-slate-50">
                           <td className="px-6 py-4 text-sm font-bold text-slate-900 uppercase">{item.description}</td>
                           <td className="px-6 py-4 text-center text-sm font-medium text-slate-600">{item.quantity}</td>
@@ -1121,7 +1142,7 @@ export default function WorkOrderDetail() {
                       <tr className="bg-slate-50/30">
                         <td colSpan={3} className="px-6 py-4 text-right text-sm font-bold text-slate-400">Total Produtos:</td>
                         <td className="px-6 py-4 text-right text-lg font-black text-slate-900">
-                          R$ {wo.items.filter((i:any) => i.type === 'PART').reduce((sum:number, i:any) => sum + (i.quantity * i.unit_price), 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                          R$ {(wo.items || []).filter((i:any) => i.type === 'PART').reduce((sum:number, i:any) => sum + (i.quantity * i.unit_price), 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                         </td>
                         <td></td>
                       </tr>
@@ -1302,11 +1323,11 @@ export default function WorkOrderDetail() {
                   <Wrench size={14} className="text-slate-400" />
                   <span className="text-sm text-slate-600">Serviços</span>
                   <span className="text-xs font-bold text-slate-400">
-                    ({wo.items.filter((i: any) => i.type === 'SERVICE').length})
+                    ({(wo.items || []).filter((i: any) => i.type === 'SERVICE').length})
                   </span>
                 </div>
                 <span className="text-sm font-bold text-slate-900">
-                  R$ {wo.items.filter((i: any) => i.type === 'SERVICE').reduce((sum: number, i: any) => sum + (i.quantity * i.unit_price), 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  R$ {(wo.items || []).filter((i: any) => i.type === 'SERVICE').reduce((sum: number, i: any) => sum + (i.quantity * i.unit_price), 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                 </span>
               </div>
 
@@ -1316,11 +1337,11 @@ export default function WorkOrderDetail() {
                   <Package size={14} className="text-slate-400" />
                   <span className="text-sm text-slate-600">Peças</span>
                   <span className="text-xs font-bold text-slate-400">
-                    ({wo.items.filter((i: any) => i.type === 'PART').length})
+                    ({(wo.items || []).filter((i: any) => i.type === 'PART').length})
                   </span>
                 </div>
                 <span className="text-sm font-bold text-slate-900">
-                  R$ {wo.items.filter((i: any) => i.type === 'PART').reduce((sum: number, i: any) => sum + (i.quantity * i.unit_price), 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  R$ {(wo.items || []).filter((i: any) => i.type === 'PART').reduce((sum: number, i: any) => sum + (i.quantity * i.unit_price), 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                 </span>
               </div>
 
@@ -1354,7 +1375,7 @@ export default function WorkOrderDetail() {
               <div className="flex justify-between items-center py-4 bg-emerald-50 -mx-4 px-4 rounded-b-2xl">
                 <span className="text-base font-bold text-slate-900">Total Geral</span>
                 <span className="text-2xl font-black text-emerald-600">
-                  R$ {(wo.items.reduce((sum: number, i: any) => sum + (i.quantity * i.unit_price), 0) + (wo.taxes || 0) - (wo.discount || 0)).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                  R$ {((wo.items || []).reduce((sum: number, i: any) => sum + (i.quantity * i.unit_price), 0) + (wo.taxes || 0) - (wo.discount || 0)).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                 </span>
               </div>
 
@@ -1379,7 +1400,7 @@ export default function WorkOrderDetail() {
 
           {/* Alerts & Warnings */}
           <div className="space-y-2">
-            {wo.items.some((i: any) => i.type === 'PART' && i.stock < i.quantity) && (
+            {(wo.items || []).some((i: any) => i.type === 'PART' && i.stock < i.quantity) && (
               <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 flex items-start gap-2">
                 <AlertTriangle size={16} className="text-amber-600 mt-0.5 flex-shrink-0" />
                 <div>
@@ -1466,7 +1487,7 @@ export default function WorkOrderDetail() {
                       name="amount"
                       step="0.01"
                       required
-                      defaultValue={(wo.items.reduce((sum: number, i: any) => sum + (i.quantity * i.unit_price), 0) + (wo.taxes || 0) - (wo.discount || 0)).toFixed(2)}
+                      defaultValue={((wo.items || []).reduce((sum: number, i: any) => sum + (i.quantity * i.unit_price), 0) + (wo.taxes || 0) - (wo.discount || 0)).toFixed(2)}
                       className="w-full pl-12 pr-4 py-3 bg-slate-50 border-2 border-slate-200 rounded-xl text-2xl font-bold text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                     />
                   </div>
@@ -1709,55 +1730,46 @@ export default function WorkOrderDetail() {
         )}
       </AnimatePresence>
 
-      {/* Notification Modal */}
+      {/* Notification Toast */}
       <AnimatePresence>
         {notification.show && (
-          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[200] flex items-center justify-center p-4" onClick={() => setNotification({ ...notification, show: false })}>
+          <div className="fixed bottom-6 right-6 z-[200] pointer-events-none">
             <motion.div 
-              initial={{ scale: 0.9, opacity: 0, y: 20 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              onClick={(e) => e.stopPropagation()}
-              className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden"
+              initial={{ x: 100, opacity: 0, scale: 0.9 }}
+              animate={{ x: 0, opacity: 1, scale: 1 }}
+              exit={{ x: 100, opacity: 0, scale: 0.9 }}
+              className="pointer-events-auto"
             >
-              <div className={cn(
-                "px-6 py-4 flex items-center gap-4",
-                notification.type === 'success' && "bg-emerald-50",
-                notification.type === 'error' && "bg-red-50",
-                notification.type === 'info' && "bg-blue-50"
-              )}>
+              <div 
+                className={cn(
+                  "flex items-center gap-4 p-4 rounded-xl shadow-2xl border min-w-[320px] max-w-md bg-white",
+                  notification.type === 'success' && "border-emerald-200",
+                  notification.type === 'error' && "border-red-200",
+                  notification.type === 'info' && "border-blue-200"
+                )}
+                onClick={() => setNotification({ ...notification, show: false })}
+              >
                 <div className={cn(
-                  "w-12 h-12 rounded-full flex items-center justify-center shrink-0",
+                  "w-10 h-10 rounded-lg flex items-center justify-center shrink-0",
                   notification.type === 'success' && "bg-emerald-100",
                   notification.type === 'error' && "bg-red-100",
                   notification.type === 'info' && "bg-blue-100"
                 )}>
-                  {notification.type === 'success' && <CheckCircle className="text-emerald-600" size={24} />}
-                  {notification.type === 'error' && <AlertTriangle className="text-red-600" size={24} />}
-                  {notification.type === 'info' && <Info className="text-blue-600" size={24} />}
+                  {notification.type === 'success' && <CheckCircle className="text-emerald-600" size={20} />}
+                  {notification.type === 'error' && <AlertTriangle className="text-red-600" size={20} />}
+                  {notification.type === 'info' && <Info className="text-blue-600" size={20} />}
                 </div>
-                <div className="flex-1 min-w-0">
+                <div className="flex-1 pr-4">
                   <h3 className={cn(
-                    "font-bold text-base",
+                    "text-sm font-bold",
                     notification.type === 'success' && "text-emerald-900",
                     notification.type === 'error' && "text-red-900",
                     notification.type === 'info' && "text-blue-900"
                   )}>{notification.title}</h3>
-                  <p className="text-sm text-slate-600 mt-0.5">{notification.message}</p>
+                  <p className="text-xs text-slate-500 mt-0.5 line-clamp-2">{notification.message}</p>
                 </div>
-                <button 
-                  onClick={() => setNotification({ ...notification, show: false })}
-                  className="text-slate-400 hover:text-slate-900 transition-colors shrink-0"
-                >
-                  <X size={20} />
-                </button>
-              </div>
-              <div className="px-6 py-4 bg-slate-50 flex justify-end">
-                <button 
-                  onClick={() => setNotification({ ...notification, show: false })}
-                  className="px-6 py-2 bg-slate-900 text-white rounded-lg text-sm font-bold hover:bg-slate-800 transition-all"
-                >
-                  OK
+                <button className="text-slate-400 hover:text-slate-800 transition-colors">
+                  <X size={16} />
                 </button>
               </div>
             </motion.div>

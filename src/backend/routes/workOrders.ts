@@ -72,37 +72,140 @@ router.post("/", (req: AuthRequest, res) => {
   const dd = now.getDate().toString().padStart(2, '0');
   const todayPrefix = `${yy}${mm}${dd}`;
 
-  const countToday = db.prepare("SELECT COUNT(*) as total FROM work_orders WHERE tenant_id = ? AND number LIKE ?")
-    .get(req.user!.tenant_id, `${todayPrefix}-%`) as any;
-  const number = `${todayPrefix}-${(countToday.total + 1).toString().padStart(4, '0')}`;
-
   try {
-    db.prepare(`
-      INSERT INTO work_orders (
-        id, tenant_id, client_id, vehicle_id, number, status, complaint, 
-        symptoms, priority, responsible_id, delivery_forecast, start_date, defect
-      )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(
-      id, 
-      req.user!.tenant_id, 
-      client_id, 
-      vehicle_id, 
-      number, 
-      status || 'DRAFT', 
-      complaint, 
-      JSON.stringify(symptoms || []), 
-      priority || 'MEDIUM', 
-      responsible_id, 
-      delivery_forecast,
-      start_date || new Date().toISOString(),
-      defect
-    );
+    console.log('--- START OS CREATION ---');
+    console.log('Generating number with prefix:', todayPrefix);
+    
+    // Auto-fix for legacy SQLite triggers (deep clean if users_old or _old exists)
+    try {
+      const legacyTriggers = db.prepare("SELECT name FROM sqlite_master WHERE type='trigger' AND (sql LIKE '%_old%' OR sql LIKE '%users_old%')").all() as any[];
+      for (const lt of legacyTriggers) {
+        db.exec(`DROP TRIGGER IF EXISTS "${lt.name}"`);
+        console.log(`🧹 Found and removed legacy trigger: ${lt.name}`);
+      }
+    } catch (e) {}
+
+    // Check if work_orders table exists
+    const tableCheck = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='work_orders'").get();
+    if (!tableCheck) {
+      throw new Error("Tabela 'work_orders' não encontrada no banco de dados.");
+    }
+
+    const countToday = db.prepare("SELECT COUNT(*) as total FROM work_orders WHERE tenant_id = ? AND number LIKE ?")
+      .get(req.user!.tenant_id, `${todayPrefix}-%`) as any;
+    const number = `${todayPrefix}-${(countToday.total + 1).toString().padStart(4, '0')}`;
+    console.log('Generated OS Number:', number);
+
+    const transaction = db.transaction(() => {
+      console.log('In transaction...');
+      const woColumns = db.prepare(`PRAGMA table_info('work_orders')`).all() as any[];
+      const validWoCols = woColumns.map(c => c.name);
+      console.log('Valid Columns in work_orders:', validWoCols.join(', '));
+
+      const fields: string[] = [];
+      const values: any[] = [];
+
+      const addField = (name: string, value: any, isJson = false) => {
+        if (value !== undefined && value !== null && validWoCols.includes(name)) {
+          fields.push(name);
+          values.push((isJson && value !== null) ? JSON.stringify(value) : value);
+        }
+      };
+
+      // Add base fields only if they exist in schema
+      addField('id', id);
+      addField('tenant_id', req.user!.tenant_id);
+      addField('client_id', client_id);
+      addField('vehicle_id', vehicle_id);
+      addField('number', number);
+      addField('status', status || 'DRAFT');
+
+      // Add optional fields
+      addField('complaint', complaint);
+      addField('priority', priority || 'MEDIUM');
+      addField('responsible_id', responsible_id === "" ? null : responsible_id);
+      addField('delivery_forecast', delivery_forecast);
+      addField('start_date', start_date || new Date().toISOString());
+      addField('finish_date', req.body.finish_date);
+      addField('guarantee', req.body.guarantee);
+      addField('technical_report', req.body.technical_report);
+      addField('defect', defect);
+      addField('internal_notes', req.body.internal_notes);
+      addField('diagnosis', req.body.diagnosis);
+      addField('symptoms', symptoms, true);
+      addField('history', req.body.history || [], true);
+      addField('photos', req.body.photos || [], true);
+      addField('taxes', req.body.taxes || 0);
+      addField('discount', req.body.discount || 0);
+      addField('total_amount', req.body.total_amount || 0);
+
+      if (fields.length === 0) throw new Error("Nenhum campo válido para inserção na OS.");
+
+      const placeholders = values.map(() => '?').join(', ');
+      const query = `INSERT INTO work_orders (${fields.join(', ')}) VALUES (${placeholders})`;
+      console.log('Running Query:', query);
+      db.prepare(query).run(...values);
+      console.log('OS inserted successfully');
+
+      if (req.body.items && req.body.items.length > 0) {
+        console.log('Saving items...');
+        const itemColumns = db.prepare(`PRAGMA table_info('work_order_items')`).all() as any[];
+        const validItemCols = itemColumns.map(c => c.name);
+        console.log('Valid Columns in work_order_items:', validItemCols.join(', '));
+
+        let total = 0;
+        for (const item of req.body.items) {
+          const itemTotal = (item.quantity || 1) * (item.unit_price || 0);
+          total += itemTotal;
+          
+          const iFields: string[] = [];
+          const iValues: any[] = [];
+          
+          const addItemField = (name: string, value: any) => {
+            if (value !== undefined && validItemCols.includes(name)) {
+              iFields.push(name);
+              iValues.push(value);
+            }
+          };
+
+          addItemField('id', uuidv4());
+          addItemField('work_order_id', id);
+          addItemField('type', item.type);
+          addItemField('description', item.description);
+          addItemField('quantity', item.quantity || 1);
+          addItemField('unit_price', item.unit_price || 0);
+          addItemField('total_price', itemTotal);
+          addItemField('long_description', item.long_description || null);
+          addItemField('cost_price', item.cost_price || 0);
+          addItemField('mechanic_id', item.mechanic_id || null);
+          addItemField('warranty_days', item.warranty_days || 0);
+          addItemField('sku', item.sku || null);
+          addItemField('status', item.status || 'PENDING');
+          addItemField('part_id', item.part_id || null);
+
+          const iPlaceholders = iValues.map(() => '?').join(', ');
+          const iQuery = `INSERT INTO work_order_items (${iFields.join(', ')}) VALUES (${iPlaceholders})`;
+          db.prepare(iQuery).run(...iValues);
+        }
+        
+        if (!req.body.total_amount && total > 0 && validWoCols.includes('total_amount')) {
+          db.prepare("UPDATE work_orders SET total_amount = ? WHERE id = ?").run(total, id);
+        }
+      }
+    });
+
+    transaction();
+    console.log('Transaction committed successfully');
 
     const newWO = db.prepare("SELECT * FROM work_orders WHERE id = ?").get(id);
     res.status(201).json(newWO);
   } catch (error: any) {
-    res.status(500).json({ error: error.message });
+    console.error("❌ CRITICAL ERROR SAVING WORK ORDER:", error);
+    res.status(500).json({ 
+      error: error.message, 
+      details: "Erro na criação da Ordem de Serviço na transação",
+      stack: process.env.NODE_ENV !== "production" ? error.stack : undefined 
+    });
   }
 });
 
@@ -173,20 +276,17 @@ router.patch("/:id", (req: AuthRequest, res) => {
   } = req.body;
   
   try {
-    // Check if history column exists
-    const tableInfo = db.prepare(`SELECT COUNT(*) as count FROM pragma_table_info('work_orders') WHERE name='history'`).get() as any;
-    const hasHistoryColumn = tableInfo.count > 0;
+    const woColumns = db.prepare(`PRAGMA table_info('work_orders')`).all() as any[];
+    const validWoCols = woColumns.map(c => c.name);
 
     const transaction = db.transaction(() => {
       const fields: string[] = ["updated_at = CURRENT_TIMESTAMP"];
       const params: any[] = [];
 
       const addField = (name: string, value: any, isJson = false) => {
-        if (value !== undefined) {
-          // Skip history if column doesn't exist
-          if (name === 'history' && !hasHistoryColumn) return;
+        if (value !== undefined && validWoCols.includes(name)) {
           fields.push(`${name} = ?`);
-          params.push(isJson ? JSON.stringify(value) : value);
+          params.push((isJson && value !== null) ? JSON.stringify(value) : value);
         }
       };
 
@@ -224,113 +324,78 @@ router.patch("/:id", (req: AuthRequest, res) => {
         // Get old items to return parts to stock
         const oldItems = db.prepare("SELECT * FROM work_order_items WHERE work_order_id = ?").all(req.params.id);
         
-        // Return parts to stock for old items
         for (const oldItem of oldItems as any[]) {
           if (oldItem.type === 'PART' && oldItem.part_id) {
-            const part = db.prepare("SELECT * FROM parts WHERE id = ? AND tenant_id = ?")
-              .get(oldItem.part_id, req.user!.tenant_id) as any;
-            
+            const part = db.prepare("SELECT * FROM parts WHERE id = ? AND tenant_id = ?").get(oldItem.part_id, req.user!.tenant_id) as any;
             if (part) {
               const newStock = part.stock_quantity + oldItem.quantity;
-              db.prepare("UPDATE parts SET stock_quantity = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?")
-                .run(newStock, oldItem.part_id);
-
+              db.prepare("UPDATE parts SET stock_quantity = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(newStock, oldItem.part_id);
+              
               db.prepare(`
-                INSERT INTO stock_movements (
-                  id, tenant_id, part_id, type, quantity, unit_cost, 
-                  reference_id, reference_type, reason, user_id
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-              `).run(
-                uuidv4(),
-                req.user!.tenant_id,
-                oldItem.part_id,
-                'ENTRY',
-                oldItem.quantity,
-                oldItem.cost_price,
-                req.params.id,
-                'WORK_ORDER',
-                'Devolvido - OS atualizada',
-                req.user!.id
-              );
+                INSERT INTO stock_movements (id, tenant_id, part_id, type, quantity, unit_cost, reference_id, reference_type, reason, user_id)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+              `).run(uuidv4(), req.user!.tenant_id, oldItem.part_id, 'ENTRY', oldItem.quantity, oldItem.cost_price, req.params.id, 'WORK_ORDER', 'Devolvido (atualização OS)', req.user!.id);
             }
           }
         }
         
-        // Delete old items
+        // Delete and Insert new items
         db.prepare("DELETE FROM work_order_items WHERE work_order_id = ?").run(req.params.id);
         
-        const stmt = db.prepare(`
-          INSERT INTO work_order_items (id, work_order_id, type, description, long_description, quantity, unit_price, total_price, cost_price, mechanic_id, warranty_days, sku, status, part_id)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `);
+        const itemColumns = db.prepare(`PRAGMA table_info('work_order_items')`).all() as any[];
+        const validItemCols = itemColumns.map(c => c.name);
+
+        const baseItemFields = ['id', 'work_order_id', 'type', 'description', 'quantity', 'unit_price', 'total_price'];
+        const optionalItemCols = ['long_description', 'cost_price', 'mechanic_id', 'warranty_days', 'sku', 'status', 'part_id'];
+        const actualOptionalItemCols = optionalItemCols.filter(col => validItemCols.includes(col));
+        
+        const placeholders = Array(baseItemFields.length + actualOptionalItemCols.length).fill('?').join(', ');
+        const itemQuery = `INSERT INTO work_order_items (${[...baseItemFields, ...actualOptionalItemCols].join(', ')}) VALUES (${placeholders})`;
+        const itemStmt = db.prepare(itemQuery);
         
         let total = 0;
         for (const item of items) {
-          // Check stock for parts
           if (item.type === 'PART' && item.part_id) {
-            const part = db.prepare("SELECT * FROM parts WHERE id = ? AND tenant_id = ?")
-              .get(item.part_id, req.user!.tenant_id) as any;
-            
+            const part = db.prepare("SELECT * FROM parts WHERE id = ? AND tenant_id = ?").get(item.part_id, req.user!.tenant_id) as any;
             if (part) {
               if (part.stock_quantity < item.quantity) {
-                throw new Error(`Estoque insuficiente para ${part.name}. Disponível: ${part.stock_quantity}`);
+                 throw new Error(`Estoque insuficiente para ${part.name}`);
               }
-
-              // Deduct stock
               const newStock = part.stock_quantity - item.quantity;
-              db.prepare("UPDATE parts SET stock_quantity = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?")
-                .run(newStock, item.part_id);
-
-              // Register stock movement
+              db.prepare("UPDATE parts SET stock_quantity = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(newStock, item.part_id);
               db.prepare(`
-                INSERT INTO stock_movements (
-                  id, tenant_id, part_id, type, quantity, unit_cost, 
-                  reference_id, reference_type, reason, user_id
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-              `).run(
-                uuidv4(),
-                req.user!.tenant_id,
-                item.part_id,
-                'OS_USED',
-                item.quantity,
-                item.cost_price || part.cost_price,
-                req.params.id,
-                'WORK_ORDER',
-                'Usado na OS (atualização)',
-                req.user!.id
-              );
+                INSERT INTO stock_movements (id, tenant_id, part_id, type, quantity, unit_cost, reference_id, reference_type, reason, user_id)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+              `).run(uuidv4(), req.user!.tenant_id, item.part_id, 'OS_USED', item.quantity, item.cost_price || part.cost_price, req.params.id, 'WORK_ORDER', 'Usado na OS (atualização)', req.user!.id);
             }
           }
           
           const itemTotal = item.quantity * item.unit_price;
           total += itemTotal;
-          stmt.run(
-            uuidv4(), 
-            req.params.id, 
-            item.type, 
-            item.description, 
-            item.long_description || null,
-            item.quantity, 
-            item.unit_price, 
-            itemTotal,
-            item.cost_price || 0,
-            item.mechanic_id,
-            item.warranty_days || 0,
-            item.sku,
-            item.status || 'PENDING',
-            item.part_id || null
-          );
+          
+          const itemValues = [uuidv4(), req.params.id, item.type, item.description, item.quantity, item.unit_price, itemTotal];
+          if (validItemCols.includes('long_description')) itemValues.push(item.long_description || null);
+          if (validItemCols.includes('cost_price')) itemValues.push(item.cost_price || 0);
+          if (validItemCols.includes('mechanic_id')) itemValues.push(item.mechanic_id || null);
+          if (validItemCols.includes('warranty_days')) itemValues.push(item.warranty_days || 0);
+          if (validItemCols.includes('sku')) itemValues.push(item.sku || null);
+          if (validItemCols.includes('status')) itemValues.push(item.status || 'PENDING');
+          if (validItemCols.includes('part_id')) itemValues.push(item.part_id || null);
+          
+          itemStmt.run(...itemValues);
         }
         
-        db.prepare("UPDATE work_orders SET total_amount = ? WHERE id = ?").run(total, req.params.id);
+        if (validWoCols.includes('total_amount')) {
+          db.prepare("UPDATE work_orders SET total_amount = ? WHERE id = ?").run(total, req.params.id);
+        }
       }
     });
 
     transaction();
     res.json({ message: "Work Order updated successfully" });
   } catch (error: any) {
-    console.error("Error updating work order:", error);
-    res.status(500).json({ error: error.message, stack: error.stack });
+    console.error("❌ ERROR UPDATING WORK ORDER:", error);
+    res.status(500).json({ error: error.message });
   }
 });
 

@@ -6,6 +6,19 @@ import bcryptLib from 'bcryptjs';
 const db = new Database('mecaerp.db');
 
 export function initDb() {
+  // Deep Clean for broken SQLite triggers (fix for main.users_old error)
+  try {
+    const allTriggers = db.prepare("SELECT name, sql FROM sqlite_master WHERE type='trigger'").all() as any[];
+    for (const trigger of allTriggers) {
+      if (trigger.sql && (trigger.sql.includes('_old') || trigger.sql.includes('users_old') || trigger.sql.includes('clients_old'))) {
+        console.log(`🗑️  Removing legacy/broken trigger: ${trigger.name}`);
+        db.exec(`DROP TRIGGER IF EXISTS "${trigger.name}"`);
+      }
+    }
+  } catch (e) {
+    console.error("Error during trigger cleanup:", e);
+  }
+
   db.exec('CREATE TABLE IF NOT EXISTS pricing_plans (id TEXT PRIMARY KEY, name TEXT NOT NULL, description TEXT, user_limit INTEGER NOT NULL, monthly_value REAL NOT NULL, months_duration INTEGER DEFAULT 1, active BOOLEAN DEFAULT 1, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)');
   db.exec(`CREATE TABLE IF NOT EXISTS tenants (id TEXT PRIMARY KEY, name TEXT NOT NULL, document TEXT, address TEXT, phone TEXT, user_limit INTEGER DEFAULT 5, subscription_value REAL DEFAULT 0, due_day INTEGER DEFAULT 5, last_payment_date DATETIME, status TEXT DEFAULT 'ACTIVE', plan_id TEXT, seller_id TEXT, logo_url TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)`);
   db.exec('CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, name TEXT NOT NULL, email TEXT NOT NULL, password TEXT NOT NULL, role TEXT CHECK(role IN ("SUPER_ADMIN", "ADMIN", "MECHANIC", "ATTENDANT", "FINANCE", "VENDEDOR")) NOT NULL, cpf TEXT, phone TEXT, profession TEXT, photo_url TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)');
