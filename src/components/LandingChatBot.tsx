@@ -106,7 +106,7 @@ const LandingChatBot = () => {
     // ==========================================
     {
       id: 'work_orders_os',
-      keywords: ['os', 'ordem de servico', 'abrir os', 'orcamento', 'orçamento', 'pdf', 'imprimir os', 'aprovar', 'reprovado', 'status os', 'enviar orcamento', 'kanban'],
+      keywords: [' os ', ' ordem de servico ', ' abrir os ', 'orcamento', 'orçamento', 'pdf', 'imprimir os', 'aprovar', 'reprovado', 'status os', 'enviar orcamento', 'kanban'],
       response: "A gestão de **Ordem de Serviço (OS)** do MecaERP é a mais rápida do mercado. Você cria orçamentos detalhados com peças e mão de obra, envia em PDF com a sua logo direto pro WhatsApp do cliente, e ele pode aprovar pelo celular! Você acompanha tudo por um painel Kanban (status visual).",
     },
 
@@ -287,21 +287,26 @@ const LandingChatBot = () => {
 
   const processResponse = (input: string) => {
     const textOriginal = input.trim();
-    const text = textOriginal.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-    if (!text) return { text: "" };
+    // Normalize text removing accents
+    const textClean = textOriginal.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    if (!textClean) return { text: "" };
+
+    // Create a version with boundaries for exact word matching
+    const textWithBoundaries = ` ${textClean} `;
 
     // 1. Saudações e Comandos Curtos
     const directGreetings = ['oi', 'ola', 'bom dia', 'boa tarde', 'boa noite', 'eai', 'opa', 'blz', 'tudo bem', 'fala', 'e ai', 'hello'];
-    if (directGreetings.includes(text)) {
+    if (directGreetings.includes(textClean)) {
       setLastIntent(null);
       return { text: "Olá! Sou o **MecaAI**, inteligência neural da Develoi. Como posso acelerar o sucesso da sua oficina hoje?" };
     }
 
-    // 2. Confirmações Contextuais (Sim/Não)
-    if (['sim', 'quero', 'quero sim', 'pode ser', 'manda', 'bora', 'falar', 'confirmar', 'ok', 'certeza', 'sim por favor', 'claro'].includes(text)) {
-      if (lastIntent === 'contact' || lastIntent === 'upgrade_plan' || lastIntent === 'insults_confrontation') {
-        window.open(`https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent("Olá! O MecaAI me recomendou falar com vocês. Gostaria de uma consultoria personalizada.")}`, '_blank');
-        return { text: "Perfeito! Estou te encaminhando para o WhatsApp da nossa equipe. Verifique a nova aba que abriu!" };
+    // 2. Confirmações Contextuais (Sim/Não) e Perguntas de Continuidade ("Faz isso?")
+    const confirmationKeywords = ['sim', 'quero', 'manda', 'bora', 'confirmar', 'ok', 'claro', 'faz isso', 'ela faz', 'o sistema faz', 'tem isso', 'funciona assim', 'isso mesmo'];
+    if (confirmationKeywords.some(k => textClean.includes(k))) {
+      if (lastIntent) {
+        // Se houver uma intenção anterior (ex: nfe_taxes), confirma que o sistema faz "isso"
+        return { text: "Sim! O MecaERP faz isso com perfeição e de forma totalmente automatizada. Deseja ver como funciona na prática ou falar com um consultor?" };
       }
       return { text: "Ótimo! Escolha um desses tópicos para começarmos agora ou me conte seu desafio:", showTopics: true };
     }
@@ -314,22 +319,27 @@ const LandingChatBot = () => {
       let score = 0;
       item.keywords.forEach(keyword => {
         const k = keyword.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-        
-        // Peso 1: Match Exato
-        if (text === k) score += 30;
-        
-        // Peso 2: Contém a palavra chave exata
-        else if (text.includes(k)) score += 15;
-        
+        const kWithBoundaries = k.includes(' ') ? k : ` ${k} `;
+
+        // Peso 1: Palavra Inteira (Match Exato ou com bordas)
+        if (textClean === k || textWithBoundaries.includes(kWithBoundaries)) {
+          score += 40;
+        }
+        // Peso 2: Substring (Somente para palavras longas > 4)
+        else if (k.length > 4 && textClean.includes(k)) {
+          score += 15;
+        }
         // Peso 3: Fuzzy Match (Levenshtein) para cada palavra do input
         else {
-          const inputWords = text.split(' ');
+          const inputWords = textClean.split(' ');
           inputWords.forEach(word => {
-            if (word.length > 3 && k.length > 3) {
+            if (word.length >= 4 && k.length >= 4) {
               const dist = getLevenshteinDistance(word, k);
-              // Se a distância for pequena em relação ao tamanho da palavra
-              if (dist <= 1 || (word.length > 6 && dist <= 2)) {
-                score += 10;
+              // Tolerância dinâmica baseada no tamanho
+              const tolerance = word.length > 6 ? 2 : 1;
+              if (dist <= tolerance) {
+                // Diminuir score se a distância for 2
+                score += (dist === 1 ? 25 : 10);
               }
             }
           });
@@ -343,7 +353,7 @@ const LandingChatBot = () => {
     });
 
     // Se o score for alto o suficiente, retorna a resposta
-    if (highestScore > 10 && winner) {
+    if (highestScore >= 20 && winner) {
       setLastIntent(winner.id);
       return { 
         text: winner.response, 

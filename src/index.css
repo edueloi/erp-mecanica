@@ -9,15 +9,17 @@
     --sidebar-color: #0f172a;
     --sidebar-text: #94a3b8;
     --header-bg: #ffffff;
-    /* Smooth transitions for theme and color changes */
-    transition: background-color 0.3s ease, color 0.3s ease;
   }
 
-  /* Apply smooth transitions to all themed elements */
-  * {
-    transition-property: background-color, border-color, color;
-    transition-duration: 0.3s;
-    transition-timing-function: ease;
+  /* Apply smooth transitions selectively */
+  html {
+    scroll-behavior: smooth;
+    scroll-padding-top: 80px; /* Navbar height */
+  }
+
+  body {
+    @apply antialiased text-slate-800 bg-[#F8FAFC];
+    transition: background-color 0.3s ease, color 0.3s ease;
   }
 
   /* Light Theme overrides */
@@ -38,54 +40,6 @@
     --border-color: #334155;
   }
 
-  /* Global utility overrides to use dynamic primary color */
-  .bg-emerald-500, .bg-emerald-600, .bg-slate-900 {
-    background-color: var(--primary-color) !important;
-  }
-  
-  .hover\:bg-emerald-600:hover, .hover\:bg-emerald-700:hover, .hover\:bg-slate-800:hover {
-    background-color: var(--primary-hover) !important;
-  }
-
-  .text-emerald-500, .text-emerald-600 {
-    color: var(--primary-color) !important;
-  }
-
-  /* Secondary Color Utils */
-  .text-slate-400, .text-slate-500, .text-slate-600 {
-    color: var(--secondary-color) !important;
-  }
-
-  .border-slate-100, .border-slate-200 {
-    border-color: color-mix(in srgb, var(--secondary-color), transparent 80%) !important;
-  }
-
-  /* Sidebar Granular Customization */
-  aside.bg-slate-900 {
-    background-color: var(--sidebar-color) !important;
-  }
-
-  aside .text-slate-400, aside .text-slate-500 {
-    color: var(--sidebar-text) !important;
-  }
-
-  aside .hover\:bg-slate-800:hover {
-    background-color: color-mix(in srgb, var(--sidebar-text), transparent 90%) !important;
-  }
-
-  /* Header Customization */
-  header.bg-white {
-    background-color: var(--header-bg) !important;
-  }
-
-  .border-emerald-500, .border-emerald-600 {
-    border-color: var(--primary-color) !important;
-  }
-
-  .shadow-emerald-500\/20 {
-    --tw-shadow-color: var(--primary-color) !important;
-  }
-
   /* Custom Scrollbar */
   ::-webkit-scrollbar {
     width: 8px;
@@ -97,17 +51,33 @@
   }
 
   ::-webkit-scrollbar-thumb {
-    background: rgba(148, 163, 184, 0.6);
+    background: rgba(148, 163, 184, 0.4);
     border-radius: 10px;
+    border: 2px solid transparent;
+    background-clip: content-box;
   }
 
   ::-webkit-scrollbar-thumb:hover {
-    background: rgba(100, 116, 139, 0.8);
+    background: rgba(100, 116, 139, 0.6);
+    background-clip: content-box;
   }
 
   /* Firefox */
   * {
     scrollbar-width: thin;
-    scrollbar-color: rgba(148, 163, 184, 0.6) transparent;
+    scrollbar-color: rgba(148, 163, 184, 0.4) transparent;
+  }
+}
+
+@layer components {
+  /* Custom utility for the app shell if needed */
+  .app-sidebar {
+    background-color: var(--sidebar-color);
+    color: var(--sidebar-text);
+  }
+  
+  .app-header {
+    background-color: var(--header-bg);
+    border-bottom: 1px solid var(--border-color);
   }
 }
