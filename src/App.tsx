@@ -85,7 +85,7 @@ function AppContent() {
         <Route path="/action-plans/:boardId" element={<PrivateRoute><Layout><ActionPlans /></Layout></PrivateRoute>} />
         <Route path="/vehicle-entries" element={<PrivateRoute><Layout><VehicleEntries /></Layout></PrivateRoute>} />
         <Route path="/vehicle-entries/:id" element={<PrivateRoute><Layout><VehicleEntryDetail /></Layout></PrivateRoute>} />
-        <Route path="/settings/shop" element={<PrivateRoute><Layout><Settings /></Layout></PrivateRoute>} />
+        <Route path="/settings/:tab?" element={<PrivateRoute><Layout><Settings /></Layout></PrivateRoute>} />
         <Route path="/checklist-upload/:token" element={<ChecklistPublicUpload />} />
         <Route path="/entry-upload/:token" element={<EntryPublicForm />} />
 

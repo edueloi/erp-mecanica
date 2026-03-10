@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useParams, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
   Palette,
@@ -32,6 +33,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 import { useSettings } from "../contexts/SettingsContext";
+import { useAuthStore } from "../services/authStore";
 import * as ibgeService from "../services/ibgeService";
 import api from "../services/api";
 
@@ -65,8 +67,11 @@ const PREDEFINED_COLORS = [
 ];
 
 export default function Settings() {
+  const { tab } = useParams<{ tab: string }>();
+  const navigate = useNavigate();
+  const { user: currentUser, setUser: setCurrentUser } = useAuthStore();
   const { preferences, tenantSettings, updatePreferences, updateTenantSettings } = useSettings();
-  const [activeTab, setActiveTab] = useState<Tab>("workshop");
+  const [activeTab, setActiveTab] = useState<Tab>((tab as Tab) || "user");
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
@@ -87,6 +92,15 @@ export default function Settings() {
   });
   const [showPasswords, setShowPasswords] = useState(false);
   
+  // Profile Form state
+  const [profileForm, setProfileForm] = useState({
+    name: currentUser?.name || "",
+    email: currentUser?.email || "",
+    phone: currentUser?.phone || "",
+    photo_url: currentUser?.photo_url || "",
+    profession: currentUser?.profession || "",
+  });
+
   // User Management states
   const [usersList, setUsersList] = useState<any[]>([]);
   const [showUserModal, setShowUserModal] = useState(false);
@@ -118,6 +132,12 @@ export default function Settings() {
       console.error("Error loading users:", error);
     }
   };
+
+  useEffect(() => {
+    if (tab && tab !== activeTab) {
+      setActiveTab(tab as Tab);
+    }
+  }, [tab]);
 
   useEffect(() => {
     if (activeTab === "team") {
@@ -196,6 +216,22 @@ export default function Settings() {
     }
   };
 
+  const handleSaveProfile = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    setSaving(true);
+    try {
+      await api.patch(`/users/${currentUser?.id}`, profileForm);
+      if (currentUser) {
+        setCurrentUser({ ...currentUser, ...profileForm });
+      }
+      showToast("Perfil atualizado com sucesso!", 'success');
+    } catch (error: any) {
+      showToast(error.response?.data?.error || "Erro ao salvar perfil", 'error');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -229,6 +265,7 @@ export default function Settings() {
   };
 
   const tabs = [
+    { id: "user", label: "Meu Perfil", icon: User },
     { id: "workshop", label: "Dados da Oficina", icon: Building2 },
     { id: "hours", label: "Horários", icon: Clock },
     { id: "team", label: "Equipe", icon: Users },
@@ -268,9 +305,9 @@ export default function Settings() {
       {/* Header */}
       <div className="bg-gradient-to-r from-slate-800 to-slate-700 px-6 py-6 border-b border-slate-200">
         <div>
-          <h1 className="text-2xl font-bold text-white mb-1">⚙️ Minha Oficina</h1>
+          <h1 className="text-2xl font-bold text-white mb-1">⚙️ Configurações</h1>
           <p className="text-slate-300 text-sm">
-            Configure todos os detalhes da sua oficina em um só lugar
+            Gerencie seu perfil e as configurações da sua oficina
           </p>
         </div>
       </div>
@@ -279,13 +316,23 @@ export default function Settings() {
         {/* Sidebar Tabs */}
         <div className="w-64 bg-white border-r border-slate-200 overflow-y-auto">
           <nav className="p-4 space-y-1">
-            {tabs.map((tab) => {
-              const Icon = tab.icon;
-              const isActive = activeTab === tab.id;
+            {tabs.map((tabItem) => {
+              const Icon = tabItem.icon;
+              const isActive = activeTab === tabItem.id;
+              
+              // Only show workshop/team/financial/etc to ADMIN/SUPER_ADMIN
+              const isSystemTab = ["workshop", "hours", "team", "documents", "financial", "operational", "advanced"].includes(tabItem.id);
+              if (isSystemTab && currentUser?.role !== "ADMIN" && currentUser?.role !== "SUPER_ADMIN") {
+                return null;
+              }
+
               return (
                 <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id as Tab)}
+                  key={tabItem.id}
+                  onClick={() => {
+                    setActiveTab(tabItem.id as Tab);
+                    navigate(`/settings/${tabItem.id}`);
+                  }}
                   className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${
                     isActive
                       ? "bg-slate-100 text-slate-900"
@@ -293,7 +340,7 @@ export default function Settings() {
                   }`}
                 >
                   <Icon className="w-5 h-5" />
-                  {tab.label}
+                  {tabItem.label}
                 </button>
               );
             })}
@@ -302,6 +349,118 @@ export default function Settings() {
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-6 bg-slate-50">
+          {/* 0) MEU PERFIL */}
+          {activeTab === "user" && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="max-w-4xl mx-auto space-y-6"
+            >
+              <div className="mb-6">
+                <h2 className="text-2xl font-bold text-slate-900 mb-2">👤 Meu Perfil</h2>
+                <p className="text-sm text-slate-600">
+                  Gerencie suas informações pessoais e de acesso
+                </p>
+              </div>
+
+              <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+                <div className="flex flex-col items-center mb-8 pb-8 border-b border-slate-100">
+                  <div className="relative group cursor-pointer" onClick={() => (document.getElementById('profile_photo_input') as HTMLInputElement)?.click()}>
+                    <div className="w-32 h-32 rounded-[2.5rem] bg-slate-100 border-4 border-white shadow-2xl flex items-center justify-center overflow-hidden transition-transform duration-500 group-hover:scale-105">
+                      {profileForm.photo_url ? (
+                        <img src={profileForm.photo_url} className="w-full h-full object-cover" />
+                      ) : (
+                        <User className="text-slate-300" size={60} />
+                      )}
+                      <div className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <Upload className="text-white" size={32} />
+                      </div>
+                    </div>
+                    <button 
+                      type="button"
+                      className="absolute -bottom-2 -right-2 w-10 h-10 rounded-2xl bg-white shadow-xl text-slate-600 border border-slate-100 flex items-center justify-center hover:bg-slate-50 transition-colors"
+                    >
+                      <Edit2 size={18} />
+                    </button>
+                  </div>
+                  <input 
+                    id="profile_photo_input"
+                    type="file" 
+                    className="hidden" 
+                    accept="image/*"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        const reader = new FileReader();
+                        reader.onloadend = () => {
+                          setProfileForm({ ...profileForm, photo_url: reader.result as string });
+                        };
+                        reader.readAsDataURL(file);
+                      }
+                    }}
+                  />
+                  <h3 className="mt-4 text-xl font-black text-slate-900 uppercase italic tracking-tight">{currentUser?.name}</h3>
+                  <p className="text-xs font-black text-slate-400 uppercase tracking-[0.2em] mt-1">{currentUser?.role}</p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-6">
+                  <div className="col-span-2 sm:col-span-1">
+                    <label className="block text-xs font-bold text-slate-500 uppercase mb-2 tracking-widest">Nome Completo</label>
+                    <input 
+                      type="text"
+                      value={profileForm.name}
+                      onChange={(e) => setProfileForm({...profileForm, name: e.target.value})}
+                      className="w-full px-5 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-slate-400 outline-none transition-all font-medium"
+                      placeholder="Seu nome"
+                    />
+                  </div>
+                  <div className="col-span-2 sm:col-span-1">
+                    <label className="block text-xs font-bold text-slate-500 uppercase mb-2 tracking-widest">E-mail</label>
+                    <input 
+                      type="email"
+                      value={profileForm.email}
+                      disabled
+                      className="w-full px-5 py-3 bg-slate-100 border border-slate-200 rounded-2xl text-slate-500 font-medium cursor-not-allowed"
+                      placeholder="seu@email.com"
+                    />
+                    <p className="text-[10px] text-slate-400 mt-1.5 font-bold italic">* E-mail não pode ser alterado</p>
+                  </div>
+                  <div className="col-span-2 sm:col-span-1">
+                    <label className="block text-xs font-bold text-slate-500 uppercase mb-2 tracking-widest">Telefone / WhatsApp</label>
+                    <input 
+                      type="text"
+                      value={profileForm.phone}
+                      onChange={(e) => setProfileForm({...profileForm, phone: e.target.value})}
+                      className="w-full px-5 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-slate-400 outline-none transition-all font-medium"
+                      placeholder="(00) 00000-0000"
+                    />
+                  </div>
+                  <div className="col-span-2 sm:col-span-1">
+                    <label className="block text-xs font-bold text-slate-500 uppercase mb-2 tracking-widest">Cargo / Profissão</label>
+                    <input 
+                      type="text"
+                      value={profileForm.profession}
+                      onChange={(e) => setProfileForm({...profileForm, profession: e.target.value})}
+                      className="w-full px-5 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-2 focus:ring-slate-400 outline-none transition-all font-medium"
+                      placeholder="Ex: Mecânico Chefe"
+                    />
+                  </div>
+                </div>
+
+                <div className="mt-10 flex justify-end">
+                  <button
+                    onClick={handleSaveProfile}
+                    disabled={saving}
+                    className="flex items-center gap-2 px-8 py-3.5 bg-slate-900 text-white rounded-2xl hover:bg-slate-800 transition-all font-bold text-sm uppercase tracking-widest shadow-xl shadow-slate-900/20 disabled:opacity-50 active:scale-[0.98]"
+                  >
+                    <Save className="w-5 h-5" />
+                    {saving ? "Salvando..." : "Salvar Perfil"}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          )}
+
           {/* 1) DADOS DA OFICINA */}
           {activeTab === "workshop" && (
             <motion.div

@@ -186,15 +186,19 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         </nav>
 
         <div className="p-4 border-t border-slate-800 shrink-0 bg-slate-900/50 backdrop-blur-sm">
-          <div className="flex items-center gap-3 px-4 py-3 mb-2 bg-slate-800/30 rounded-2xl border border-slate-800/50">
-            <div className="w-9 h-9 rounded-xl bg-slate-700 flex items-center justify-center text-sm font-black border border-slate-600 uppercase text-emerald-400">
+          <Link 
+            to="/settings/user"
+            className="flex items-center gap-3 px-4 py-3 mb-2 bg-slate-800/30 rounded-2xl border border-slate-800/50 hover:bg-slate-800/50 transition-colors group/user"
+          >
+            <div className="w-9 h-9 rounded-xl bg-slate-700 flex items-center justify-center text-sm font-black border border-slate-600 uppercase text-emerald-400 group-hover/user:border-emerald-500/50 transition-colors">
               {user?.name?.charAt(0) || 'U'}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-black truncate text-white uppercase tracking-tight">{user?.name}</p>
+              <p className="text-xs font-black truncate text-white uppercase tracking-tight group-hover/user:text-emerald-400 transition-colors">{user?.name}</p>
               <p className="text-[9px] text-slate-500 truncate uppercase font-black tracking-widest">{user?.role}</p>
             </div>
-          </div>
+            <ChevronRight size={14} className="text-slate-600 group-hover/user:text-white transition-colors" />
+          </Link>
           <button 
             onClick={handleLogout}
             className="flex items-center gap-3 w-full px-4 py-3 text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded-xl transition-all font-bold text-xs uppercase tracking-widest"
