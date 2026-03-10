@@ -64,6 +64,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         { icon: ClipboardList, label: 'Ordens de Serviço', path: '/work-orders' },
         { icon: ClipboardCheck, label: 'Entrada / Checklist', path: '/vehicle-entries' },
         { icon: Target, label: 'Plano de Ação', path: '/action-plans' },
+        { icon: Shield, label: 'Termos de Garantia', path: '/warranty' },
       ]
     },
     {

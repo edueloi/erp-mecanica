@@ -125,6 +125,33 @@ export function initDb() {
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   )`);
 
+  // Termos de Garantia (Modelos e Emitidos)
+  db.exec(`CREATE TABLE IF NOT EXISTS warranty_templates (
+    id TEXT PRIMARY KEY,
+    tenant_id TEXT NOT NULL,
+    title TEXT NOT NULL,
+    content TEXT NOT NULL,
+    days_duration INTEGER DEFAULT 90,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
+
+  db.exec(`CREATE TABLE IF NOT EXISTS warranty_terms (
+    id TEXT PRIMARY KEY,
+    tenant_id TEXT NOT NULL,
+    vehicle_id TEXT,
+    client_id TEXT,
+    work_order_id TEXT,
+    template_id TEXT,
+    title TEXT NOT NULL,
+    content TEXT NOT NULL,
+    issued_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    expires_at DATETIME,
+    status TEXT DEFAULT 'ACTIVE',
+    responsible_id TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
+
   try {
     const superAdminEmail = 'admin@mecaerp.com.br';
     const existingAdmin = db.prepare('SELECT id FROM users WHERE email = ?').get(superAdminEmail);
