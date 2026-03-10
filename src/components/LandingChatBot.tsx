@@ -1,14 +1,15 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { MessageSquare, X, Send, Bot, ChevronRight, Sparkles, User, Brain } from 'lucide-react';
+import { MessageSquare, X, Send, Bot, ChevronRight, Sparkles, User, Brain, ExternalLink, ShieldCheck, Zap, BarChart3, MessageCircle } from 'lucide-react';
 
 const LandingChatBot = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [inputValue, setInputValue] = useState('');
   const [messages, setMessages] = useState([
-    { text: "Olá! Sou o MecaAI, a inteligência avançada do MecaERP. Analisei os dados de milhares de oficinas e estou pronto para te mostrar como dobrar sua eficiência. O que você quer saber sobre o sistema?", isBot: true }
+    { text: "Olá! Sou o **MecaAI Ultra**, sua inteligência especializada em alta performance automotiva. Fui treinado para transformar oficinas comuns em máquinas de lucro. Como posso acelerar o seu negócio hoje?", isBot: true }
   ]);
   const [isTyping, setIsTyping] = useState(false);
+  const [context, setContext] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -19,53 +20,121 @@ const LandingChatBot = () => {
 
   const knowledgeBase = [
     { 
-      keywords: ['whatsapp', 'zap', 'mensagem', 'enviar'], 
-      response: "Nossa integração com WhatsApp é total. O MecaERP envia automaticamente: 1. Confirmação de agendamento; 2. Link para aprovação de orçamento; 3. Aviso de veículo pronto; 4. Lembretes de manutenção após 6 meses. Tudo isso sem você apertar um botão!" 
+      id: 'whatsapp',
+      keywords: ['whatsapp', 'zap', 'mensagem', 'enviar', 'comunicação', 'contato'], 
+      response: "Nossa **Integração Automática com WhatsApp** é o coração da comunicação. O sistema envia sozinho: \n\n• **Lembretes de revisão**\n• **Orçamentos para aprovação** (com botão 'Aprovar' direto no link)\n• **Avisos de 'Carro Pronto'**\n\nIsso aumenta sua taxa de aprovação em até **40%**. Quer ver como funciona na prática?",
+      followUp: "Quer saber sobre os preços dessa integração?"
     },
     { 
-      keywords: ['preço', 'valor', 'custo', 'pagar', 'plano', 'mensalidade'], 
-      response: "Temos planos que cabem no seu bolso: o Start (R$ 197), o Pro (R$ 297 - mais vendido) e o Elite (R$ 497). O melhor? O sistema se paga no primeiro mês apenas com as peças que você deixaria de cobrar por esquecimento!" 
+      id: 'pricing',
+      keywords: ['preço', 'valor', 'custo', 'pagar', 'plano', 'mensalidade', 'quanto', 'assinatura'], 
+      response: "Temos 3 níveis de aceleração:\n\n1. **Start (R$ 197/mês):** Essencial para quem está começando.\n2. **Pro (R$ 297/mês):** O favorito, inclui WhatsApp e Checklist Digital.\n3. **Elite (R$ 497/mês):** Consultoria por IA e Multi-oficinas.\n\nTodos os planos têm **zero taxa de adesão**. Qual deles parece ideal para sua oficina hoje?",
+      followUp: "Posso te explicar sobre o período de teste grátis?"
     },
     { 
-      keywords: ['os', 'ordem', 'serviço', 'pdf', 'papel'], 
-      response: "Adeus blocos de papel! No MecaERP você cria uma OS em segundos, o técnico anexa fotos do problema direto pelo celular e você gera um PDF profissional com sua logo para o cliente." 
+      id: 'checklist',
+      keywords: ['checklist', 'vistoria', 'fotos', 'entrada', 'avaria', 'risco'], 
+      response: "O **Checklist HD** é seu 'seguro' contra problemas. Você tira fotos de cada detalhe na entrada do veículo. O cliente assina digitalmente e recebe uma cópia na hora. Isso acaba com a frase: 'Esse risco não estava aqui antes'.",
+      followUp: "Deseja saber como a IA ajuda no checklist?"
     },
     { 
-      keywords: ['checklist', 'vistor', 'fotos', 'entrada'], 
-      response: "O Checklist Digital é seu escudo jurídico. Tire fotos de todos os ângulos do veículo na entrada, marque avarias e evite que o cliente reclame de riscos que já estavam lá. Transparência total!" 
+      id: 'finance',
+      keywords: ['financeiro', 'lucro', 'caixa', 'contas', 'dfc', 'margem', 'quanto ganhei', 'estoque'], 
+      response: "Nosso sistema financeiro faz o serviço pesado por você. \n\nCalculamos a **margem real de lucro** por OS, controlamos o estoque de peças e geramos relatórios de fluxo de caixa automáticos. Você para de 'achar' e passa a **saber** quanto está ganhando.",
+      followUp: "Quer que eu fale sobre os relatórios de lucratividade?"
     },
     { 
-      keywords: ['financeiro', 'lucro', 'caixa', 'pagar', 'receber'], 
-      response: "Nosso financeiro é focado em lucro real. Você verá a margem de cada serviço, controle de estoque inteligente e fluxo de caixa automático. Você saberá exatamente para onde cada centavo está indo." 
+      id: 'security',
+      keywords: ['seguro', 'segurança', 'nuvem', 'perder dados', 'backup', 'lgpd', 'privacidade'], 
+      response: "Seus dados estão em um cofre digital. Usamos criptografia de nível bancário e backups de hora em hora. Estamos **100% adequados à LGPD**. Se a sua oficina pegar fogo, seus dados estarão intactos na nuvem.",
+      followUp: "Posso falar sobre a estabilidade do nosso servidor?"
     },
     { 
-      keywords: ['teste', 'grátis', 'testar', 'experimentar'], 
-      response: "Você pode testar o sistema completo por 14 dias GRATIS. Não pedimos cartão de crédito. É só cadastrar e começar a usar agora mesmo!" 
+      id: 'app',
+      keywords: ['celular', 'app', 'android', 'iphone', 'ios', 'tablet', 'computador'], 
+      response: "O MecaERP é **multiplataforma**. Funciona no computador da recepção, no celular do mecânico e no tablet do dono. Você gerencia sua oficina de qualquer lugar do mundo, na palma da mão.",
+      followUp: "Funciona offline? (Spoiler: Sim, sincronizamos tudo depois!)"
+    }
+  ];
+
+  const genericPatterns = [
+    { 
+      keywords: ['quem é você', 'quem e vc', 'quem é vc', 'o que voce e', 'o que você é', 'identidade', 'seu nome'], 
+      response: "Eu sou o **MecaAI Ultra**, a inteligência artificial definitiva do ecossistema MecaERP. Fui projetado para ser o braço direito do dono de oficina, analisando dados e automatizando processos complexos em segundos." 
     },
     { 
-      keywords: ['suporte', 'ajuda', 'ajuda', 'dificuldade'], 
-      response: "Nosso suporte é reconhecido como o melhor do Brasil. Temos especialistas que entendem de oficina prontos para te atender via chat e WhatsApp em tempo real." 
+      keywords: ['quem te criou', 'quem te fez', 'quem te desenvolveu', 'quem e o dono', 'criador', 'desenvolvedor', 'educardo', 'eloi', 'develoi'], 
+      response: "Fui desenvolvido pela **Develoi Soluções Digitais**, sob a mentoria e engenharia do **Engenheiro Eduardo Eloi**. Minha missão é aplicar o que há de mais moderno em tecnologia para revolucionar o mercado automotivo brasileiro." 
     },
     { 
-      keywords: ['ia', 'artificial', 'inteligência'], 
-      response: "Eu sou o MecaAI! Dentro do sistema, analiso seus dados financeiros para te dar insights de onde você está perdendo dinheiro e quais serviços são mais lucrativos para sua oficina." 
+      keywords: ['oi', 'ola', 'olá', 'bom dia', 'boa tarde', 'boa noite', 'eai', 'opa', 'salve'], 
+      response: [
+        "Olá! É um prazer ter você aqui. Como posso ajudar você a profissionalizar sua oficina hoje?",
+        "Opa! Tudo certo? Pronto para transformar sua oficina em uma máquina de lucro?",
+        "Olá! Sou o MecaAI. Em que posso ser útil para o seu negócio agora?",
+        "Salve! Como está a produtividade na sua oficina hoje? Quer turbinar os resultados?"
+      ]
+    },
+    { 
+      keywords: ['ajuda', 'socorro', 'como funciona', 'tutorial', 'explicar'], 
+      response: "Estou aqui para ser seu consultor! Posso te explicar sobre **WhatsApp Automático**, **Financeiro Master**, **Checklist HD** ou **Termos de Garantia**. O que faz mais sentido para você agora?" 
+    },
+    { 
+      keywords: ['obrigado', 'vlw', 'valeu', 'show', 'legal', 'top', 'obrigada'], 
+      response: [
+        "Por nada! Estou aqui para transformar sua oficina em referência. Manda a próxima!",
+        "Tmj! Se precisar de mais qualquer detalhe sobre o MecaERP, estou no aguardo.",
+        "É um prazer ajudar! Vamos acelerar esse negócio?",
+        "Show de bola! Qualquer dúvida técnica ou comercial, conte comigo."
+      ]
     }
   ];
 
   const getAIResponse = (input: string) => {
     const lowInput = input.toLowerCase();
     
-    // Check for keywords
-    for (const item of knowledgeBase) {
-      if (item.keywords.some(k => lowInput.includes(k))) {
-        return item.response;
+    // 1. Check Personal/Greeting/Identity Patterns
+    for (const pattern of genericPatterns) {
+      if (pattern.keywords.some(k => lowInput.includes(k))) {
+        if (Array.isArray(pattern.response)) {
+          return pattern.response[Math.floor(Math.random() * pattern.response.length)];
+        }
+        return pattern.response;
       }
     }
 
-    // Default "Smart" generic responses
-    if (lowInput.length < 5) return "Pode me dar mais detalhes? Quero entender exatamente como o MecaERP pode ajudar sua oficina.";
-    
-    return "Interessante sua pergunta! O MecaERP foi desenhado justamente para resolver esses desafios do dia a dia. Que tal fazer um teste grátis de 14 dias para ver isso na prática? Posso te ajudar com os planos ou alguma funcionalidade específica agora?";
+    // 2. Check Context (if following up)
+    if (context && (lowInput.includes('sim') || lowInput.includes('quero') || lowInput.includes('pode'))) {
+      const lastContext = knowledgeBase.find(k => k.id === context);
+      if (lastContext) {
+        setContext(null);
+        return `Ótima escolha! No MecaERP, ${lastContext.id === 'pricing' ? 'nossos 14 dias de teste grátis permitem que você use TUDO' : 'essa função é otimizada para economizar até 2 horas do seu tempo por dia'}. Quer iniciar o teste grátis agora?`;
+      }
+    }
+
+    // 3. Search Knowledge Base
+    let bestMatch = null;
+    let maxMatches = 0;
+
+    for (const item of knowledgeBase) {
+      const matchCount = item.keywords.filter(k => lowInput.includes(k)).length;
+      if (matchCount > maxMatches) {
+        maxMatches = matchCount;
+        bestMatch = item;
+      }
+    }
+
+    if (bestMatch) {
+      setContext(bestMatch.id);
+      return bestMatch.response;
+    }
+
+    // 4. Off-Topic Guardrail (The "Intelligence" part)
+    if (lowInput.length > 3) {
+      return "Hmm, entendo o seu ponto! Como sou uma Inteligência Especializada em Gestão Automotiva, meu foco é ajudar você a dominar o MecaERP. \n\nPosso te explicar como nosso sistema resolve problemas de **Financeiro**, **Fila de Oficina** ou **Fidelização de Clientes**. Qual desses tópicos faz mais sentido para você agora?";
+    }
+
+    return "Pode me perguntar algo mais específico sobre o sistema? Estou pronto para te mostrar como o MecaERP é o melhor investimento para sua oficina.";
   };
 
   const handleSend = (text: string) => {
@@ -75,11 +144,14 @@ const LandingChatBot = () => {
     setInputValue('');
     setIsTyping(true);
     
+    // Variable delay for "Human-like" thinking
+    const delay = Math.min(1000 + text.length * 20, 2500);
+    
     setTimeout(() => {
       const response = getAIResponse(text);
       setMessages(prev => [...prev, { text: response, isBot: true }]);
       setIsTyping(false);
-    }, 1200);
+    }, delay);
   };
 
   return (
@@ -87,81 +159,102 @@ const LandingChatBot = () => {
       <AnimatePresence>
         {isOpen && (
           <motion.div
-            initial={{ opacity: 0, scale: 0.9, y: 20 }}
+            initial={{ opacity: 0, scale: 0.95, y: 30 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.9, y: 20 }}
-            className="mb-4 w-[350px] sm:w-[420px] bg-white rounded-[2rem] shadow-[0_25px_60px_-15px_rgba(0,0,0,0.2)] border border-slate-100 overflow-hidden flex flex-col"
+            exit={{ opacity: 0, scale: 0.95, y: 30 }}
+            className="mb-4 w-[360px] sm:w-[450px] bg-white rounded-[2.5rem] shadow-[0_30px_90px_-20px_rgba(0,0,0,0.3)] border border-slate-100 overflow-hidden flex flex-col"
           >
-            {/* Header */}
-            <div className="bg-slate-900 p-6 text-white flex justify-between items-center relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 blur-2xl -z-0" />
-              <div className="flex items-center gap-4 relative z-10">
-                <div className="w-12 h-12 bg-blue-600 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-600/20">
-                  <Brain size={24} className="text-white" />
+            {/* Ultra Header */}
+            <div className="bg-[#0A0A1F] p-7 text-white relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-40 h-40 bg-blue-600/20 blur-[60px] -z-0" />
+              <div className="flex items-center gap-5 relative z-10 text-left">
+                <div className="relative">
+                  <div className="w-14 h-14 bg-gradient-to-tr from-blue-700 to-emerald-500 rounded-2xl flex items-center justify-center shadow-xl shadow-blue-500/20 animate-pulse">
+                    <Brain size={28} className="text-white" />
+                  </div>
+                  <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-emerald-400 border-2 border-[#0A0A1F] rounded-full" />
                 </div>
                 <div>
-                  <h4 className="text-sm font-black leading-none mb-1 shadow-sm">MecaAI <span className="text-blue-400 text-[10px] ml-1 uppercase tracking-widest">Advanced</span></h4>
-                  <div className="flex items-center gap-1.5">
-                    <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Processando em Tempo Real</span>
-                  </div>
+                  <h4 className="text-base font-black leading-none mb-1.5 flex items-center gap-2">
+                    MecaAI <span className="text-[10px] bg-blue-500 px-2 py-0.5 rounded-full uppercase tracking-tighter">ULTRA Edition</span>
+                  </h4>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] flex items-center gap-1.5">
+                    <Sparkles size={10} className="text-emerald-400" /> Consultoria Automotiva 24/7
+                  </p>
                 </div>
               </div>
               <button 
                 onClick={() => setIsOpen(false)} 
-                className="hover:bg-white/10 p-2 rounded-xl transition-colors"
+                className="absolute top-7 right-7 hover:bg-white/10 p-2 rounded-xl transition-colors text-white/50 hover:text-white"
               >
                 <X size={20} />
               </button>
             </div>
 
-            {/* Messages Area */}
+            {/* AI Visualizer Bar */}
+            <div className="h-1 bg-slate-100 relative">
+              <motion.div 
+                animate={{ x: ['-100%', '100%'] }}
+                transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
+                className="absolute inset-0 w-1/3 bg-gradient-to-r from-transparent via-blue-500 to-transparent" 
+              />
+            </div>
+
+            {/* Rich Messages Area */}
             <div 
               ref={scrollRef}
-              className="h-[400px] overflow-y-auto p-6 space-y-6 bg-slate-50/30 scroll-smooth"
+              className="h-[420px] overflow-y-auto p-7 space-y-7 bg-[#FBFBFF] scroll-smooth"
             >
               {messages.map((msg, i) => (
                 <motion.div
                   key={i}
-                  initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  initial={{ opacity: 0, y: 15 }}
+                  animate={{ opacity: 1, y: 0 }}
                   className={`flex ${msg.isBot ? 'justify-start' : 'justify-end'}`}
                 >
-                  <div className={`flex gap-3 max-w-[90%] ${msg.isBot ? 'flex-row' : 'flex-row-reverse'}`}>
-                    <div className={`w-8 h-8 rounded-lg shrink-0 flex items-center justify-center mt-1 ${
-                      msg.isBot ? 'bg-blue-600/10 text-blue-600' : 'bg-slate-200 text-slate-500'
+                  <div className={`flex gap-4 max-w-[92%] ${msg.isBot ? 'flex-row' : 'flex-row-reverse text-right'}`}>
+                    <div className={`w-9 h-9 rounded-xl shrink-0 flex items-center justify-center mt-1 shadow-sm ${
+                      msg.isBot ? 'bg-white text-blue-600 border border-slate-100' : 'bg-slate-900 text-white'
                     }`}>
-                      {msg.isBot ? <Bot size={16} /> : <User size={16} />}
+                      {msg.isBot ? <Bot size={18} /> : <User size={18} />}
                     </div>
-                    <div className={`p-4 rounded-2xl text-[13px] font-medium leading-relaxed shadow-sm ${
-                      msg.isBot 
-                      ? 'bg-white text-slate-700 border border-slate-100 rounded-tl-none' 
-                      : 'bg-slate-900 text-white rounded-tr-none'
-                    }`}>
-                      {msg.text}
+                    <div>
+                      <div className={`p-4 rounded-2xl text-[13px] font-medium leading-relaxed whitespace-pre-wrap ${
+                        msg.isBot 
+                        ? 'bg-white text-slate-700 shadow-xl shadow-slate-200/50 border border-slate-100 rounded-tl-none' 
+                        : 'bg-slate-900 text-white rounded-tr-none shadow-lg'
+                      }`}>
+                        {msg.text.split('**').map((part, index) => (
+                          index % 2 === 1 ? <strong key={index} className="font-black text-blue-600">{part}</strong> : part
+                        ))}
+                      </div>
+                      {msg.isBot && i === messages.length - 1 && (
+                        <p className="text-[9px] font-bold text-slate-400 uppercase mt-2 ml-1 tracking-widest">Resposta Gerada por MecaAI-v4.0</p>
+                      )}
                     </div>
                   </div>
                 </motion.div>
               ))}
               {isTyping && (
-                <div className="flex justify-start pl-11">
-                  <div className="bg-white px-4 py-3 rounded-2xl border border-slate-100 flex gap-1.5 items-center shadow-sm">
-                    <div className="w-1.5 h-1.5 bg-blue-600 rounded-full animate-bounce [animation-duration:0.6s]" />
-                    <div className="w-1.5 h-1.5 bg-blue-600 rounded-full animate-bounce [animation-duration:0.6s] [animation-delay:0.2s]" />
-                    <div className="w-1.5 h-1.5 bg-blue-600 rounded-full animate-bounce [animation-duration:0.6s] [animation-delay:0.4s]" />
+                <div className="flex justify-start pl-13">
+                  <div className="bg-white px-5 py-4 rounded-3xl border border-slate-100 flex gap-2 items-center shadow-lg shadow-slate-200/50">
+                    <div className="w-1.5 h-1.5 bg-blue-600 rounded-full animate-bounce [animation-delay:-0.3s]" />
+                    <div className="w-1.5 h-1.5 bg-blue-600 rounded-full animate-bounce [animation-delay:-0.15s]" />
+                    <div className="w-1.5 h-1.5 bg-blue-600 rounded-full animate-bounce" />
                   </div>
                 </div>
               )}
             </div>
 
-            {/* Suggestions / FAQ Quick Chips */}
-            <div className="px-6 py-4 border-t border-slate-100 bg-white">
-              <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-none">
-                {['Como funciona o WhatsApp?', 'Quais os planos?', 'O que é Checklist Digital?', 'Financeiro'].map((q, i) => (
+            {/* Dynamic Context Suggestions */}
+            <div className="px-7 py-5 bg-white border-t border-slate-100 shadow-[0_-10px_30px_rgba(0,0,0,0.02)]">
+              <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-none items-center">
+                <span className="shrink-0 text-[9px] font-black text-blue-600/50 uppercase tracking-widest bg-blue-50 px-2 py-1 rounded-md">Sugestões AI:</span>
+                {['Como triplicar meu lucro?', 'É seguro levar meus dados pra nuvem?', 'Planos e Preços', 'Apps para mecânicos'].map((q, i) => (
                   <button
                     key={i}
                     onClick={() => handleSend(q)}
-                    className="whitespace-nowrap px-4 py-2 bg-slate-50 hover:bg-blue-50 text-slate-600 hover:text-blue-600 text-[11px] font-bold rounded-full border border-slate-100 hover:border-blue-100 transition-all active:scale-95"
+                    className="whitespace-nowrap px-4 py-2.5 bg-slate-50 hover:bg-blue-600 text-slate-700 hover:text-white text-[11px] font-bold rounded-2xl border border-slate-100 hover:border-blue-600 transition-all active:scale-95 shadow-sm"
                   >
                     {q}
                   </button>
@@ -169,43 +262,64 @@ const LandingChatBot = () => {
               </div>
             </div>
 
-            {/* Input Footer */}
-            <div className="p-4 bg-white border-t border-slate-100">
-              <div className="relative flex items-center">
+            {/* Input Station */}
+            <div className="p-5 bg-white border-t border-slate-100">
+              <div className="relative flex items-center group">
                 <input
                   type="text"
                   value={inputValue}
                   onChange={(e) => setInputValue(e.target.value)}
                   onKeyPress={(e) => e.key === 'Enter' && handleSend(inputValue)}
-                  placeholder="Pergunte qualquer coisa sobre o sistema..."
-                  className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-3.5 pr-14 text-sm font-medium focus:outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-500/5 transition-all"
+                  placeholder="Escreva sua dúvida aqui..."
+                  className="w-full bg-slate-50 border border-slate-200 rounded-[1.5rem] px-6 py-4 pr-16 text-sm font-semibold placeholder:text-slate-400 focus:outline-none focus:border-blue-500 focus:ring-[6px] focus:ring-blue-500/5 transition-all"
                 />
                 <button
                   onClick={() => handleSend(inputValue)}
-                  disabled={!inputValue.trim()}
-                  className="absolute right-2 w-10 h-10 bg-blue-600 text-white rounded-xl flex items-center justify-center hover:bg-blue-700 disabled:opacity-30 disabled:hover:bg-blue-600 transition-all active:scale-90"
+                  disabled={!inputValue.trim() || isTyping}
+                  className="absolute right-2.5 w-11 h-11 bg-blue-600 text-white rounded-2xl flex items-center justify-center hover:bg-blue-700 disabled:opacity-30 transition-all active:scale-90 shadow-lg shadow-blue-500/30"
                 >
-                  <Send size={18} />
+                  <Send size={20} />
                 </button>
               </div>
-              <div className="mt-4 flex items-center justify-center gap-2 text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">
-                <Sparkles size={12} className="text-blue-500" />
-                Dúvida técnica? MecaAI ajuda você
+              <div className="mt-5 flex items-center justify-between px-2">
+                <div className="flex items-center gap-4">
+                   <div className="flex items-center gap-1.5 text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                      <ShieldCheck size={12} className="text-emerald-500" /> LGPD Safe
+                   </div>
+                   <div className="flex items-center gap-1.5 text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                      <Zap size={12} className="text-blue-500" /> Turbo Core
+                   </div>
+                </div>
+                <button 
+                  onClick={() => window.location.href = '/login'}
+                  className="text-[10px] font-black text-blue-600 hover:text-blue-700 uppercase tracking-widest bg-blue-50 px-3 py-1.5 rounded-lg active:scale-95 transition-all"
+                >
+                  Criar Conta Grátis
+                </button>
               </div>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
 
+      {/* Floating Sparkle Button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="w-16 h-16 bg-blue-600 rounded-[1.5rem] flex items-center justify-center text-white shadow-[0_15px_40px_rgba(37,99,235,0.4)] hover:scale-110 active:scale-95 transition-all group relative overflow-hidden"
+        className={`w-18 h-18 bg-slate-900 rounded-[2rem] flex items-center justify-center text-white shadow-[0_20px_60px_rgba(0,0,0,0.4)] hover:scale-110 active:scale-95 transition-all group relative overflow-hidden ${isOpen ? 'rotate-90' : ''}`}
+        style={{ width: '4.5rem', height: '4.5rem' }}
       >
-        <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
-        {isOpen ? <X size={28} /> : (
+        <div className="absolute inset-0 bg-blue-600 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-white/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity animate-pulse" />
+        {isOpen ? <X size={32} /> : (
           <div className="relative">
-            <MessageSquare size={28} />
-            <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 border-2 border-white rounded-full" />
+            <Bot size={32} className="relative z-10" />
+            <motion.div 
+              animate={{ scale: [1, 1.2, 1], opacity: [0.5, 1, 0.5] }}
+              transition={{ duration: 2, repeat: Infinity }}
+              className="absolute -top-2 -right-2 text-emerald-400"
+            >
+              <Sparkles size={16} />
+            </motion.div>
           </div>
         )}
       </button>
