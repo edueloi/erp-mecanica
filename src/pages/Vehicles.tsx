@@ -773,7 +773,7 @@ export default function Vehicles() {
                         >
                           <div className="flex items-start justify-between mb-4">
                             <div>
-                              <span className="text-[10px] font-black text-blue-600 uppercase tracking-[0.2em] mb-1 block">#{wo.number}</span>
+                              <span className="text-[10px] font-black text-blue-600 uppercase tracking-[0.2em] mb-1 block">{wo.number}</span>
                               <h4 className="font-black text-slate-900 text-base leading-tight uppercase italic">
                               {wo.items?.find((i: any) => i.type === 'SERVICE')?.description || 'Manutenção Corretiva'}
                             </h4>

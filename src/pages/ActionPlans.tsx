@@ -1477,7 +1477,7 @@ function NewCardModal({ onClose, onSave, clients, workOrders, users }: {
               >
                 <option value="">Nenhuma</option>
                 {workOrders.map(wo => (
-                  <option key={wo.id} value={wo.id}>OS #{wo.number} - {wo.client_name || 'Cliente'}</option>
+                  <option key={wo.id} value={wo.id}>OS {wo.number} - {wo.client_name || 'Cliente'}</option>
                 ))}
               </select>
             </div>

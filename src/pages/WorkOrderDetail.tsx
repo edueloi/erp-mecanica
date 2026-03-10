@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useBlocker } from 'react-router-dom';
 import { 
   ArrowLeft, Printer, Save, Plus, Trash2, CheckCircle2, AlertCircle,
   FileText, Wrench, Package, User, Car, ChevronRight, Clock,
   ShieldCheck, Camera, CreditCard, History, Info, CheckCircle,
   AlertTriangle, XCircle, HelpCircle, MoreVertical, Send, Check,
-  Search, ClipboardCheck, ClipboardList, X
+  Search, ClipboardCheck, ClipboardList, X, Play
 } from 'lucide-react';
 import api from '../services/api';
 import { motion, AnimatePresence } from 'motion/react';
@@ -24,17 +24,33 @@ export default function WorkOrderDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [wo, setWo] = useState<any>(null);
+  const [initialWo, setInitialWo] = useState<any>(null); // For dirty checking
+  const [clients, setClients] = useState<any[]>([]);
+  const [vehicles, setVehicles] = useState<any[]>([]);
   const [users, setUsers] = useState<any[]>([]);
   const [parts, setParts] = useState<any[]>([]);
   const [settings, setSettings] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [activeTab, setActiveTab] = useState<TabType>('DIAGNOSIS');
+  const [activeTab, setActiveTab] = useState<TabType>('INFORMATION');
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
   const [sendModalOpen, setSendModalOpen] = useState(false);
   const [statusChangeModalOpen, setStatusChangeModalOpen] = useState(false);
   const [itemForm, setItemForm] = useState({ description: '', quantity: 1, unit_price: 0, mechanic_id: '', part_id: '', type: 'SERVICE' as 'SERVICE' | 'PART' });
   const [showNewItemModal, setShowNewItemModal] = useState<{ active: boolean, type: 'SERVICE' | 'PART' }>({ active: false, type: 'SERVICE' });
+
+  const isDirty = initialWo && JSON.stringify(wo) !== JSON.stringify(initialWo);
+
+  const blocker = useBlocker(
+    ({ currentLocation, nextLocation }) =>
+      !saving && isDirty && currentLocation.pathname !== nextLocation.pathname
+  );
+
+  useEffect(() => {
+    if (blocker.state === "blocked") {
+      // Logic handled in JSX modal
+    }
+  }, [blocker]);
 
   // Notification modal state
   const [notification, setNotification] = useState<{
@@ -50,25 +66,50 @@ export default function WorkOrderDetail() {
 
   const fetchWO = async () => {
     try {
-      const [woRes, usersRes, partsRes, settingsRes] = await Promise.all([
-        api.get(`/work-orders/${id}`),
+      setLoading(true);
+      const [usersRes, partsRes, settingsRes, clientsRes, vehiclesRes] = await Promise.all([
         api.get('/users'),
         api.get('/parts'),
-        api.get('/settings/tenant')
+        api.get('/settings/tenant'),
+        api.get('/clients'),
+        api.get('/vehicles')
       ]);
-      // Ensure items and history are always arrays
-      const woData = woRes.data;
-      if (!woData.items) woData.items = [];
-      if (!woData.history) woData.history = [];
-      setWo(woData);
       setUsers(usersRes.data);
       setParts(partsRes.data);
       setSettings(settingsRes.data);
+      setClients(clientsRes.data);
+      setVehicles(vehiclesRes.data);
+
+      if (id === 'new') {
+        const newWoData = {
+          number: '---',
+          status: 'DRAFT',
+          client_id: '',
+          vehicle_id: '',
+          responsible_id: '',
+          complaint: '',
+          items: [],
+          history: [],
+          taxes: 0,
+          discount: 0,
+          start_date: new Date().toISOString(),
+          created_at: new Date().toISOString()
+        };
+        setWo(newWoData);
+        setInitialWo(newWoData);
+      } else {
+        const woRes = await api.get(`/work-orders/${id}`);
+        const woData = woRes.data;
+        if (!woData.items) woData.items = [];
+        if (!woData.history) woData.history = [];
+        setWo(woData);
+        setInitialWo(woData);
+      }
       setLoading(false);
     } catch (err) {
       console.error(err);
       setLoading(false);
-      showNotification('error', 'Erro', 'Não foi possível carregar a OS. Redirecionando...');
+      showNotification('error', 'Erro', 'Não foi possível carregar os dados. Redirecionando...');
       setTimeout(() => navigate('/work-orders'), 2000);
     }
   };
@@ -122,11 +163,28 @@ export default function WorkOrderDetail() {
   };
 
   const handleSave = async () => {
+    if (id === 'new' && (!wo.client_id || !wo.vehicle_id)) {
+      showNotification('error', 'Erro', 'Selecione um cliente e um veículo para continuar.');
+      return;
+    }
+
     setSaving(true);
     try {
-      await api.patch(`/work-orders/${id}`, wo);
-      showNotification('success', 'Sucesso', 'OS salva com sucesso!');
-      fetchWO();
+      if (id === 'new') {
+        const res = await api.post('/work-orders', wo);
+        setInitialWo(res.data); // Reset initial so it's not dirty anymore
+        setWo(res.data);
+        showNotification('success', 'Sucesso', 'OS criada com sucesso!');
+        // Use a timeout to ensure state updates are processed before navigation
+        setTimeout(() => {
+          navigate(`/work-orders/${res.data.id}`, { replace: true });
+        }, 0);
+      } else {
+        await api.patch(`/work-orders/${id}`, wo);
+        setInitialWo(wo); // Update initial
+        showNotification('success', 'Sucesso', 'OS salva com sucesso!');
+        fetchWO();
+      }
     } catch (err) {
       showNotification('error', 'Erro', 'Não foi possível salvar a OS. Tente novamente.');
     } finally {
@@ -324,6 +382,7 @@ export default function WorkOrderDetail() {
   };
 
   const statusMap: any = {
+    DRAFT: { label: 'Rascunho', color: 'bg-slate-50 text-slate-500', icon: FileText },
     BUDGET: { label: 'Orçamento', color: 'bg-amber-50 text-amber-600', icon: FileText },
     OPEN: { label: 'Aberto', color: 'bg-blue-50 text-blue-600', icon: Info },
     IN_PROGRESS: { label: 'Em Andamento', color: 'bg-indigo-50 text-indigo-600', icon: Wrench },
@@ -389,7 +448,7 @@ export default function WorkOrderDetail() {
     doc.text(`ORDEM DE SERVIÇO`, pageWidth - margin, 18, { align: 'right' });
     doc.setFontSize(16);
     doc.setTextColor(...primaryColor);
-    doc.text(`#${wo.number}`, pageWidth - margin, 28, { align: 'right' });
+    doc.text(`${wo.number}`, pageWidth - margin, 28, { align: 'right' });
 
     // Secondary Header
     doc.setTextColor(...primaryColor);
@@ -585,7 +644,7 @@ export default function WorkOrderDetail() {
             <ArrowLeft size={16} className="text-slate-500" />
           </button>
           <div className="flex items-center gap-2">
-            <h1 className="text-sm font-bold text-slate-900">OS #{wo.number}</h1>
+            <h1 className="text-sm font-bold text-slate-900">OS {wo.number}</h1>
             <span className={cn(
               "px-2 py-0.5 rounded text-[10px] font-bold border uppercase tracking-tight",
               statusMap[wo.status]?.color
@@ -664,7 +723,55 @@ export default function WorkOrderDetail() {
                   <div className="grid grid-cols-2 gap-6">
                     <div>
                       <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Cliente</label>
-                      <p className="text-sm font-semibold text-slate-900">{wo.client_name}</p>
+                      {id === 'new' ? (
+                        <select 
+                          required
+                          className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm"
+                          value={wo.client_id}
+                          onChange={e => setWo({...wo, client_id: e.target.value, vehicle_id: ''})}
+                        >
+                          <option value="">Selecione um cliente...</option>
+                          {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                        </select>
+                      ) : (
+                        <p className="text-sm font-semibold text-slate-900">{wo.client_name}</p>
+                      )}
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Veículo</label>
+                      {id === 'new' ? (
+                        <select 
+                          required
+                          disabled={!wo.client_id}
+                          className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm disabled:opacity-50"
+                          value={wo.vehicle_id}
+                          onChange={e => {
+                            const v = vehicles.find(v => v.id === e.target.value);
+                            setWo({
+                              ...wo, 
+                              vehicle_id: e.target.value,
+                              plate: v?.plate,
+                              brand: v?.brand,
+                              model: v?.model,
+                              year: v?.year,
+                              km: v?.km,
+                              color: v?.color
+                            });
+                          }}
+                        >
+                          <option value="">Selecione um veículo...</option>
+                          {vehicles.filter(v => v.client_id === wo.client_id).map(v => (
+                            <option key={v.id} value={v.id}>{v.plate} - {v.model}</option>
+                          ))}
+                        </select>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-bold bg-slate-900 text-white px-1.5 py-0.5 rounded font-mono tracking-wider">
+                            {wo.plate?.toUpperCase() || '---'}
+                          </span>
+                          <span className="text-xs text-slate-500">{wo.brand} {wo.model} • {wo.km} KM</span>
+                        </div>
+                      )}
                     </div>
                     <div>
                       <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Técnico / Responsável</label>
@@ -1104,6 +1211,14 @@ export default function WorkOrderDetail() {
           <div className="bg-gradient-to-br from-slate-900 to-slate-700 rounded-2xl p-6 text-white">
             <h3 className="text-sm font-bold uppercase tracking-wider mb-4 opacity-80">Ações Rápidas</h3>
             <div className="space-y-2">
+              {wo.status === 'DRAFT' && (
+                <button 
+                  onClick={() => handleStatusChange('OPEN')}
+                  className="w-full h-10 bg-blue-500 hover:bg-blue-600 rounded-lg font-bold text-sm transition-all flex items-center justify-center gap-2"
+                >
+                  <Play size={16} /> Abrir Ordem de Serviço
+                </button>
+              )}
               {wo.status === 'OPEN' && (
                 <button 
                   onClick={() => handleStatusChange('DIAGNOSIS')}
@@ -1324,7 +1439,7 @@ export default function WorkOrderDetail() {
                   </div>
                   <div>
                     <h2 className="text-xl font-bold text-white">Registrar Pagamento</h2>
-                    <p className="text-xs text-emerald-100">OS #{wo.number}</p>
+                    <p className="text-xs text-emerald-100">OS {wo.number}</p>
                   </div>
                 </div>
                 <button onClick={() => setPaymentModalOpen(false)} className="p-2 hover:bg-white/20 rounded-full text-white transition-colors">
@@ -1643,6 +1758,44 @@ export default function WorkOrderDetail() {
                   className="px-6 py-2 bg-slate-900 text-white rounded-lg text-sm font-bold hover:bg-slate-800 transition-all"
                 >
                   OK
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Unsaved Changes Blocker Modal */}
+      <AnimatePresence>
+        {blocker.state === "blocked" && (
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden"
+            >
+              <div className="p-6 bg-amber-50 border-b border-amber-100 flex items-center gap-4">
+                <div className="w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center shrink-0">
+                  <AlertTriangle className="text-amber-600" size={24} />
+                </div>
+                <div>
+                  <h3 className="font-bold text-amber-900 text-lg">Alterações não salvas!</h3>
+                  <p className="text-sm text-amber-700">Se você sair agora, perderá todos os dados não salvos nesta ordem de serviço.</p>
+                </div>
+              </div>
+              <div className="p-6 bg-white flex flex-col gap-3">
+                <button 
+                  onClick={() => blocker.proceed?.()}
+                  className="w-full py-3 bg-red-50 text-red-600 rounded-xl font-bold text-sm hover:bg-red-100 transition-all"
+                >
+                  Sair mesmo assim (Perder dados)
+                </button>
+                <button 
+                  onClick={() => blocker.reset?.()}
+                  className="w-full py-3 bg-slate-900 text-white rounded-xl font-bold text-sm hover:bg-slate-800 transition-all shadow-lg shadow-slate-200"
+                >
+                  Continuar editando
                 </button>
               </div>
             </motion.div>

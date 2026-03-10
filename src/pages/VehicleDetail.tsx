@@ -264,7 +264,7 @@ export default function VehicleDetail() {
                   <tbody className="divide-y divide-slate-100">
                     {vehicle.workOrders?.map((wo: any) => (
                       <tr key={wo.id} className="hover:bg-slate-50 transition-colors group cursor-pointer" onClick={() => navigate(`/work-orders/${wo.id}`)}>
-                        <td className="px-6 py-4 text-sm font-bold text-slate-900">#{wo.number}</td>
+                        <td className="px-6 py-4 text-sm font-bold text-slate-900">{wo.number}</td>
                         <td className="px-6 py-4 text-xs text-slate-500">{format(new Date(wo.created_at), 'dd/MM/yyyy')}</td>
                         <td className="px-6 py-4 text-xs font-medium text-slate-600">{wo.km?.toLocaleString()} KM</td>
                         <td className="px-6 py-4 text-sm font-black text-slate-900">R$ {wo.total_amount?.toLocaleString('pt-BR')}</td>

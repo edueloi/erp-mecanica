@@ -833,7 +833,7 @@ export default function Clients() {
                         >
                           <div className="flex items-start justify-between mb-4">
                             <div>
-                              <span className="text-[10px] font-black text-blue-600 uppercase tracking-[0.2em] mb-1 block">#{wo.number}</span>
+                              <span className="text-[10px] font-black text-blue-600 uppercase tracking-[0.2em] mb-1 block">{wo.number}</span>
                               <h4 className="font-black text-slate-900 text-sm leading-tight uppercase italic mb-1">
                                 {wo.brand} {wo.model} - {wo.plate}
                               </h4>

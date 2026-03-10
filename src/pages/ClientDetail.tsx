@@ -491,7 +491,7 @@ export default function ClientDetail() {
                   <tbody className="divide-y divide-slate-100">
                     {client.workOrders?.map((wo: any) => (
                       <tr key={wo.id} className="hover:bg-slate-50 transition-colors group cursor-pointer" onClick={() => navigate(`/work-orders/${wo.id}`)}>
-                        <td className="px-6 py-4 text-sm font-bold text-slate-900">#{wo.number}</td>
+                        <td className="px-6 py-4 text-sm font-bold text-slate-900">{wo.number}</td>
                         <td className="px-6 py-4">
                           <p className="text-xs font-bold text-slate-700">{wo.model}</p>
                           <p className="text-[10px] text-slate-400 font-mono tracking-wider">{wo.plate?.toUpperCase()}</p>

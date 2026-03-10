@@ -41,6 +41,7 @@ router.get("/stats", (req: AuthRequest, res) => {
   try {
     const stats = db.prepare(`
       SELECT 
+        SUM(CASE WHEN status = 'DRAFT' THEN 1 ELSE 0 END) as draft,
         SUM(CASE WHEN status = 'OPEN' THEN 1 ELSE 0 END) as open,
         SUM(CASE WHEN status = 'DIAGNOSIS' THEN 1 ELSE 0 END) as diagnosis,
         SUM(CASE WHEN status = 'WAITING_APPROVAL' THEN 1 ELSE 0 END) as waiting_approval,
@@ -60,13 +61,20 @@ router.get("/stats", (req: AuthRequest, res) => {
 router.post("/", (req: AuthRequest, res) => {
   const { 
     client_id, vehicle_id, complaint, symptoms, priority, 
-    responsible_id, delivery_forecast, start_date, defect 
+    responsible_id, delivery_forecast, start_date, defect, status 
   } = req.body;
   const id = uuidv4();
   
-  // Generate a simple sequential number for the tenant
-  const count = db.prepare("SELECT COUNT(*) as total FROM work_orders WHERE tenant_id = ?").get(req.user!.tenant_id) as any;
-  const number = `OFC-${new Date().getFullYear()}-${(count.total + 1).toString().padStart(6, '0')}`;
+  // Generate OS number: YYMMDD-XXXX
+  const now = new Date();
+  const yy = now.getFullYear().toString().slice(-2);
+  const mm = (now.getMonth() + 1).toString().padStart(2, '0');
+  const dd = now.getDate().toString().padStart(2, '0');
+  const todayPrefix = `${yy}${mm}${dd}`;
+
+  const countToday = db.prepare("SELECT COUNT(*) as total FROM work_orders WHERE tenant_id = ? AND number LIKE ?")
+    .get(req.user!.tenant_id, `${todayPrefix}-%`) as any;
+  const number = `${todayPrefix}-${(countToday.total + 1).toString().padStart(4, '0')}`;
 
   try {
     db.prepare(`
@@ -81,7 +89,7 @@ router.post("/", (req: AuthRequest, res) => {
       client_id, 
       vehicle_id, 
       number, 
-      'OPEN', 
+      status || 'DRAFT', 
       complaint, 
       JSON.stringify(symptoms || []), 
       priority || 'MEDIUM', 
