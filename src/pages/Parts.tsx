@@ -21,6 +21,7 @@ import {
   Phone
 } from "lucide-react";
 import api from "../services/api";
+import { cn } from "../utils/cn";
 
 interface Part {
   id: string;
@@ -335,15 +336,15 @@ export default function Parts() {
         </div>
 
         <div className="flex items-center gap-2">
-          <button className="h-9 px-3 text-slate-600 hover:bg-slate-100 rounded-lg text-xs font-bold flex items-center gap-2 transition-all">
+          <button className="h-9 px-3 text-slate-600 hover:bg-slate-100 rounded-lg text-xs font-bold flex items-center gap-2 transition-all cursor-pointer">
             <Upload size={14} /> <span className="hidden sm:inline">Importar</span>
           </button>
-          <button className="h-9 px-3 text-slate-600 hover:bg-slate-100 rounded-lg text-xs font-bold flex items-center gap-2 transition-all">
+          <button className="h-9 px-3 text-slate-600 hover:bg-slate-100 rounded-lg text-xs font-bold flex items-center gap-2 transition-all cursor-pointer">
             <Download size={14} /> <span className="hidden sm:inline">Exportar</span>
           </button>
           <button
             onClick={() => setShowNewPartModal(true)}
-            className="h-9 px-4 bg-slate-900 text-white rounded-lg text-xs font-bold flex items-center gap-2 hover:bg-slate-800 transition-all shadow-sm whitespace-nowrap"
+            className="h-9 px-4 bg-slate-900 text-white rounded-lg text-xs font-bold flex items-center gap-2 hover:bg-slate-800 transition-all shadow-sm whitespace-nowrap cursor-pointer"
           >
             <Plus size={16} /> Nova Peça
           </button>
@@ -453,7 +454,7 @@ export default function Parts() {
                       {part.supplier_name ? (
                         <button 
                           onClick={() => setSelectedSupplier(part.supplier_id!)}
-                          className="text-indigo-600 font-medium hover:underline text-left block"
+                          className="text-indigo-600 font-medium hover:underline text-left block cursor-pointer"
                         >
                           {part.supplier_name}
                         </button>
@@ -474,35 +475,35 @@ export default function Parts() {
                       <div className="flex items-center justify-center gap-1">
                         <button
                           onClick={() => openDetails(part)}
-                          className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded transition-colors"
+                          className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded transition-colors cursor-pointer"
                           title="Detalhes da Peça"
                         >
                           <Info size={16} />
                         </button>
                         <button
                           onClick={() => { setSelectedPart(part); setShowEntryModal(true); }}
-                          className="p-1.5 text-green-600 hover:bg-green-50 rounded transition-colors"
+                          className="p-1.5 text-green-600 hover:bg-green-50 rounded transition-colors cursor-pointer"
                           title="Entrada"
                         >
                           <Upload size={16} />
                         </button>
                         <button
                           onClick={() => { setSelectedPart(part); setShowExitModal(true); }}
-                          className="p-1.5 text-orange-600 hover:bg-orange-50 rounded transition-colors"
+                          className="p-1.5 text-orange-600 hover:bg-orange-50 rounded transition-colors cursor-pointer"
                           title="Saída"
                         >
                           <Download size={16} />
                         </button>
                         <button
                           onClick={() => openHistory(part)}
-                          className="p-1.5 text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                          className="p-1.5 text-blue-600 hover:bg-blue-50 rounded transition-colors cursor-pointer"
                           title="Histórico"
                         >
                           <History size={16} />
                         </button>
                         <button
                           onClick={() => handleDeletePart(part.id)}
-                          className="p-1.5 text-red-600 hover:bg-red-50 rounded transition-colors"
+                          className="p-1.5 text-red-600 hover:bg-red-50 rounded transition-colors cursor-pointer"
                           title="Excluir"
                         >
                           <Trash2 size={16} />
@@ -533,7 +534,7 @@ export default function Parts() {
                   </h2>
                   <p className="text-[10px] text-slate-500 font-medium tracking-wide uppercase">CÓD: {partDetails.code} {partDetails.supplier_code && `| FORN: ${partDetails.supplier_code}`}</p>
                 </div>
-                <button onClick={() => setShowDetailModal(false)} className="text-slate-400 hover:text-slate-900 p-2 hover:bg-slate-200 rounded-full transition-all">
+                <button onClick={() => setShowDetailModal(false)} className="text-slate-400 hover:text-slate-900 p-2 hover:bg-slate-200 rounded-full transition-all cursor-pointer">
                   <X size={20} />
                 </button>
               </div>
@@ -636,7 +637,7 @@ export default function Parts() {
                            </thead>
                            <tbody className="divide-y divide-slate-50">
                              {movements.slice(0, 5).map(m => (
-                               <tr key={m.id} className="hover:bg-slate-50/50">
+                               <tr key={m.id} className="hover:bg-slate-50/50 transition-colors">
                                   <td className="px-3 py-2 text-slate-600 whitespace-nowrap">{new Date(m.created_at).toLocaleDateString("pt-BR", {day:'2-digit', month:'2-digit', year:'2-digit'})}</td>
                                   <td className="px-3 py-2">
                                     <span className={`font-bold ${movementTypes[m.type].color}`}>{movementTypes[m.type].label}</span>
@@ -661,7 +662,7 @@ export default function Parts() {
               <div className="p-6 border-t border-slate-100 flex gap-3 shrink-0 bg-slate-50/50 rounded-b-2xl">
                 <button
                   onClick={() => setShowDetailModal(false)}
-                  className="w-full py-3 border border-slate-200 bg-white rounded-xl text-sm font-bold text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition-all shadow-sm"
+                  className="w-full py-3 border border-slate-200 bg-white rounded-xl text-sm font-bold text-slate-700 hover:bg-slate-100 hover:text-slate-900 transition-all shadow-sm cursor-pointer"
                 >
                   Fechar
                 </button>
@@ -686,7 +687,7 @@ export default function Parts() {
                     <h2 className="text-base font-bold text-slate-900">Nova Peça</h2>
                     <p className="text-[10px] text-slate-500 font-medium">Cadastre uma nova peça no estoque</p>
                   </div>
-                  <button onClick={() => setShowNewPartModal(false)} className="text-slate-400 hover:text-slate-900 p-2 hover:bg-slate-200 rounded-full transition-all">
+                  <button onClick={() => setShowNewPartModal(false)} className="text-slate-400 hover:text-slate-900 p-2 hover:bg-slate-200 rounded-full transition-all cursor-pointer">
                     <X size={20} />
                   </button>
                 </div>
@@ -709,7 +710,7 @@ export default function Parts() {
                       <select
                         value={formData.supplier_id}
                         onChange={(e) => setFormData({ ...formData, supplier_id: e.target.value })}
-                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-slate-900/10 focus:border-slate-900 transition-all outline-none"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-slate-900/10 focus:border-slate-900 transition-all outline-none cursor-pointer"
                       >
                         <option value="">Nenhum</option>
                         {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
@@ -854,13 +855,13 @@ export default function Parts() {
                 <div className="p-6 border-t border-slate-100 flex gap-3 shrink-0 bg-slate-50/50 rounded-b-2xl">
                   <button
                     onClick={() => setShowNewPartModal(false)}
-                    className="flex-1 py-3 border border-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 transition-all"
+                    className="flex-1 py-3 border border-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 transition-all cursor-pointer"
                   >
                     Cancelar
                   </button>
                   <button
                     onClick={(e: any) => { const form = e.target.closest('.flex').previousElementSibling as HTMLFormElement; form?.requestSubmit(); }}
-                    className="flex-2 py-3 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-slate-800 transition-all shadow-lg shadow-slate-900/20"
+                    className="flex-2 py-3 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-slate-800 transition-all shadow-lg shadow-slate-900/20 cursor-pointer"
                   >
                     Salvar Peça
                   </button>
@@ -888,7 +889,7 @@ export default function Parts() {
                     </h2>
                     <p className="text-[10px] text-slate-500 font-medium">Adicionar peças ao estoque</p>
                   </div>
-                  <button onClick={() => setShowEntryModal(false)} className="text-slate-400 hover:text-slate-900 p-2 hover:bg-slate-200 rounded-full transition-all">
+                  <button onClick={() => setShowEntryModal(false)} className="text-slate-400 hover:text-slate-900 p-2 hover:bg-slate-200 rounded-full transition-all cursor-pointer">
                     <X size={20} />
                   </button>
                 </div>
@@ -962,13 +963,13 @@ export default function Parts() {
                 <div className="p-6 border-t border-slate-100 flex gap-3 shrink-0 bg-slate-50/50 rounded-b-2xl">
                   <button
                     onClick={() => setShowEntryModal(false)}
-                    className="flex-1 py-3 border border-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 transition-all"
+                    className="flex-1 py-3 border border-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 transition-all cursor-pointer"
                   >
                     Cancelar
                   </button>
                   <button
                     onClick={(e: any) => { const form = e.target.closest('.flex').previousElementSibling.querySelector('form') as HTMLFormElement; form?.requestSubmit(); }}
-                    className="flex-2 py-3 bg-green-600 text-white rounded-xl text-xs font-bold hover:bg-green-700 transition-all shadow-lg shadow-green-600/20"
+                    className="flex-2 py-3 bg-green-600 text-white rounded-xl text-xs font-bold hover:bg-green-700 transition-all shadow-lg shadow-green-600/20 cursor-pointer"
                   >
                     Registrar Entrada
                   </button>
@@ -996,7 +997,7 @@ export default function Parts() {
                     </h2>
                     <p className="text-[10px] text-slate-500 font-medium">Remover peças do estoque</p>
                   </div>
-                  <button onClick={() => setShowExitModal(false)} className="text-slate-400 hover:text-slate-900 p-2 hover:bg-slate-200 rounded-full transition-all">
+                  <button onClick={() => setShowExitModal(false)} className="text-slate-400 hover:text-slate-900 p-2 hover:bg-slate-200 rounded-full transition-all cursor-pointer">
                     <X size={20} />
                   </button>
                 </div>
@@ -1049,13 +1050,13 @@ export default function Parts() {
                 <div className="p-6 border-t border-slate-100 flex gap-3 shrink-0 bg-slate-50/50 rounded-b-2xl">
                   <button
                     onClick={() => setShowExitModal(false)}
-                    className="flex-1 py-3 border border-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 transition-all"
+                    className="flex-1 py-3 border border-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 transition-all cursor-pointer"
                   >
                     Cancelar
                   </button>
                   <button
                     onClick={(e: any) => { const form = e.target.closest('.flex').previousElementSibling.querySelector('form') as HTMLFormElement; form?.requestSubmit(); }}
-                    className="flex-2 py-3 bg-orange-600 text-white rounded-xl text-xs font-bold hover:bg-orange-700 transition-all shadow-lg shadow-orange-600/20"
+                    className="flex-2 py-3 bg-orange-600 text-white rounded-xl text-xs font-bold hover:bg-orange-700 transition-all shadow-lg shadow-orange-600/20 cursor-pointer"
                   >
                     Registrar Saída
                   </button>
@@ -1065,91 +1066,136 @@ export default function Parts() {
           )}
         </AnimatePresence>
 
-        {/* History Modal */}
+        {/* History Modal (Right Drawer) */}
         <AnimatePresence>
           {showHistoryModal && selectedPart && (
-            <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+            <div className="fixed inset-0 z-[100] flex justify-end">
               <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.95 }}
-                className="bg-white w-full max-w-3xl rounded-2xl shadow-2xl flex flex-col max-h-[90vh]"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={() => setShowHistoryModal(false)}
+                className="absolute inset-0 bg-black/40 backdrop-blur-sm cursor-pointer"
+              />
+              <motion.div
+                initial={{ x: "100%" }}
+                animate={{ x: 0 }}
+                exit={{ x: "100%" }}
+                transition={{ type: "spring", damping: 25, stiffness: 200 }}
+                className="bg-white w-full max-w-[40%] h-full shadow-2xl flex flex-col relative z-10"
               >
-                <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50 shrink-0">
-                  <div>
-                    <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                      <History size={18} className="text-blue-600" />
-                      Histórico de Movimentações
-                    </h2>
-                    <p className="text-[10px] text-slate-500 font-medium">Todas as movimentações desta peça</p>
+                <div className="px-6 py-6 border-b border-slate-100 flex items-center justify-between bg-slate-900 shrink-0">
+                  <div className="flex items-center gap-3 text-white">
+                    <div className="w-10 h-10 rounded-xl bg-blue-500/20 flex items-center justify-center">
+                      <History size={20} className="text-blue-400" />
+                    </div>
+                    <div>
+                      <h2 className="text-lg font-black italic uppercase tracking-tight">
+                        Linha do Tempo
+                      </h2>
+                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Movimentações de Estoque</p>
+                    </div>
                   </div>
-                  <button onClick={() => setShowHistoryModal(false)} className="text-slate-400 hover:text-slate-900 p-2 hover:bg-slate-200 rounded-full transition-all">
+                  <button 
+                    onClick={() => setShowHistoryModal(false)} 
+                    className="w-10 h-10 rounded-xl bg-white/10 text-white hover:bg-white/20 transition-all flex items-center justify-center active:scale-90 cursor-pointer"
+                  >
                     <X size={20} />
                   </button>
                 </div>
 
-                <div className="px-6 py-4 bg-slate-50 border-b border-slate-100">
-                  <p className="font-bold text-sm text-slate-900">{selectedPart.name}</p>
-                  <div className="flex items-center gap-4 mt-2">
-                    <span className="text-xs text-slate-600">Código: <strong>{selectedPart.code}</strong></span>
-                    <span className="text-xs text-slate-400">•</span>
-                    <span className="text-xs text-slate-600">Estoque: <strong className="text-blue-600">{selectedPart.stock_quantity}</strong></span>
+                <div className="px-6 py-6 bg-slate-50 border-b border-slate-100 shrink-0">
+                  <h3 className="font-black text-slate-900 text-lg leading-tight uppercase italic">{selectedPart.name}</h3>
+                  <div className="flex items-center gap-4 mt-3">
+                    <div className="bg-white px-3 py-1.5 rounded-lg border border-slate-200 shadow-sm">
+                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Código Interno</p>
+                      <p className="text-xs font-bold text-slate-700 font-mono">{selectedPart.code}</p>
+                    </div>
+                    <div className="bg-white px-3 py-1.5 rounded-lg border border-slate-200 shadow-sm">
+                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Estoque Atual</p>
+                      <p className="text-xs font-black text-blue-600 tracking-tight">{selectedPart.stock_quantity} unidades</p>
+                    </div>
                   </div>
                 </div>
 
-                <div className="p-6 overflow-y-auto space-y-3">
+                <div className="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-4">
                   {movements.length === 0 ? (
-                    <div className="text-center py-12">
-                      <History size={48} className="mx-auto text-slate-300 mb-3" />
-                      <p className="text-sm text-slate-500">Nenhuma movimentação registrada</p>
+                    <div className="text-center py-20">
+                      <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-6">
+                        <History size={40} className="text-slate-200" />
+                      </div>
+                      <h3 className="text-slate-900 font-bold mb-1">Sem registros</h3>
+                      <p className="text-xs text-slate-500">Esta peça ainda não possui movimentações.</p>
                     </div>
                   ) : (
-                    movements.map((mov) => (
-                      <div key={mov.id} className="bg-slate-50 border border-slate-200 rounded-xl p-4 hover:border-slate-300 transition-colors">
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2 mb-2">
-                              <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold ${
-                                mov.type === 'ENTRY' ? 'bg-green-100 text-green-700' :
-                                mov.type === 'EXIT' ? 'bg-red-100 text-red-700' :
-                                mov.type === 'OS_USED' ? 'bg-blue-100 text-blue-700' :
-                                'bg-yellow-100 text-yellow-700'
-                              }`}>
-                                {movementTypes[mov.type]?.label || mov.type}
-                              </span>
-                              <span className="text-sm font-bold text-slate-900">
-                                {mov.type === 'ENTRY' ? '+' : '-'}{mov.quantity} un
-                              </span>
+                    <div className="relative border-l-2 border-slate-100 ml-3 pl-8 space-y-8 py-4">
+                      {movements.map((mov) => (
+                        <div key={mov.id} className="relative group">
+                          {/* Dot on line */}
+                          <div className={`absolute -left-[41px] top-0 w-5 h-5 rounded-full border-4 border-white shadow-sm z-10 transition-transform group-hover:scale-125 ${
+                            mov.type === 'ENTRY' ? 'bg-green-500' :
+                            mov.type === 'EXIT' ? 'bg-red-500' :
+                            mov.type === 'OS_USED' ? 'bg-blue-500' :
+                            'bg-amber-500'
+                          }`} />
+                          
+                          <div className="bg-white rounded-2xl border border-slate-100 p-5 shadow-sm group-hover:shadow-md transition-all group-hover:-translate-y-0.5">
+                            <div className="flex items-start justify-between mb-3">
+                              <div>
+                                <span className={`text-[10px] font-black uppercase tracking-[0.15em] px-2.5 py-1 rounded-full ${
+                                  mov.type === 'ENTRY' ? 'bg-green-50 text-green-600' :
+                                  mov.type === 'EXIT' ? 'bg-red-50 text-red-600' :
+                                  mov.type === 'OS_USED' ? 'bg-blue-50 text-blue-600' :
+                                  'bg-amber-50 text-amber-600'
+                                }`}>
+                                  {movementTypes[mov.type]?.label || mov.type}
+                                </span>
+                                <p className="text-lg font-black text-slate-900 mt-2 tracking-tight">
+                                  {mov.type === 'ENTRY' ? '+' : '-'}{mov.quantity} <span className="text-xs text-slate-400 font-bold uppercase ml-1">unid.</span>
+                                </p>
+                              </div>
+                              <div className="text-right">
+                                <p className="text-sm font-black text-slate-900">{formatCurrency(mov.unit_cost)}</p>
+                                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">unitário</p>
+                              </div>
                             </div>
+
                             {mov.reason && (
-                              <p className="text-xs text-slate-600 mb-2">{mov.reason}</p>
+                              <p className="text-xs text-slate-600 font-medium leading-relaxed bg-slate-50 p-2.5 rounded-xl border border-slate-100 mb-3">{mov.reason}</p>
                             )}
-                            {mov.invoice_number && (
-                              <p className="text-xs text-slate-500">NF: {mov.invoice_number}</p>
-                            )}
-                            <div className="flex items-center gap-2 text-[10px] text-slate-400 mt-2 pt-2 border-t border-slate-200">
-                              <span>{new Date(mov.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
-                              <span>•</span>
-                              <span>{mov.user_name || 'Sistema'}</span>
+
+                            <div className="flex flex-col gap-2 pt-3 border-t border-slate-50">
+                              {mov.invoice_number && (
+                                <div className="flex items-center gap-2">
+                                  <div className="w-1.5 h-1.5 rounded-full bg-slate-300" />
+                                  <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">DOC: <span className="text-slate-900 font-mono tracking-normal ml-1">{mov.invoice_number}</span></p>
+                                </div>
+                              )}
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <Calendar size={12} className="text-slate-400" />
+                                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                                    {new Date(mov.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })}
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-[10px] font-black text-slate-900 uppercase tracking-tight">{mov.user_name || 'Sistema'}</span>
+                                </div>
+                              </div>
                             </div>
-                          </div>
-                          <div className="text-right ml-4">
-                            <p className="text-sm font-bold text-slate-900">{formatCurrency(mov.unit_cost)}</p>
-                            <p className="text-[10px] text-slate-500">unitário</p>
-                            <p className="text-xs font-bold text-slate-600 mt-1">{formatCurrency(mov.unit_cost * mov.quantity)}</p>
                           </div>
                         </div>
-                      </div>
-                    ))
+                      ))}
+                    </div>
                   )}
                 </div>
 
-                <div className="p-6 border-t border-slate-100 shrink-0 bg-slate-50/50 rounded-b-2xl">
+                <div className="p-6 border-t border-slate-100 shrink-0 bg-slate-50">
                   <button
                     onClick={() => setShowHistoryModal(false)}
-                    className="w-full py-3 border border-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 transition-all"
+                    className="w-full py-4 bg-slate-900 text-white rounded-2xl text-xs font-black uppercase tracking-[0.2em] hover:bg-slate-800 transition-all shadow-xl shadow-slate-900/20 active:scale-95 cursor-pointer"
                   >
-                    Fechar
+                    Fechar Histórico
                   </button>
                 </div>
               </motion.div>

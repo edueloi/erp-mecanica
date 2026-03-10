@@ -135,7 +135,7 @@ router.patch("/tenants/:id", requireAdminOrSeller, (req: AuthRequest, res) => {
         if (adminUser) {
           if (admin_name) db.prepare("UPDATE users SET name = ? WHERE id = ?").run(admin_name, adminUser.id);
           if (admin_email) db.prepare("UPDATE users SET email = ? WHERE id = ?").run(admin_email, adminUser.id);
-          if (admin_photo !== undefined) db.prepare("UPDATE users SET photo_url = ? WHERE id = ?").run(admin_photo, adminUser.id);
+          if (admin_photo !== undefined) db.prepare("UPDATE users SET photo_url = ? WHERE id = ?").run(admin_photo || null, adminUser.id);
           if (admin_password) {
             const hash = bcrypt.hashSync(admin_password, 10);
             db.prepare("UPDATE users SET password = ? WHERE id = ?").run(hash, adminUser.id);

@@ -36,6 +36,7 @@ import { useSettings } from "../contexts/SettingsContext";
 import { useAuthStore } from "../services/authStore";
 import * as ibgeService from "../services/ibgeService";
 import api from "../services/api";
+import { cn } from "../utils/cn";
 
 type Tab = 
   | "appearance" 
@@ -353,7 +354,7 @@ export default function Settings() {
                     setActiveTab(tabItem.id as Tab);
                     navigate(`/settings/${tabItem.id}`);
                   }}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all cursor-pointer ${
                     isActive
                       ? "bg-slate-100 text-slate-900"
                       : "text-slate-600 hover:bg-slate-50"
@@ -398,7 +399,7 @@ export default function Settings() {
                     </div>
                     <button 
                       type="button"
-                      className="absolute -bottom-2 -right-2 w-10 h-10 rounded-2xl bg-white shadow-xl text-slate-600 border border-slate-100 flex items-center justify-center hover:bg-slate-50 transition-colors"
+                      className="absolute -bottom-2 -right-2 w-10 h-10 rounded-2xl bg-white shadow-xl text-slate-600 border border-slate-100 flex items-center justify-center hover:bg-slate-50 transition-colors cursor-pointer"
                     >
                       <Edit2 size={18} />
                     </button>
@@ -471,7 +472,7 @@ export default function Settings() {
                   <button
                     onClick={handleSaveProfile}
                     disabled={saving}
-                    className="flex items-center gap-2 px-8 py-3.5 bg-slate-900 text-white rounded-2xl hover:bg-slate-800 transition-all font-bold text-sm uppercase tracking-widest shadow-xl shadow-slate-900/20 disabled:opacity-50 active:scale-[0.98]"
+                    className="flex items-center gap-2 px-8 py-3.5 bg-slate-900 text-white rounded-2xl hover:bg-slate-800 transition-all font-bold text-sm uppercase tracking-widest shadow-xl shadow-slate-900/20 disabled:opacity-50 active:scale-[0.98] cursor-pointer"
                   >
                     <Save className="w-5 h-5" />
                     {saving ? "Salvando..." : "Salvar Perfil"}
@@ -507,34 +508,68 @@ export default function Settings() {
                       Logo da Oficina
                     </label>
                     <div className="flex items-center gap-4">
-                      {tenantForm.logo_url && (
-                        <img 
-                          src={tenantForm.logo_url} 
-                          alt="Logo" 
-                          className="w-20 h-20 object-contain rounded-xl border border-slate-200 bg-white p-2"
-                        />
-                      )}
+                      <div className="relative group">
+                        <div className="w-20 h-20 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-center overflow-hidden shadow-inner">
+                          {tenantForm.logo_url ? (
+                            <img 
+                              src={tenantForm.logo_url} 
+                              alt="Logo" 
+                              className="w-full h-full object-contain p-2"
+                            />
+                          ) : (
+                            <Building2 className="text-slate-300" size={32} />
+                          )}
+                        </div>
+                        {tenantForm.logo_url && (
+                          <button
+                            type="button"
+                            onClick={() => setTenantForm({ ...tenantForm, logo_url: "" })}
+                            className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center shadow-lg cursor-pointer hover:bg-red-600 transition-colors"
+                          >
+                            <X size={12} />
+                          </button>
+                        )}
+                      </div>
                       <div className="flex-1">
-                        <input
-                          type="text"
-                          value={tenantForm.logo_url || ""}
-                          onChange={(e) => setTenantForm({ ...tenantForm, logo_url: e.target.value })}
-                          placeholder="URL da logo (ex: https://...)"
-                          className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            value={tenantForm.logo_url || ""}
+                            onChange={(e) => setTenantForm({ ...tenantForm, logo_url: e.target.value })}
+                            placeholder="URL da logo (ex: https://...)"
+                            className="flex-1 px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => (document.getElementById('workshop_logo_input') as HTMLInputElement)?.click()}
+                            className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-sm font-bold transition-colors flex items-center gap-2 cursor-pointer border border-slate-200 shadow-sm"
+                          >
+                            <Upload className="w-4 h-4" />
+                            Anexar Foto
+                          </button>
+                        </div>
+                        <input 
+                          id="workshop_logo_input"
+                          type="file" 
+                          className="hidden" 
+                          accept="image/*"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              const reader = new FileReader();
+                              reader.onloadend = () => {
+                                setTenantForm({ ...tenantForm, logo_url: reader.result as string });
+                              };
+                              reader.readAsDataURL(file);
+                            }
+                          }}
                         />
-                        <p className="text-xs text-slate-500 mt-1">
-                          Cole a URL da imagem ou use o botão abaixo para fazer upload
+                        <p className="text-[10px] text-slate-400 mt-2 font-bold uppercase tracking-wider">
+                          Recomendado: PNG ou SVG com fundo transparente (quadrada ou horizontal)
                         </p>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => showToast("Upload de imagem será implementado em breve", "success")}
-                        className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-sm font-medium transition-colors flex items-center gap-2"
-                      >
-                        <Upload className="w-4 h-4" />
-                        Upload
-                      </button>
                     </div>
+
                   </div>
 
                   <div>
@@ -732,7 +767,7 @@ export default function Settings() {
                     <select
                       value={tenantForm.state || ""}
                       onChange={(e) => setTenantForm({ ...tenantForm, state: e.target.value })}
-                      className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
+                      className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-400 cursor-pointer"
                     >
                       <option value="">Selecione</option>
                       {estados.map((estado) => (
@@ -751,7 +786,7 @@ export default function Settings() {
                       value={tenantForm.city || ""}
                       onChange={(e) => setTenantForm({ ...tenantForm, city: e.target.value })}
                       disabled={!tenantForm.state}
-                      className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-400 disabled:bg-slate-50"
+                      className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-400 disabled:bg-slate-50 cursor-pointer"
                     >
                       <option value="">Selecione</option>
                       {cidades.map((cidade) => (
@@ -782,7 +817,7 @@ export default function Settings() {
                   type="button"
                   onClick={() => handleSaveTenantSettings()}
                   disabled={saving}
-                  className="flex items-center gap-2 px-6 py-3 bg-slate-700 text-white rounded-xl hover:bg-slate-800 transition-colors text-sm font-semibold shadow-lg disabled:opacity-50"
+                  className="flex items-center gap-2 px-6 py-3 bg-slate-700 text-white rounded-xl hover:bg-slate-800 transition-colors text-sm font-semibold shadow-lg disabled:opacity-50 cursor-pointer"
                 >
                   <Save className="w-4 h-4" />
                   {saving ? "Salvando..." : "Salvar Alterações"}
@@ -791,7 +826,7 @@ export default function Settings() {
             </motion.div>
           )}
 
-          {/* 2) HORÁRIOS - Continue com as demais abas... */}
+          {/* 2) HORÁRIOS */}
           {activeTab === "hours" && (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -922,7 +957,7 @@ export default function Settings() {
                     <select
                       value={tenantForm.default_appointment_duration || 60}
                       onChange={(e) => setTenantForm({ ...tenantForm, default_appointment_duration: parseInt(e.target.value) })}
-                      className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
+                      className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-400 cursor-pointer"
                     >
                       <option value="30">30 minutos</option>
                       <option value="60">60 minutos (1h)</option>
@@ -949,7 +984,7 @@ export default function Settings() {
                   type="button"
                   onClick={() => handleSaveTenantSettings()}
                   disabled={saving}
-                  className="flex items-center gap-2 px-6 py-3 bg-slate-700 text-white rounded-xl hover:bg-slate-800 transition-colors text-sm font-semibold shadow-lg disabled:opacity-50"
+                  className="flex items-center gap-2 px-6 py-3 bg-slate-700 text-white rounded-xl hover:bg-slate-800 transition-colors text-sm font-semibold shadow-lg disabled:opacity-50 cursor-pointer"
                 >
                   <Save className="w-4 h-4" />
                   {saving ? "Salvando..." : "Salvar Alterações"}
@@ -1018,7 +1053,7 @@ export default function Settings() {
                     setShowUserModal(true);
                   }}
                   disabled={usersList.length >= (tenantSettings.user_limit || 5)}
-                  className="flex items-center justify-center gap-2 px-6 py-3.5 bg-slate-900 text-white rounded-2xl font-bold text-sm uppercase tracking-widest hover:bg-slate-800 transition-all shadow-xl shadow-slate-900/20 active:scale-95 disabled:opacity-50"
+                  className="flex items-center justify-center gap-2 px-6 py-3.5 bg-slate-900 text-white rounded-2xl font-bold text-sm uppercase tracking-widest hover:bg-slate-800 transition-all shadow-xl shadow-slate-900/20 active:scale-95 disabled:opacity-50 cursor-pointer"
                 >
                   <Plus className="w-5 h-5" />
                   Novo Integrante
@@ -1103,7 +1138,7 @@ export default function Settings() {
                                       });
                                       setShowUserModal(true);
                                    }}
-                                   className="w-10 h-10 rounded-2xl bg-slate-50 text-slate-400 hover:bg-slate-900 hover:text-white flex items-center justify-center transition-all duration-300"
+                                   className="w-10 h-10 rounded-2xl bg-slate-50 text-slate-400 hover:bg-slate-900 hover:text-white flex items-center justify-center transition-all duration-300 cursor-pointer"
                                 >
                                    <Edit2 size={16} />
                                 </button>
@@ -1119,7 +1154,7 @@ export default function Settings() {
                                          }
                                       }
                                    }}
-                                   className="w-10 h-10 rounded-2xl bg-red-50 text-red-400 hover:bg-red-500 hover:text-white flex items-center justify-center transition-all duration-300"
+                                   className="w-10 h-10 rounded-2xl bg-red-50 text-red-400 hover:bg-red-500 hover:text-white flex items-center justify-center transition-all duration-300 cursor-pointer"
                                 >
                                    <Trash2 size={16} />
                                 </button>
@@ -1162,14 +1197,14 @@ export default function Settings() {
                 )}
               </div>
 
-              {/* User Modal - Sophisticated Design */}
+              {/* User Modal */}
               {showUserModal && (
                 <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 sm:p-6">
                   <motion.div 
                     initial={{ opacity: 0 }} 
                     animate={{ opacity: 1 }} 
                     onClick={() => setShowUserModal(false)}
-                    className="absolute inset-0 bg-slate-900/80 backdrop-blur-md" 
+                    className="absolute inset-0 bg-slate-900/80 backdrop-blur-md cursor-pointer" 
                   />
                   <motion.div
                     initial={{ scale: 0.9, opacity: 0, y: 20 }}
@@ -1185,7 +1220,7 @@ export default function Settings() {
                       </div>
                       <button 
                         onClick={() => setShowUserModal(false)} 
-                        className="w-12 h-12 rounded-2xl bg-white/10 text-white hover:bg-white/20 transition-all flex items-center justify-center active:scale-90"
+                        className="w-12 h-12 rounded-2xl bg-white/10 text-white hover:bg-white/20 transition-all flex items-center justify-center active:scale-90 cursor-pointer"
                       >
                         <X className="w-6 h-6" />
                       </button>
@@ -1213,7 +1248,7 @@ export default function Settings() {
                       }}
                       className="flex-1 overflow-y-auto custom-scrollbar p-10 space-y-10"
                     >
-                      {/* Photo Upload Section */}
+                      {/* Photo Upload */}
                       <div className="flex flex-col items-center">
                         <div 
                           className="relative group cursor-pointer" 
@@ -1321,7 +1356,7 @@ export default function Settings() {
                                   : "bg-white border-slate-100 text-slate-400 hover:border-slate-200"
                               )}
                             >
-                              <div className="relative inline-flex items-center">
+                              <div className="relative inline-flex items-center cursor-pointer">
                                 <input 
                                   type="checkbox"
                                   className="sr-only"
@@ -1363,14 +1398,14 @@ export default function Settings() {
                         <button 
                           type="button" 
                           onClick={() => setShowUserModal(false)}
-                          className="flex-1 px-8 py-5 border-2 border-slate-100 text-slate-400 rounded-3xl font-black text-xs uppercase tracking-widest hover:bg-slate-50 hover:border-slate-200 transition-all active:scale-95"
+                          className="flex-1 px-8 py-5 border-2 border-slate-100 text-slate-400 rounded-3xl font-black text-xs uppercase tracking-widest hover:bg-slate-50 hover:border-slate-200 transition-all active:scale-95 cursor-pointer"
                         >
                           Cancelar
                         </button>
                         <button 
                           type="submit"
                           disabled={saving}
-                          className="flex-[2] px-8 py-5 bg-slate-900 text-white rounded-3xl font-black text-xs uppercase tracking-[0.2em] hover:bg-slate-800 transition-all shadow-2xl shadow-slate-900/20 active:scale-95 disabled:opacity-50"
+                          className="flex-[2] px-8 py-5 bg-slate-900 text-white rounded-3xl font-black text-xs uppercase tracking-[0.2em] hover:bg-slate-800 transition-all shadow-2xl shadow-slate-900/20 active:scale-95 disabled:opacity-50 cursor-pointer"
                         >
                           {saving ? "Processando..." : editingUser ? "Confirmar Alterações" : "Ativar Novo Membro"}
                         </button>
@@ -1400,7 +1435,7 @@ export default function Settings() {
               <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
                 <h3 className="text-lg font-bold text-slate-800 mb-4">Configurações de PDF</h3>
                 <div className="space-y-4">
-                  <label className="flex items-center justify-between">
+                  <label className="flex items-center justify-between cursor-pointer">
                     <div>
                       <div className="font-medium text-slate-900">Mostrar Logo no PDF</div>
                       <div className="text-sm text-slate-500">Exibir logo no cabeçalho dos documentos</div>
@@ -1409,11 +1444,11 @@ export default function Settings() {
                       type="checkbox"
                       checked={tenantForm.show_logo_pdf || false}
                       onChange={(e) => setTenantForm({ ...tenantForm, show_logo_pdf: e.target.checked })}
-                      className="w-5 h-5 text-slate-600 rounded focus:ring-slate-500"
+                      className="w-5 h-5 text-slate-600 rounded focus:ring-slate-500 cursor-pointer"
                     />
                   </label>
 
-                  <label className="flex items-center justify-between">
+                  <label className="flex items-center justify-between cursor-pointer">
                     <div>
                       <div className="font-medium text-slate-900">Mostrar Dados da Oficina</div>
                       <div className="text-sm text-slate-500">Incluir endereço e contatos no PDF</div>
@@ -1422,46 +1457,46 @@ export default function Settings() {
                       type="checkbox"
                       checked={tenantForm.show_company_data_pdf || false}
                       onChange={(e) => setTenantForm({ ...tenantForm, show_company_data_pdf: e.target.checked })}
-                      className="w-5 h-5 text-slate-600 rounded focus:ring-slate-500"
+                      className="w-5 h-5 text-slate-600 rounded focus:ring-slate-500 cursor-pointer"
                     />
                   </label>
 
                   <div className="border-t border-slate-200 pt-4 mt-4">
                     <p className="text-sm font-semibold text-slate-700 mb-3">Rodapé do PDF</p>
                     <div className="grid grid-cols-2 gap-3">
-                      <label className="flex items-center gap-2">
+                      <label className="flex items-center gap-2 cursor-pointer">
                         <input
                           type="checkbox"
                           checked={tenantForm.pdf_footer_address || false}
                           onChange={(e) => setTenantForm({ ...tenantForm, pdf_footer_address: e.target.checked })}
-                          className="w-4 h-4 text-slate-600 rounded focus:ring-slate-500"
+                          className="w-4 h-4 text-slate-600 rounded focus:ring-slate-500 cursor-pointer"
                         />
                         <span className="text-sm text-slate-700">Endereço</span>
                       </label>
-                      <label className="flex items-center gap-2">
+                      <label className="flex items-center gap-2 cursor-pointer">
                         <input
                           type="checkbox"
                           checked={tenantForm.pdf_footer_phone || false}
                           onChange={(e) => setTenantForm({ ...tenantForm, pdf_footer_phone: e.target.checked })}
-                          className="w-4 h-4 text-slate-600 rounded focus:ring-slate-500"
+                          className="w-4 h-4 text-slate-600 rounded focus:ring-slate-500 cursor-pointer"
                         />
                         <span className="text-sm text-slate-700">Telefone</span>
                       </label>
-                      <label className="flex items-center gap-2">
+                      <label className="flex items-center gap-2 cursor-pointer">
                         <input
                           type="checkbox"
                           checked={tenantForm.pdf_footer_whatsapp || false}
                           onChange={(e) => setTenantForm({ ...tenantForm, pdf_footer_whatsapp: e.target.checked })}
-                          className="w-4 h-4 text-slate-600 rounded focus:ring-slate-500"
+                          className="w-4 h-4 text-slate-600 rounded focus:ring-slate-500 cursor-pointer"
                         />
                         <span className="text-sm text-slate-700">WhatsApp</span>
                       </label>
-                      <label className="flex items-center gap-2">
+                      <label className="flex items-center gap-2 cursor-pointer">
                         <input
                           type="checkbox"
                           checked={tenantForm.pdf_footer_website || false}
                           onChange={(e) => setTenantForm({ ...tenantForm, pdf_footer_website: e.target.checked })}
-                          className="w-4 h-4 text-slate-600 rounded focus:ring-slate-500"
+                          className="w-4 h-4 text-slate-600 rounded focus:ring-slate-500 cursor-pointer"
                         />
                         <span className="text-sm text-slate-700">Site</span>
                       </label>
@@ -1570,12 +1605,12 @@ export default function Settings() {
                     />
                   </div>
                   <div className="col-span-2">
-                    <label className="flex items-center gap-2">
+                    <label className="flex items-center gap-2 cursor-pointer">
                       <input
                         type="checkbox"
                         checked={tenantForm.os_reset_yearly || false}
                         onChange={(e) => setTenantForm({ ...tenantForm, os_reset_yearly: e.target.checked })}
-                        className="w-4 h-4 text-slate-600 rounded focus:ring-slate-500"
+                        className="w-4 h-4 text-slate-600 rounded focus:ring-slate-500 cursor-pointer"
                       />
                       <span className="text-sm text-slate-700">Reiniciar numeração a cada ano</span>
                     </label>
@@ -1592,7 +1627,7 @@ export default function Settings() {
                 <button
                   type="button"
                   onClick={() => showToast("Gerando PDF de exemplo...", "success")}
-                  className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors text-sm font-medium"
+                  className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors text-sm font-medium cursor-pointer"
                 >
                   <FileCheck className="w-5 h-5" />
                   Gerar PDF de Exemplo
@@ -1604,7 +1639,7 @@ export default function Settings() {
                   type="button"
                   onClick={() => handleSaveTenantSettings()}
                   disabled={saving}
-                  className="flex items-center gap-2 px-6 py-3 bg-slate-700 text-white rounded-xl hover:bg-slate-800 transition-colors text-sm font-semibold shadow-lg disabled:opacity-50"
+                  className="flex items-center gap-2 px-6 py-3 bg-slate-700 text-white rounded-xl hover:bg-slate-800 transition-colors text-sm font-semibold shadow-lg disabled:opacity-50 cursor-pointer"
                 >
                   <Save className="w-4 h-4" />
                   {saving ? "Salvando..." : "Salvar Alterações"}
@@ -1644,7 +1679,7 @@ export default function Settings() {
                   <button
                     type="button"
                     onClick={() => showToast("Abra a página WhatsApp para gerenciar conexão", "success")}
-                    className="px-4 py-2 bg-slate-700 text-white rounded-xl text-sm font-medium hover:bg-slate-800 transition-colors"
+                    className="px-4 py-2 bg-slate-700 text-white rounded-xl text-sm font-medium hover:bg-slate-800 transition-colors cursor-pointer"
                   >
                     Gerenciar
                   </button>
@@ -1653,7 +1688,7 @@ export default function Settings() {
 
               <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
                 <h3 className="text-lg font-bold text-slate-800 mb-4">Bot Automático</h3>
-                <label className="flex items-center justify-between">
+                <label className="flex items-center justify-between cursor-pointer">
                   <div>
                     <div className="font-medium text-slate-900">Ativar Bot por Padrão</div>
                     <div className="text-sm text-slate-500">Responder automaticamente novas conversas</div>
@@ -1662,7 +1697,7 @@ export default function Settings() {
                     type="checkbox"
                     checked={tenantForm.whatsapp_bot_enabled || false}
                     onChange={(e) => setTenantForm({ ...tenantForm, whatsapp_bot_enabled: e.target.checked })}
-                    className="w-5 h-5 text-slate-600 rounded focus:ring-slate-500"
+                    className="w-5 h-5 text-slate-600 rounded focus:ring-slate-500 cursor-pointer"
                   />
                 </label>
               </div>
@@ -1675,7 +1710,7 @@ export default function Settings() {
                 <button
                   type="button"
                   onClick={() => showToast("Navegue para WhatsApp > Templates", "success")}
-                  className="w-full px-4 py-2.5 bg-slate-100 hover:bg-slate-200 rounded-xl text-sm font-medium text-slate-700 transition-colors"
+                  className="w-full px-4 py-2.5 bg-slate-100 hover:bg-slate-200 rounded-xl text-sm font-medium text-slate-700 transition-colors cursor-pointer"
                 >
                   Editar Templates
                 </button>
@@ -1686,7 +1721,7 @@ export default function Settings() {
                 <button
                   type="button"
                   onClick={() => showToast("Enviando mensagem de teste...", "success")}
-                  className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-colors text-sm font-medium"
+                  className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-colors text-sm font-medium cursor-pointer"
                 >
                   <TestTube className="w-5 h-5" />
                   Enviar Mensagem de Teste
@@ -1698,7 +1733,7 @@ export default function Settings() {
                   type="button"
                   onClick={() => handleSaveTenantSettings()}
                   disabled={saving}
-                  className="flex items-center gap-2 px-6 py-3 bg-slate-700 text-white rounded-xl hover:bg-slate-800 transition-colors text-sm font-semibold shadow-lg disabled:opacity-50"
+                  className="flex items-center gap-2 px-6 py-3 bg-slate-700 text-white rounded-xl hover:bg-slate-800 transition-colors text-sm font-semibold shadow-lg disabled:opacity-50 cursor-pointer"
                 >
                   <Save className="w-4 h-4" />
                   {saving ? "Salvando..." : "Salvar Alterações"}
@@ -1841,7 +1876,7 @@ export default function Settings() {
                   type="button"
                   onClick={() => handleSaveTenantSettings()}
                   disabled={saving}
-                  className="flex items-center gap-2 px-6 py-3 bg-slate-700 text-white rounded-xl hover:bg-slate-800 transition-colors text-sm font-semibold shadow-lg disabled:opacity-50"
+                  className="flex items-center gap-2 px-6 py-3 bg-slate-700 text-white rounded-xl hover:bg-slate-800 transition-colors text-sm font-semibold shadow-lg disabled:opacity-50 cursor-pointer"
                 >
                   <Save className="w-4 h-4" />
                   {saving ? "Salvando..." : "Salvar Alterações"}
@@ -1867,7 +1902,7 @@ export default function Settings() {
               <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
                 <h3 className="text-lg font-bold text-slate-800 mb-4">Ordens de Serviço</h3>
                 <div className="space-y-4">
-                  <label className="flex items-center justify-between">
+                  <label className="flex items-center justify-between cursor-pointer">
                     <div>
                       <div className="font-medium text-slate-900">Permitir finalizar OS sem pagamento</div>
                       <div className="text-sm text-slate-500">Permite finalizar mesmo sem receber</div>
@@ -1876,11 +1911,11 @@ export default function Settings() {
                       type="checkbox"
                       checked={tenantForm.allow_finish_os_without_payment || false}
                       onChange={(e) => setTenantForm({ ...tenantForm, allow_finish_os_without_payment: e.target.checked })}
-                      className="w-5 h-5 text-slate-600 rounded focus:ring-slate-500"
+                      className="w-5 h-5 text-slate-600 rounded focus:ring-slate-500 cursor-pointer"
                     />
                   </label>
 
-                  <label className="flex items-center justify-between">
+                  <label className="flex items-center justify-between cursor-pointer">
                     <div>
                       <div className="font-medium text-slate-900">Permitir entregar veículo sem pagamento</div>
                       <div className="text-sm text-slate-500">Cliente pode retirar carro sem pagar</div>
@@ -1889,11 +1924,11 @@ export default function Settings() {
                       type="checkbox"
                       checked={tenantForm.allow_deliver_without_payment || false}
                       onChange={(e) => setTenantForm({ ...tenantForm, allow_deliver_without_payment: e.target.checked })}
-                      className="w-5 h-5 text-slate-600 rounded focus:ring-slate-500"
+                      className="w-5 h-5 text-slate-600 rounded focus:ring-slate-500 cursor-pointer"
                     />
                   </label>
 
-                  <label className="flex items-center justify-between">
+                  <label className="flex items-center justify-between cursor-pointer">
                     <div>
                       <div className="font-medium text-slate-900">Exigir aprovação do cliente</div>
                       <div className="text-sm text-slate-500">Cliente deve aprovar orçamento antes de executar</div>
@@ -1902,11 +1937,11 @@ export default function Settings() {
                       type="checkbox"
                       checked={tenantForm.require_client_approval || false}
                       onChange={(e) => setTenantForm({ ...tenantForm, require_client_approval: e.target.checked })}
-                      className="w-5 h-5 text-slate-600 rounded focus:ring-slate-500"
+                      className="w-5 h-5 text-slate-600 rounded focus:ring-slate-500 cursor-pointer"
                     />
                   </label>
 
-                  <label className="flex items-center justify-between">
+                  <label className="flex items-center justify-between cursor-pointer">
                     <div>
                       <div className="font-medium text-slate-900">Checklist obrigatório</div>
                       <div className="text-sm text-slate-500">Obriga preenchimento do checklist de vistoria</div>
@@ -1915,7 +1950,7 @@ export default function Settings() {
                       type="checkbox"
                       checked={tenantForm.require_checklist || false}
                       onChange={(e) => setTenantForm({ ...tenantForm, require_checklist: e.target.checked })}
-                      className="w-5 h-5 text-slate-600 rounded focus:ring-slate-500"
+                      className="w-5 h-5 text-slate-600 rounded focus:ring-slate-500 cursor-pointer"
                     />
                   </label>
 
@@ -1936,7 +1971,7 @@ export default function Settings() {
               <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
                 <h3 className="text-lg font-bold text-slate-800 mb-4">Estoque</h3>
                 <div className="space-y-4">
-                  <label className="flex items-center justify-between">
+                  <label className="flex items-center justify-between cursor-pointer">
                     <div>
                       <div className="font-medium text-slate-900">Baixar estoque automático</div>
                       <div className="text-sm text-slate-500">Descontar peças ao finalizar OS</div>
@@ -1945,11 +1980,11 @@ export default function Settings() {
                       type="checkbox"
                       checked={tenantForm.auto_decrease_stock || false}
                       onChange={(e) => setTenantForm({ ...tenantForm, auto_decrease_stock: e.target.checked })}
-                      className="w-5 h-5 text-slate-600 rounded focus:ring-slate-500"
+                      className="w-5 h-5 text-slate-600 rounded focus:ring-slate-500 cursor-pointer"
                     />
                   </label>
 
-                  <label className="flex items-center justify-between">
+                  <label className="flex items-center justify-between cursor-pointer">
                     <div>
                       <div className="font-medium text-slate-900">Alertar estoque baixo</div>
                       <div className="text-sm text-slate-500">Notificar quando atingir estoque mínimo</div>
@@ -1958,7 +1993,7 @@ export default function Settings() {
                       type="checkbox"
                       checked={tenantForm.alert_stock_low || false}
                       onChange={(e) => setTenantForm({ ...tenantForm, alert_stock_low: e.target.checked })}
-                      className="w-5 h-5 text-slate-600 rounded focus:ring-slate-500"
+                      className="w-5 h-5 text-slate-600 rounded focus:ring-slate-500 cursor-pointer"
                     />
                   </label>
                 </div>
@@ -1969,7 +2004,7 @@ export default function Settings() {
                   type="button"
                   onClick={() => handleSaveTenantSettings()}
                   disabled={saving}
-                  className="flex items-center gap-2 px-6 py-3 bg-slate-700 text-white rounded-xl hover:bg-slate-800 transition-colors text-sm font-semibold shadow-lg disabled:opacity-50"
+                  className="flex items-center gap-2 px-6 py-3 bg-slate-700 text-white rounded-xl hover:bg-slate-800 transition-colors text-sm font-semibold shadow-lg disabled:opacity-50 cursor-pointer"
                 >
                   <Save className="w-4 h-4" />
                   {saving ? "Salvando..." : "Salvar Alterações"}
@@ -1995,7 +2030,7 @@ export default function Settings() {
               <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
                 <h3 className="text-lg font-bold text-slate-800 mb-4">Alertas</h3>
                 <div className="space-y-4">
-                  <label className="flex items-center justify-between">
+                  <label className="flex items-center justify-between cursor-pointer">
                     <div>
                       <div className="font-medium text-slate-900">Alertar Clientes Inadimplentes</div>
                       <div className="text-sm text-slate-500">Exibir avisos sobre clientes com contas em atraso</div>
@@ -2004,7 +2039,7 @@ export default function Settings() {
                       type="checkbox"
                       checked={tenantForm.alert_overdue_clients || false}
                       onChange={(e) => setTenantForm({ ...tenantForm, alert_overdue_clients: e.target.checked })}
-                      className="w-5 h-5 text-slate-600 rounded focus:ring-slate-500"
+                      className="w-5 h-5 text-slate-600 rounded focus:ring-slate-500 cursor-pointer"
                     />
                   </label>
 
@@ -2027,7 +2062,7 @@ export default function Settings() {
                   type="button"
                   onClick={() => handleSaveTenantSettings()}
                   disabled={saving}
-                  className="flex items-center gap-2 px-6 py-3 bg-slate-700 text-white rounded-xl hover:bg-slate-800 transition-colors text-sm font-semibold shadow-lg disabled:opacity-50"
+                  className="flex items-center gap-2 px-6 py-3 bg-slate-700 text-white rounded-xl hover:bg-slate-800 transition-colors text-sm font-semibold shadow-lg disabled:opacity-50 cursor-pointer"
                 >
                   <Save className="w-4 h-4" />
                   {saving ? "Salvando..." : "Salvar Alterações"}
@@ -2059,7 +2094,7 @@ export default function Settings() {
                   <button
                     onClick={() => handleThemeChange("light")}
                     disabled={saving}
-                    className={`flex flex-col items-center gap-3 p-4 rounded-xl border-2 transition-all ${
+                    className={`flex flex-col items-center gap-3 p-4 rounded-xl border-2 transition-all cursor-pointer ${
                       preferences.theme_mode === "light"
                         ? "border-slate-700 bg-slate-50"
                         : "border-slate-200 hover:border-slate-300"
@@ -2078,7 +2113,7 @@ export default function Settings() {
                   <button
                     onClick={() => handleThemeChange("dark")}
                     disabled={saving}
-                    className={`flex flex-col items-center gap-3 p-4 rounded-xl border-2 transition-all ${
+                    className={`flex flex-col items-center gap-3 p-4 rounded-xl border-2 transition-all cursor-pointer ${
                       preferences.theme_mode === "dark"
                         ? "border-slate-700 bg-slate-50"
                         : "border-slate-200 hover:border-slate-300"
@@ -2097,7 +2132,7 @@ export default function Settings() {
                   <button
                     onClick={() => handleThemeChange("auto")}
                     disabled={saving}
-                    className={`flex flex-col items-center gap-3 p-4 rounded-xl border-2 transition-all ${
+                    className={`flex flex-col items-center gap-3 p-4 rounded-xl border-2 transition-all cursor-pointer ${
                       preferences.theme_mode === "auto"
                         ? "border-slate-700 bg-slate-50"
                         : "border-slate-200 hover:border-slate-300"
@@ -2131,7 +2166,7 @@ export default function Settings() {
                         key={color.value}
                         onClick={() => handleColorChange(color.value)}
                         disabled={saving}
-                        className={`group relative ${saving ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        className={`group relative cursor-pointer ${saving ? 'opacity-50 cursor-not-allowed' : ''}`}
                         title={color.name}
                       >
                         <div
@@ -2164,7 +2199,7 @@ export default function Settings() {
                   Exibição
                 </h3>
                 <div className="space-y-4">
-                  <label className="flex items-center justify-between">
+                  <label className="flex items-center justify-between cursor-pointer">
                     <div>
                       <div className="font-medium text-slate-900">
                         Mostrar Cards de Resumo
@@ -2179,11 +2214,11 @@ export default function Settings() {
                       onChange={(e) =>
                         updatePreferences({ show_dashboard_cards: e.target.checked })
                       }
-                      className="w-5 h-5 text-slate-600 rounded focus:ring-slate-500"
+                      className="w-5 h-5 text-slate-600 rounded focus:ring-slate-500 cursor-pointer"
                     />
                   </label>
 
-                  <label className="flex items-center justify-between">
+                  <label className="flex items-center justify-between cursor-pointer">
                     <div>
                       <div className="font-medium text-slate-900">
                         Barra Lateral Recolhida
@@ -2198,7 +2233,7 @@ export default function Settings() {
                       onChange={(e) =>
                         updatePreferences({ sidebar_collapsed: e.target.checked })
                       }
-                      className="w-5 h-5 text-slate-600 rounded focus:ring-slate-500"
+                      className="w-5 h-5 text-slate-600 rounded focus:ring-slate-500 cursor-pointer"
                     />
                   </label>
 
@@ -2213,7 +2248,7 @@ export default function Settings() {
                           default_rows_per_page: parseInt(e.target.value),
                         })
                       }
-                      className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
+                      className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-400 cursor-pointer"
                     >
                       <option value="10">10 linhas</option>
                       <option value="20">20 linhas</option>
@@ -2264,7 +2299,7 @@ export default function Settings() {
                         <button
                           type="button"
                           onClick={() => setShowPasswords(!showPasswords)}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
                         >
                           {showPasswords ? (
                             <EyeOff className="w-5 h-5" />
@@ -2319,7 +2354,7 @@ export default function Settings() {
                   <button
                     type="submit"
                     disabled={saving}
-                    className="flex items-center gap-2 px-6 py-3 bg-slate-700 text-white rounded-xl hover:bg-slate-800 transition-colors text-sm font-semibold shadow-lg disabled:opacity-50"
+                    className="flex items-center gap-2 px-6 py-3 bg-slate-700 text-white rounded-xl hover:bg-slate-800 transition-colors text-sm font-semibold shadow-lg disabled:opacity-50 cursor-pointer"
                   >
                     <Save className="w-4 h-4" />
                     {saving ? "Salvando..." : "Alterar Senha"}
@@ -2387,7 +2422,7 @@ export default function Settings() {
                         showToast("Filtros resetados!", "success");
                       }
                     }}
-                    className="w-full px-4 py-3 bg-slate-100 hover:bg-slate-200 rounded-xl text-left text-sm font-medium text-slate-700 transition-colors"
+                    className="w-full px-4 py-3 bg-slate-100 hover:bg-slate-200 rounded-xl text-left text-sm font-medium text-slate-700 transition-colors cursor-pointer"
                   >
                     Resetar Filtros Salvos
                   </button>
@@ -2395,7 +2430,7 @@ export default function Settings() {
                   <button
                     type="button"
                     onClick={() => showToast("Funcionalidade em desenvolvimento", "success")}
-                    className="w-full px-4 py-3 bg-slate-100 hover:bg-slate-200 rounded-xl text-left text-sm font-medium text-slate-700 transition-colors"
+                    className="w-full px-4 py-3 bg-slate-100 hover:bg-slate-200 rounded-xl text-left text-sm font-medium text-slate-700 transition-colors cursor-pointer"
                   >
                     Limpar Cache
                   </button>
@@ -2403,7 +2438,7 @@ export default function Settings() {
                   <button
                     type="button"
                     onClick={() => showToast("Funcionalidade em desenvolvimento", "success")}
-                    className="w-full px-4 py-3 bg-slate-100 hover:bg-slate-200 rounded-xl text-left text-sm font-medium text-slate-700 transition-colors"
+                    className="w-full px-4 py-3 bg-slate-100 hover:bg-slate-200 rounded-xl text-left text-sm font-medium text-slate-700 transition-colors cursor-pointer"
                   >
                     Ver Logs do Sistema
                   </button>
@@ -2411,7 +2446,7 @@ export default function Settings() {
                   <button
                     type="button"
                     onClick={() => showToast("Funcionalidade em desenvolvimento", "success")}
-                    className="w-full px-4 py-3 bg-slate-100 hover:bg-slate-200 rounded-xl text-left text-sm font-medium text-slate-700 transition-colors"
+                    className="w-full px-4 py-3 bg-slate-100 hover:bg-slate-200 rounded-xl text-left text-sm font-medium text-slate-700 transition-colors cursor-pointer"
                   >
                     Exportar Dados (Backup)
                   </button>
@@ -2426,7 +2461,7 @@ export default function Settings() {
                 <button
                   type="button"
                   onClick={() => showToast("Funcionalidade em desenvolvimento", "success")}
-                  className="w-full px-4 py-3 bg-slate-700 text-white hover:bg-slate-800 rounded-xl text-sm font-medium transition-colors"
+                  className="w-full px-4 py-3 bg-slate-700 text-white hover:bg-slate-800 rounded-xl text-sm font-medium transition-colors cursor-pointer"
                 >
                   Ver Logs de Auditoria
                 </button>
