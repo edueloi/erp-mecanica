@@ -349,49 +349,52 @@ export default function WorkOrderDetail() {
     
     // --- COLORS ---
     const primaryColor = [30, 41, 59] as [number, number, number]; // Slate-800
-    const accentColor = [79, 70, 229] as [number, number, number];  // Indigo-600
+    const accentColor = [51, 65, 85] as [number, number, number];  // Slate-700 (replaced indigo)
     const lightGray = [248, 250, 252] as [number, number, number]; // Slate-50
     const borderColor = [226, 232, 240] as [number, number, number]; // Slate-200
     
     // --- HEADER ---
-    doc.setFillColor(...primaryColor);
-    doc.rect(0, 0, pageWidth, 40, 'F');
+    doc.setFillColor(255, 255, 255);
+    doc.rect(0, 0, pageWidth, 45, 'F');
     
     let logoLoaded = false;
     if (settings?.logo_url) {
       try {
         const format = settings.logo_url.includes('png') ? 'PNG' : 
                       settings.logo_url.includes('jpg') || settings.logo_url.includes('jpeg') ? 'JPEG' : 'PNG';
-        doc.addImage(settings.logo_url, format, margin, 8, 24, 24);
+        doc.addImage(settings.logo_url, format, margin, 8, 25, 25);
         logoLoaded = true;
       } catch (e) {
         console.error('Error adding logo to PDF:', e);
       }
     }
 
-    doc.setTextColor(255, 255, 255);
-    doc.setFontSize(16);
+    doc.setTextColor(...primaryColor);
+    doc.setFontSize(18);
     doc.setFont('helvetica', 'bold');
-    doc.text(settings?.trade_name || settings?.company_name || 'Workshop Name', logoLoaded ? margin + 28 : margin, 18);
+    doc.text(settings?.trade_name || settings?.company_name || 'Workshop Name', logoLoaded ? margin + 30 : margin, 18);
     
-    doc.setFontSize(8);
+    doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
-    const companySubtext = [
+    const headerCompanySubtext = [
       settings?.cnpj ? `CNPJ: ${settings.cnpj}` : '',
       settings?.address ? settings.address : '',
       settings?.phone ? `Fone: ${settings.phone}` : ''
     ].filter(Boolean).join('  |  ');
-    doc.text(companySubtext, logoLoaded ? margin + 28 : margin, 24);
+    doc.setTextColor(100, 116, 139);
+    doc.text(headerCompanySubtext, logoLoaded ? margin + 30 : margin, 24);
 
-    doc.setFontSize(14);
+    doc.setTextColor(...primaryColor);
+    doc.setFontSize(12);
     doc.text(`ORDEM DE SERVIÇO`, pageWidth - margin, 18, { align: 'right' });
-    doc.setFontSize(22);
+    doc.setFontSize(16);
+    doc.setTextColor(...primaryColor);
     doc.text(`#${wo.number}`, pageWidth - margin, 28, { align: 'right' });
 
     // Secondary Header
     doc.setTextColor(...primaryColor);
     doc.setFontSize(8);
-    let currentY = 50;
+    let currentY = 55;
     
     doc.text(`Emissão: ${format(new Date(wo.created_at), 'dd/MM/yyyy HH:mm')}`, margin, currentY);
     const statusLabel = statusMap[wo.status]?.label || wo.status;
@@ -405,74 +408,67 @@ export default function WorkOrderDetail() {
     doc.line(margin, currentY, pageWidth - margin, currentY);
     currentY += 10;
 
-    // --- CLIENT & VEHICLE SECTIONS ---
-    const boxWidth = (pageWidth - (margin * 2) - 10) / 2;
-    const boxHeight = 35;
+    // --- SECTION HEADER HELPER ---
+    const drawSectionHeader = (title: string, y: number) => {
+      doc.setFillColor(...lightGray);
+      doc.rect(margin, y - 5, pageWidth - (margin * 2), 7, 'F');
+      doc.setTextColor(...primaryColor);
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'bold');
+      doc.text(title, margin + 2, y);
+      return y + 8;
+    };
 
-    // Client Box
-    doc.setFillColor(...lightGray);
-    doc.rect(margin, currentY, boxWidth, boxHeight, 'F');
-    doc.setDrawColor(...borderColor);
-    doc.rect(margin, currentY, boxWidth, boxHeight, 'S');
-    
-    doc.setTextColor(...accentColor);
-    doc.setFontSize(9);
-    doc.setFont('helvetica', 'bold');
-    doc.text('DADOS DO CLIENTE', margin + 5, currentY + 7);
-    
+    // --- CLIENT SECTION ---
+    currentY = drawSectionHeader('DADOS DO CLIENTE', currentY);
     doc.setTextColor(30, 41, 59);
-    doc.setFontSize(8);
-    doc.setFont('helvetica', 'normal');
-    doc.text(`Nome: ${wo.client_name}`, margin + 5, currentY + 13);
-    doc.text(`CPF/CNPJ: ${wo.client_document || 'N/A'}`, margin + 5, currentY + 18);
-    doc.text(`Telefone: ${wo.client_phone || 'N/A'}`, margin + 5, currentY + 23);
-    doc.text(`Email: ${wo.client_email || 'N/A'}`, margin + 5, currentY + 28);
-
-    // Vehicle Box
-    doc.setFillColor(...lightGray);
-    doc.rect(margin + boxWidth + 10, currentY, boxWidth, boxHeight, 'F');
-    doc.setDrawColor(...borderColor);
-    doc.rect(margin + boxWidth + 10, currentY, boxWidth, boxHeight, 'S');
-    
-    doc.setTextColor(...accentColor);
     doc.setFontSize(9);
-    doc.setFont('helvetica', 'bold');
-    doc.text('DADOS DO VEÍCULO', margin + boxWidth + 15, currentY + 7);
-    
-    doc.setTextColor(30, 41, 59);
-    doc.setFontSize(8);
     doc.setFont('helvetica', 'normal');
-    doc.text(`Veículo: ${wo.brand} ${wo.model}`, margin + boxWidth + 15, currentY + 13);
-    doc.text(`Placa: ${wo.plate || 'N/A'}`, margin + boxWidth + 15, currentY + 18);
-    doc.text(`KM: ${wo.km?.toLocaleString() || 0}  |  Cor: ${wo.color || 'N/A'}`, margin + boxWidth + 15, currentY + 23);
-    doc.text(`Ano: ${wo.year || 'N/A'}  |  Comb: ${wo.fuel_type || 'N/A'}`, margin + boxWidth + 15, currentY + 28);
+    doc.text(`Nome: ${wo.client_name}  |  CPF/CNPJ: ${wo.client_document || 'N/A'}`, margin + 2, currentY);
+    currentY += 5;
+    doc.text(`Telefone: ${wo.client_phone || 'N/A'}  |  Email: ${wo.client_email || 'N/A'}`, margin + 2, currentY);
+    currentY += 10;
 
-    currentY += boxHeight + 12;
+    // --- VEHICLE SECTION ---
+    currentY = drawSectionHeader('DADOS DO VEÍCULO', currentY);
+    doc.setTextColor(30, 41, 59);
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Veículo: ${wo.brand} ${wo.model}  |  Placa: ${wo.plate?.toUpperCase() || 'N/A'}`, margin + 2, currentY);
+    currentY += 5;
+    doc.text(`Ano: ${wo.year || 'N/A'}  |  KM: ${wo.km?.toLocaleString() || 0}  |  Cor: ${wo.color || 'N/A'}  |  Comb: ${wo.fuel_type || 'N/A'}`, margin + 2, currentY);
+    currentY += 10;
 
     // Diagnosis
-    doc.setTextColor(...accentColor);
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'bold');
-    doc.text('RECLAMAÇÃO E DIAGNÓSTICO', margin, currentY);
-    currentY += 8;
-
+    currentY = drawSectionHeader('RECLAMAÇÃO E DIAGNÓSTICO', currentY);
+    
     doc.setTextColor(30, 41, 59);
     doc.setFontSize(8);
     doc.setFont('helvetica', 'bold');
-    doc.text('Relato/Queixa:', margin, currentY);
+    doc.text('Relato/Queixa:', margin + 2, currentY);
     doc.setFont('helvetica', 'normal');
     const complaintText = wo.complaint || 'Nenhuma reclamação informada.';
-    const splitComplaint = doc.splitTextToSize(complaintText, pageWidth - (margin * 2));
-    doc.text(splitComplaint, margin, currentY + 5);
+    const splitComplaint = doc.splitTextToSize(complaintText, pageWidth - (margin * 2) - 4);
+    doc.text(splitComplaint, margin + 2, currentY + 5);
     currentY += (splitComplaint.length * 4) + 8;
 
     doc.setFont('helvetica', 'bold');
-    doc.text('Laudo Técnico / Diagnóstico:', margin, currentY);
+    doc.text('Defeito Identificado:', margin + 2, currentY);
     doc.setFont('helvetica', 'normal');
-    const diagnosisText = wo.diagnosis || 'Nenhum diagnóstico técnico realizado.';
-    const splitDiagnosis = doc.splitTextToSize(diagnosisText, pageWidth - (margin * 2));
-    doc.text(splitDiagnosis, margin, currentY + 5);
-    currentY += (splitDiagnosis.length * 4) + 12;
+    const defectText = wo.defect || 'Nenhum defeito específico registrado.';
+    const splitDefect = doc.splitTextToSize(defectText, pageWidth - (margin * 2) - 4);
+    doc.text(splitDefect, margin + 2, currentY + 5);
+    currentY += (splitDefect.length * 4) + 12;
+
+    if (wo.technical_report) {
+      if (currentY > 250) { doc.addPage(); currentY = 20; }
+      currentY = drawSectionHeader('LAUDO TÉCNICO DETALHADO', currentY);
+      doc.setTextColor(30, 41, 59);
+      doc.setFont('helvetica', 'normal');
+      const reportText = doc.splitTextToSize(wo.technical_report, pageWidth - (margin * 2) - 4);
+      doc.text(reportText, margin + 2, currentY);
+      currentY += (reportText.length * 4) + 12;
+    }
 
     // Items
     const services = (wo.items || []).filter((i:any) => i.type === 'SERVICE');

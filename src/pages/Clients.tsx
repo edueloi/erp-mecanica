@@ -28,6 +28,7 @@ export default function Clients() {
   const [tagFilter, setTagFilter] = useState('');
   const [isNewModalOpen, setIsNewModalOpen] = useState(false);
   const [isEditDrawerOpen, setIsEditDrawerOpen] = useState(false);
+  const [isHistoryDrawerOpen, setIsHistoryDrawerOpen] = useState(false);
   const [selectedClient, setSelectedClient] = useState<any>(null);
   const [isCepLoading, setIsCepLoading] = useState(false);
   const [isEditCepLoading, setIsEditCepLoading] = useState(false);
@@ -181,6 +182,19 @@ export default function Clients() {
       fetchClients();
     } catch (err) {
       alert('Erro ao cadastrar cliente');
+    }
+  };
+
+  const handleViewHistory = async (client: any) => {
+    try {
+      setLoading(true);
+      const res = await api.get(`/clients/${client.id}`);
+      setSelectedClient(res.data);
+      setIsHistoryDrawerOpen(true);
+    } catch (err) {
+      console.error('Error fetching history:', err);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -409,6 +423,13 @@ export default function Clients() {
                 <td className="px-6 py-2 text-right">
                   <div className="flex items-center justify-end gap-1" onClick={e => e.stopPropagation()}>
                     <button 
+                      onClick={() => handleViewHistory(client)}
+                      className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-all" 
+                      title="Ver Histórico"
+                    >
+                      <History size={14} />
+                    </button>
+                    <button 
                       onClick={() => navigate(`/clients/${client.id}`)}
                       className="p-1.5 text-slate-400 hover:text-slate-900 hover:bg-slate-200 rounded transition-all" 
                       title="Ver Detalhes"
@@ -421,9 +442,6 @@ export default function Clients() {
                       title="Editar"
                     >
                       <Edit size={14} />
-                    </button>
-                    <button className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded transition-all" title="Nova OS">
-                      <Plus size={14} />
                     </button>
                     <button className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-all" title="WhatsApp">
                       <MessageCircle size={14} />
@@ -739,6 +757,126 @@ export default function Clients() {
                   <button type="submit" className="flex-1 py-2 bg-slate-900 text-white rounded-lg text-xs font-bold hover:bg-slate-800">Salvar Alterações</button>
                 </div>
               </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* History Drawer - Premium */}
+      <AnimatePresence>
+        {isHistoryDrawerOpen && selectedClient && (
+          <div className="fixed inset-0 z-[100] flex justify-end">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsHistoryDrawerOpen(false)}
+              className="absolute inset-0 bg-black/40 backdrop-blur-sm cursor-pointer"
+            />
+            <motion.div 
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={{ type: "spring", damping: 25, stiffness: 200 }}
+              className="bg-white w-full max-w-md h-full shadow-2xl flex flex-col relative z-10"
+            >
+              <div className="px-6 py-6 border-b border-slate-100 flex items-center justify-between bg-slate-900 shrink-0">
+                <div className="flex items-center gap-3 text-white">
+                  <div className="w-10 h-10 rounded-xl bg-blue-500/20 flex items-center justify-center">
+                    <History size={20} className="text-blue-400" />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-black italic uppercase tracking-tight">Histórico do Cliente</h2>
+                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Todas as passagens na oficina</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setIsHistoryDrawerOpen(false)} 
+                  className="w-10 h-10 rounded-xl bg-white/10 text-white hover:bg-white/20 transition-all flex items-center justify-center active:scale-90 cursor-pointer"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className="px-8 py-6 bg-slate-50 border-b border-slate-100 shrink-0">
+                <div className="flex items-center gap-4">
+                    <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center shadow-sm border border-slate-200 font-bold text-xl text-slate-400 uppercase">
+                        {selectedClient.name.charAt(0)}
+                    </div>
+                    <div>
+                        <h3 className="font-black text-slate-900 text-lg leading-tight uppercase italic">{selectedClient.name}</h3>
+                        <p className="text-[10px] font-black text-slate-400 bg-white border border-slate-200 px-2 py-0.5 rounded mt-1 inline-block tracking-wider uppercase font-mono">
+                            {selectedClient.document}
+                        </p>
+                    </div>
+                </div>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
+                {(!selectedClient.workOrders || selectedClient.workOrders.length === 0) ? (
+                  <div className="text-center py-20">
+                    <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-6">
+                      <ClipboardList size={40} className="text-slate-200" />
+                    </div>
+                    <h3 className="text-slate-900 font-bold mb-1 italic uppercase">Sem registros</h3>
+                    <p className="text-xs text-slate-500 font-medium">Este cliente ainda não possui ordens de serviço finalizadas.</p>
+                  </div>
+                ) : (
+                  <div className="relative border-l-2 border-slate-100 ml-3 pl-10 space-y-10 py-4">
+                    {selectedClient.workOrders.map((wo: any) => (
+                      <div key={wo.id} className="relative group">
+                        <div className="absolute -left-[49px] top-0 w-6 h-6 rounded-full border-4 border-white bg-blue-500 shadow-sm z-10 transition-transform group-hover:scale-125" />
+                        
+                        <div 
+                            className="bg-white rounded-3xl border border-slate-100 p-6 shadow-sm group-hover:shadow-xl group-hover:border-blue-100 transition-all cursor-pointer"
+                            onClick={() => navigate(`/work-orders/${wo.id}`)}
+                        >
+                          <div className="flex items-start justify-between mb-4">
+                            <div>
+                              <span className="text-[10px] font-black text-blue-600 uppercase tracking-[0.2em] mb-1 block">#{wo.number}</span>
+                              <h4 className="font-black text-slate-900 text-sm leading-tight uppercase italic mb-1">
+                                {wo.brand} {wo.model} - {wo.plate}
+                              </h4>
+                            </div>
+                            <span className={cn(
+                                "px-3 py-1 rounded-full text-[9px] font-black uppercase border",
+                                wo.status === 'FINISHED' ? "bg-emerald-50 text-emerald-600 border-emerald-100" : "bg-blue-50 text-blue-600 border-blue-100"
+                            )}>
+                                {wo.status === 'FINISHED' ? 'Finalizada' : wo.status}
+                            </span>
+                          </div>
+
+                          <div className="space-y-2 mb-4">
+                            {wo.items?.slice(0, 3).map((item: any, idx: number) => (
+                              <div key={idx} className="flex items-center justify-between text-[10px] py-1 border-b border-slate-50 last:border-0 font-medium">
+                                <span className="text-slate-700 uppercase truncate pr-4">{item.description}</span>
+                                <span className="text-slate-400 font-bold shrink-0">x{item.quantity}</span>
+                              </div>
+                            ))}
+                            {wo.items?.length > 3 && (
+                                <p className="text-[9px] text-slate-400 italic">E mais {wo.items.length - 3} itens...</p>
+                            )}
+                          </div>
+
+                          <div className="flex items-center justify-between pt-4 border-t border-slate-50">
+                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{format(new Date(wo.created_at), 'dd/MM/yyyy')}</span>
+                            <span className="text-sm font-black text-emerald-600">R$ {wo.total_amount?.toLocaleString('pt-BR')}</span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="p-6 border-t border-slate-100 bg-slate-50 flex gap-4">
+                <button 
+                  onClick={() => setIsHistoryDrawerOpen(false)} 
+                  className="flex-1 py-4 border-2 border-slate-200 rounded-2xl text-xs font-black uppercase tracking-widest text-slate-400 hover:bg-white hover:text-slate-600 transition-all cursor-pointer"
+                >
+                  Fechar
+                </button>
+              </div>
             </motion.div>
           </div>
         )}

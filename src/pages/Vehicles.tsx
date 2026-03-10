@@ -191,9 +191,16 @@ export default function Vehicles() {
     return vehicles.filter(v => {
       const matchStatus = !statusFilter || v.status === statusFilter;
       const matchBrand = !brandFilter || v.brand === brandFilter;
-      return matchStatus && matchBrand;
+      const searchLower = search.toLowerCase();
+      const matchSearch = !search || 
+        v.plate?.toLowerCase().includes(searchLower) ||
+        v.brand?.toLowerCase().includes(searchLower) ||
+        v.model?.toLowerCase().includes(searchLower) ||
+        v.vin?.toLowerCase().includes(searchLower) ||
+        v.client_name?.toLowerCase().includes(searchLower);
+      return matchStatus && matchBrand && matchSearch;
     });
-  }, [vehicles, statusFilter, brandFilter]);
+  }, [vehicles, statusFilter, brandFilter, search]);
 
   return (
     <div className="flex flex-col h-full -m-6 bg-[#F6F8FB]">
@@ -768,29 +775,29 @@ export default function Vehicles() {
                             <div>
                               <span className="text-[10px] font-black text-blue-600 uppercase tracking-[0.2em] mb-1 block">#{wo.number}</span>
                               <h4 className="font-black text-slate-900 text-base leading-tight uppercase italic">
-                                {wo.items?.find((i: any) => i.category === 'SERVICE')?.name || 'Manutenção Corretiva'}
-                              </h4>
-                            </div>
-                            <span className={cn(
-                                "px-3 py-1 rounded-full text-[9px] font-black uppercase border",
-                                wo.status === 'FINISHED' ? "bg-emerald-50 text-emerald-600 border-emerald-100" : "bg-blue-50 text-blue-600 border-blue-100"
-                            )}>
-                                {wo.status === 'FINISHED' ? 'Finalizada' : wo.status}
-                            </span>
+                              {wo.items?.find((i: any) => i.type === 'SERVICE')?.description || 'Manutenção Corretiva'}
+                            </h4>
                           </div>
+                          <span className={cn(
+                              "px-3 py-1 rounded-full text-[9px] font-black uppercase border",
+                              wo.status === 'FINISHED' ? "bg-emerald-50 text-emerald-600 border-emerald-100" : "bg-blue-50 text-blue-600 border-blue-100"
+                          )}>
+                              {wo.status === 'FINISHED' ? 'Finalizada' : wo.status}
+                          </span>
+                        </div>
 
-                          {/* Items List (Services & Parts) */}
-                          <div className="space-y-2 mb-4">
-                            {wo.items?.map((item: any, idx: number) => (
-                              <div key={idx} className="flex items-center justify-between text-[11px] py-1 border-b border-slate-50 last:border-0">
-                                <div className="flex items-center gap-2">
-                                  {item.category === 'PART' ? <Package size={12} className="text-orange-400" /> : <Shield size={12} className="text-blue-400" />}
-                                  <span className="font-bold text-slate-700 uppercase">{item.name}</span>
-                                </div>
-                                <span className="text-slate-400 font-bold">x{item.quantity}</span>
+                        {/* Items List (Services & Parts) */}
+                        <div className="space-y-2 mb-4">
+                          {wo.items?.map((item: any, idx: number) => (
+                            <div key={idx} className="flex items-center justify-between text-[11px] py-1 border-b border-slate-50 last:border-0 font-medium">
+                              <div className="flex items-center gap-2">
+                                {item.type === 'PART' ? <Package size={12} className="text-orange-400" /> : <Shield size={12} className="text-blue-400" />}
+                                <span className="text-slate-700 uppercase">{item.description}</span>
                               </div>
-                            ))}
-                          </div>
+                              <span className="text-slate-400 font-bold">x{item.quantity}</span>
+                            </div>
+                          ))}
+                        </div>
 
                           <div className="grid grid-cols-2 gap-4 mb-4">
                             <div className="bg-slate-50 rounded-2xl p-3 border border-slate-100/50">

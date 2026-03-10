@@ -239,6 +239,7 @@ export default function SuperAdmin() {
         ver_configuracoes: false,
         gerenciar_configuracoes: false,
         ver_relatorios: false,
+        ver_clientes: false,
         acesso_suporte: false
     }
   });
@@ -254,6 +255,7 @@ export default function SuperAdmin() {
     ver_configuracoes: "Ver Configurações Sistema",
     gerenciar_configuracoes: "Alterar Ajustes Sistema",
     ver_relatorios: "Ver Relatórios Globais",
+    ver_clientes: "Ver Clientes",
     acesso_suporte: "Acesso Painel Suporte"
   };
 
@@ -497,10 +499,12 @@ export default function SuperAdmin() {
           ver_configuracoes: true, 
           gerenciar_configuracoes: true, 
           ver_relatorios: true,
+          ver_clientes: true,
           acesso_suporte: true
       } : {
           ver_dashboard: true,
           ver_parceiros: true,
+          ver_clientes: true,
           gerenciar_parceiros: false,
           ver_equipe: false,
           gerenciar_equipe: false,
@@ -1158,7 +1162,7 @@ export default function SuperAdmin() {
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
                 <div className="flex items-center justify-between">
                   <h2 className="text-xl font-black text-slate-900 uppercase">Gestão de Permissões</h2>
-                  <button onClick={() => { setEditingProfile(null); setPermissionsForm({ name: "", description: "", permissions: { ver_dashboard: true, ver_parceiros: false, gerenciar_parceiros: false, ver_equipe: false, gerenciar_equipe: false, ver_planos: false, gerenciar_planos: false, ver_configuracoes: false, gerenciar_configuracoes: false, ver_relatorios: false, acesso_suporte: false } }); setShowPermissionsModal(true); }} className="h-10 px-6 bg-slate-900 text-white rounded-xl font-black text-[10px] uppercase flex items-center gap-2 hover:bg-emerald-600 transition-all shadow-lg">
+                  <button onClick={() => { setEditingProfile(null); setPermissionsForm({ name: "", description: "", permissions: { ver_dashboard: true, ver_parceiros: false, gerenciar_parceiros: false, ver_equipe: false, gerenciar_equipe: false, ver_planos: false, gerenciar_planos: false, ver_configuracoes: false, gerenciar_configuracoes: false, ver_relatorios: false, ver_clientes: false, acesso_suporte: false } }); setShowPermissionsModal(true); }} className="h-10 px-6 bg-slate-900 text-white rounded-xl font-black text-[10px] uppercase flex items-center gap-2 hover:bg-emerald-600 transition-all shadow-lg">
                     <Plus size={16} /> Criar Perfil de Acesso
                   </button>
                 </div>
