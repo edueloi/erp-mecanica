@@ -25,6 +25,7 @@ import {
 import { Link } from 'react-router-dom';
 import heroImg from '../image/hero-landing.png';
 import logoMecaerp from '../image/logo-system/logo-mecaerp.png';
+import LandingChatBot from '../components/LandingChatBot';
 
 const LandingPage = () => {
   const fadeIn: any = {
@@ -385,6 +386,7 @@ const LandingPage = () => {
           <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">© 2026 MecaERP. Desenvolvido para o Sucesso Automotivo.</p>
         </div>
       </footer>
+      <LandingChatBot />
     </div>
   );
 };
