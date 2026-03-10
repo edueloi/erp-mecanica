@@ -40,8 +40,18 @@ router.post("/login", async (req, res) => {
 
     const tenant = db.prepare("SELECT * FROM tenants WHERE id = ?").get(user.tenant_id) as any;
 
+    const perms = typeof user.permissions === 'string' ? JSON.parse(user.permissions) : user.permissions;
+
     const token = jwt.sign(
-      { id: user.id, tenant_id: user.tenant_id, role: user.role, name: user.name, tenant_name: tenant.name },
+      { 
+        id: user.id, 
+        tenant_id: user.tenant_id, 
+        role: user.role, 
+        name: user.name, 
+        tenant_name: tenant.name,
+        permissions: perms,
+        profession: user.profession
+      },
       JWT_SECRET,
       { expiresIn: "24h" }
     );
@@ -56,7 +66,8 @@ router.post("/login", async (req, res) => {
         tenant_id: user.tenant_id,
         tenant_name: tenant.name,
         photo_url: user.photo_url,
-        permissions: typeof user.permissions === 'string' ? JSON.parse(user.permissions) : user.permissions
+        profession: user.profession,
+        permissions: perms
       }
     });
   } catch (error: any) {

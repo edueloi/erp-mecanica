@@ -270,7 +270,7 @@ router.get("/team", requireSuperAdmin, (req: AuthRequest, res) => {
 });
 
 router.post("/team", requireSuperAdmin, (req: AuthRequest, res) => {
-  const { name, email, password, role, phone, cpf, profession, permissions, photo_url } = req.body;
+  const { name, email, password, role, phone, cpf, profession, permissions, photo_url, permission_profile_id } = req.body;
   try {
     // Check if email already exists
     const existing = db.prepare("SELECT id FROM users WHERE email = ?").get(email);
@@ -279,7 +279,38 @@ router.post("/team", requireSuperAdmin, (req: AuthRequest, res) => {
     }
 
     const hash = bcrypt.hashSync(password, 10);
-    const permsStr = permissions ? JSON.stringify(permissions) : '{}';
+    
+    let finalPermissions = permissions || {};
+    if (permission_profile_id) {
+      const profile = db.prepare("SELECT permissions FROM permission_profiles WHERE id = ?").get(permission_profile_id) as any;
+      if (profile) finalPermissions = JSON.parse(profile.permissions);
+    } else if (role === 'SUPER_ADMIN') {
+      finalPermissions = {
+        ver_dashboard: true,
+        ver_parceiros: true,
+        gerenciar_parceiros: true,
+        ver_equipe: true,
+        gerenciar_equipe: true,
+        ver_planos: true,
+        gerenciar_planos: true,
+        ver_configuracoes: true,
+        gerenciar_configuracoes: true,
+        ver_relatorios: true,
+        acesso_suporte: true
+      };
+    } else {
+      finalPermissions = {
+        ver_dashboard: true,
+        ver_parceiros: true,
+        gerenciar_parceiros: false,
+        ver_equipe: false,
+        ver_planos: false,
+        ver_configuracoes: false,
+        ver_relatorios: false
+      };
+    }
+
+    const permsStr = JSON.stringify(finalPermissions);
     
     db.prepare(`
       INSERT INTO users (id, tenant_id, name, email, password, role, phone, cpf, profession, photo_url, permissions)
@@ -295,7 +326,7 @@ router.post("/team", requireSuperAdmin, (req: AuthRequest, res) => {
 
 router.patch("/team/:id", requireSuperAdmin, (req: AuthRequest, res) => {
   const { id } = req.params;
-  const { name, email, password, role, phone, cpf, profession, permissions, photo_url } = req.body;
+  const { name, email, password, role, phone, cpf, profession, permissions, photo_url, permission_profile_id } = req.body;
   
   try {
     const userToEdit = db.prepare("SELECT role, email FROM users WHERE id = ?").get(id) as any;
@@ -328,7 +359,18 @@ router.patch("/team/:id", requireSuperAdmin, (req: AuthRequest, res) => {
     if (phone !== undefined) { updates.push("phone = ?"); values.push(phone || null); }
     if (cpf !== undefined) { updates.push("cpf = ?"); values.push(cpf || null); }
     if (profession !== undefined) { updates.push("profession = ?"); values.push(profession || null); }
-    if (permissions) { updates.push("permissions = ?"); values.push(JSON.stringify(permissions)); }
+    
+    let finalPermissions = permissions;
+    if (permission_profile_id) {
+      const profile = db.prepare("SELECT permissions FROM permission_profiles WHERE id = ?").get(permission_profile_id) as any;
+      if (profile) finalPermissions = JSON.parse(profile.permissions);
+    }
+
+    if (finalPermissions) { 
+      updates.push("permissions = ?"); 
+      values.push(JSON.stringify(finalPermissions)); 
+    }
+    
     if (photo_url !== undefined) { updates.push("photo_url = ?"); values.push(photo_url || null); }
 
     if (updates.length > 0) {

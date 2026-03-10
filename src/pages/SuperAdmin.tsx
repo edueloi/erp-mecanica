@@ -230,41 +230,31 @@ export default function SuperAdmin() {
     description: "",
     permissions: {
         ver_dashboard: true,
-        ver_clientes: false,
-        gerenciar_clientes: false,
-        ver_veiculos: false,
-        gerenciar_veiculos: false,
-        ver_os: false,
-        gerenciar_os: false,
-        ver_financeiro: false,
-        gerenciar_financeiro: false,
-        ver_estoque: false,
-        gerenciar_estoque: false,
+        ver_parceiros: false,
+        gerenciar_parceiros: false,
         ver_equipe: false,
         gerenciar_equipe: false,
+        ver_planos: false,
+        gerenciar_planos: false,
         ver_configuracoes: false,
         gerenciar_configuracoes: false,
-        ver_relatorios: false
+        ver_relatorios: false,
+        acesso_suporte: false
     }
   });
 
   const PERMISSION_LABELS: Record<string, string> = {
     ver_dashboard: "Ver Dashboard",
-    ver_clientes: "Ver Clientes",
-    gerenciar_clientes: "Gerenciar Clientes",
-    ver_veiculos: "Ver Veículos",
-    gerenciar_veiculos: "Gerenciar Veículos",
-    ver_os: "Ver Ordens de Serviço",
-    gerenciar_os: "Gerenciar OS",
-    ver_financeiro: "Ver Financeiro",
-    gerenciar_financeiro: "Gerenciar Financeiro",
-    ver_estoque: "Ver Estoque",
-    gerenciar_estoque: "Gerenciar Estoque",
-    ver_equipe: "Ver Equipe",
+    ver_parceiros: "Ver Parceiros (Oficinas)",
+    gerenciar_parceiros: "Gerenciar Parceiros",
+    ver_equipe: "Ver Equipe Interna",
     gerenciar_equipe: "Gerenciar Equipe",
-    ver_configuracoes: "Ver Configurações",
-    gerenciar_configuracoes: "Gerenciar Configurações",
-    ver_relatorios: "Ver Relatórios"
+    ver_planos: "Ver Planos de Assinatura",
+    gerenciar_planos: "Gerenciar Planos",
+    ver_configuracoes: "Ver Configurações Sistema",
+    gerenciar_configuracoes: "Alterar Ajustes Sistema",
+    ver_relatorios: "Ver Relatórios Globais",
+    acesso_suporte: "Acesso Painel Suporte"
   };
 
   const showToast = (message: string, type: 'success' | 'error' = 'success') => {
@@ -560,13 +550,20 @@ export default function SuperAdmin() {
   );
 
   const navItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'workshops', label: isVendedor ? 'Minha Carteira' : 'Parceiros', icon: Building2 },
-    !isVendedor && { id: 'team', label: 'Equipe', icon: Briefcase },
-    !isVendedor && { id: 'permissions', label: 'Permissões', icon: Fingerprint },
-    !isVendedor && { id: 'plans', label: 'Planos', icon: Package },
+    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, permission: 'ver_dashboard' },
+    { id: 'workshops', label: isVendedor ? 'Minha Carteira' : 'Parceiros', icon: Building2, permission: 'ver_parceiros' },
+    !isVendedor && { id: 'team', label: 'Equipe', icon: Briefcase, permission: 'ver_equipe' },
+    !isVendedor && { id: 'permissions', label: 'Permissões', icon: Fingerprint, permission: 'gerenciar_equipe' },
+    !isVendedor && { id: 'plans', label: 'Planos', icon: Package, permission: 'ver_planos' },
     { id: 'profile', label: 'Meu Perfil', icon: UserCircle },
-  ].filter(Boolean) as any[];
+  ].filter(item => {
+    if (!item) return false;
+    if (isMasterRoot) return true;
+    if (!item.permission) return true;
+    
+    const perms = user?.permissions || {};
+    return perms[item.permission];
+  }) as any[];
 
   return (
     <div className="min-h-screen bg-[#f8fafc] flex font-sans antialiased text-slate-900 overflow-hidden h-screen relative">

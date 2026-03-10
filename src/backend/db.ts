@@ -8,7 +8,7 @@ const db = new Database('mecaerp.db');
 export function initDb() {
   db.exec('CREATE TABLE IF NOT EXISTS pricing_plans (id TEXT PRIMARY KEY, name TEXT NOT NULL, description TEXT, user_limit INTEGER NOT NULL, monthly_value REAL NOT NULL, months_duration INTEGER DEFAULT 1, active BOOLEAN DEFAULT 1, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)');
   db.exec(`CREATE TABLE IF NOT EXISTS tenants (id TEXT PRIMARY KEY, name TEXT NOT NULL, document TEXT, address TEXT, phone TEXT, user_limit INTEGER DEFAULT 5, subscription_value REAL DEFAULT 0, due_day INTEGER DEFAULT 5, last_payment_date DATETIME, status TEXT DEFAULT 'ACTIVE', plan_id TEXT, seller_id TEXT, logo_url TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)`);
-  db.exec('CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, name TEXT NOT NULL, email TEXT NOT NULL, password TEXT NOT NULL, role TEXT NOT NULL, cpf TEXT, phone TEXT, profession TEXT, photo_url TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)');
+  db.exec('CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, name TEXT NOT NULL, email TEXT NOT NULL, password TEXT NOT NULL, role TEXT CHECK(role IN ("SUPER_ADMIN", "ADMIN", "MECHANIC", "ATTENDANT", "FINANCE", "VENDEDOR")) NOT NULL, cpf TEXT, phone TEXT, profession TEXT, photo_url TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)');
   
   // Services Catalog
   db.exec(`CREATE TABLE IF NOT EXISTS services (
