@@ -183,8 +183,14 @@ export default function WorkOrderDetail() {
     try {
       if (id === 'new') {
         const res = await api.post('/work-orders', wo);
-        setInitialWo(res.data); // Reset initial so it's not dirty anymore
-        setWo(res.data);
+        const savedWo = {
+          ...res.data,
+          items: Array.isArray(res.data?.items) ? res.data.items : [],
+          history: Array.isArray(res.data?.history) ? res.data.history : [],
+          photos: Array.isArray(res.data?.photos) ? res.data.photos : []
+        };
+        setInitialWo(savedWo); // Reset initial so it's not dirty anymore
+        setWo(savedWo);
         showNotification('success', 'Sucesso', 'OS criada com sucesso!');
         // Use a timeout to ensure state updates are processed before navigation
         setTimeout(() => {
@@ -1817,3 +1823,4 @@ export default function WorkOrderDetail() {
     </div>
   );
 }
+
