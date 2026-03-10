@@ -97,6 +97,21 @@ export function initDb() {
   try { db.exec('ALTER TABLE user_preferences ADD COLUMN sidebar_text_color TEXT DEFAULT "#94a3b8"'); } catch (e) {}
   try { db.exec('ALTER TABLE user_preferences ADD COLUMN header_color TEXT DEFAULT "#ffffff"'); } catch (e) {}
 
+  // Unified Vehicle History
+  db.exec(`CREATE TABLE IF NOT EXISTS vehicle_history_logs (
+    id TEXT PRIMARY KEY,
+    vehicle_id TEXT NOT NULL,
+    tenant_id TEXT NOT NULL,
+    event_type TEXT CHECK(event_type IN ('REGISTRATION', 'OWNERSHIP', 'ENTRY', 'EXIT', 'MAINTENANCE', 'RECALL', 'RE-ENTRY')) NOT NULL,
+    description TEXT,
+    old_value TEXT,
+    new_value TEXT,
+    responsible_id TEXT,
+    km INTEGER,
+    value REAL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
+
   try {
     const superAdminEmail = 'admin@mecaerp.com.br';
     const existingAdmin = db.prepare('SELECT id FROM users WHERE email = ?').get(superAdminEmail);

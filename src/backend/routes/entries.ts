@@ -137,6 +137,15 @@ router.post("/", (req: AuthRequest, res) => {
         VALUES (?, ?, ?, ?, 'DRAFT')
       `).run(id, req.user!.tenant_id, client_id || null, vehicle_id || null);
 
+      if (vehicle_id) {
+          // Log entry event in history
+          const vehicle = db.prepare("SELECT brand, model, plate, km FROM vehicles WHERE id = ?").get(vehicle_id) as any;
+          db.prepare(`
+            INSERT INTO vehicle_history_logs (id, vehicle_id, tenant_id, event_type, description, responsible_id, km)
+            VALUES (?, ?, ?, 'ENTRY', ?, ?, ?)
+          `).run(uuidv4(), vehicle_id, req.user!.tenant_id, `Check-in na oficina: ${vehicle?.brand || ''} ${vehicle?.model || ''} (${vehicle?.plate || ''})`, req.user!.id, req.body.km || vehicle?.km || 0);
+      }
+
       const items = [
         { category: 'Fotos do Veículo', item: 'Frente do Veículo', sort_order: -5 },
         { category: 'Fotos do Veículo', item: 'Traseira do Veículo', sort_order: -4 },

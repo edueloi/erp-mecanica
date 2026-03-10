@@ -197,6 +197,17 @@ router.post("/", (req: AuthRequest, res) => {
     transaction();
     console.log('Transaction committed successfully');
 
+    // Log in vehicle history
+    try {
+        const vehicle = db.prepare("SELECT km FROM vehicles WHERE id = ?").get(vehicle_id) as any;
+        db.prepare(`
+          INSERT INTO vehicle_history_logs (id, vehicle_id, tenant_id, event_type, description, responsible_id, km, new_value)
+          VALUES (?, ?, ?, 'MAINTENANCE', ?, ?, ?, ?)
+        `).run(uuidv4(), vehicle_id, req.user!.tenant_id, `Nova Ordem de Serviço: ${number}`, req.user!.id, req.body.km || vehicle?.km || 0, id);
+    } catch (e) {
+        console.error("Error logging OS creation to history:", e);
+    }
+
     const newWO = db.prepare("SELECT * FROM work_orders WHERE id = ?").get(id);
     res.status(201).json(newWO);
   } catch (error: any) {
@@ -392,6 +403,20 @@ router.patch("/:id", (req: AuthRequest, res) => {
     });
 
     transaction();
+    
+    // Log in history if status changed to FINISHED
+    if (status === 'FINISHED') {
+        try {
+            const wo = db.prepare("SELECT * FROM work_orders WHERE id = ?").get(req.params.id) as any;
+            db.prepare(`
+              INSERT INTO vehicle_history_logs (id, vehicle_id, tenant_id, event_type, description, responsible_id, km, value, new_value)
+              VALUES (?, ?, ?, 'MAINTENANCE', ?, ?, ?, ?, ?)
+            `).run(uuidv4(), wo.vehicle_id, req.user!.tenant_id, `Manutenção Finalizada: ${wo.number}`, req.user!.id, wo.km || 0, wo.total_amount || 0, req.params.id);
+        } catch (e) {
+            console.error("Error logging OS finish to history:", e);
+        }
+    }
+
     res.json({ message: "Work Order updated successfully" });
   } catch (error: any) {
     console.error("❌ ERROR UPDATING WORK ORDER:", error);
