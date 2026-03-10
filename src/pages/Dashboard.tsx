@@ -19,12 +19,14 @@ import api from '../services/api';
 import { motion } from 'motion/react';
 import { Link, useNavigate } from 'react-router-dom';
 import { cn } from '../utils/cn';
+import { useSettings } from '../contexts/SettingsContext';
 
 export default function Dashboard() {
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState('30');
   const navigate = useNavigate();
+  const { preferences } = useSettings();
 
   useEffect(() => {
     setLoading(true);
@@ -84,7 +86,7 @@ export default function Dashboard() {
               <button 
                 key={action.label}
                 onClick={() => navigate(action.path)}
-                className={`${action.color} text-white px-4 py-2.5 rounded-xl font-bold text-xs flex items-center gap-2 hover:opacity-90 transition-all shadow-lg shadow-slate-200`}
+                className={`${action.color} text-white px-4 py-2.5 rounded-xl font-bold text-xs flex items-center gap-2 hover:opacity-90 transition-all shadow-lg shadow-slate-200 cursor-pointer`}
               >
                 <action.icon size={16} />
                 {action.label}
@@ -94,29 +96,31 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-6">
-        {cards.map((card, i) => (
-          <motion.div 
-            key={card.label}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.1 }}
-            className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm relative overflow-hidden group"
-          >
-            <div className="flex items-center justify-between mb-4">
-              <div className={`${card.bg} ${card.color} p-3 rounded-xl transition-transform group-hover:scale-110`}>
-                <card.icon size={24} />
+      {preferences.show_dashboard_cards && (
+        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-6">
+          {cards.map((card, i) => (
+            <motion.div 
+              key={card.label}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.1 }}
+              className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm relative overflow-hidden group"
+            >
+              <div className="flex items-center justify-between mb-4">
+                <div className={`${card.bg} ${card.color} p-3 rounded-xl transition-transform group-hover:scale-110`}>
+                  <card.icon size={24} />
+                </div>
+                <span className="text-[10px] font-bold text-slate-400 bg-slate-50 px-2 py-1 rounded-full uppercase tracking-wider">Este mês</span>
               </div>
-              <span className="text-[10px] font-bold text-slate-400 bg-slate-50 px-2 py-1 rounded-full uppercase tracking-wider">Este mês</span>
-            </div>
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">{card.label}</p>
-            <p className="text-2xl font-black text-slate-900 mt-1">{card.value}</p>
-            <div className="absolute -right-4 -bottom-4 opacity-5 group-hover:opacity-10 transition-opacity">
-              <card.icon size={100} />
-            </div>
-          </motion.div>
-        ))}
-      </div>
+              <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">{card.label}</p>
+              <p className="text-2xl font-black text-slate-900 mt-1">{card.value}</p>
+              <div className="absolute -right-4 -bottom-4 opacity-5 group-hover:opacity-10 transition-opacity">
+                <card.icon size={100} />
+              </div>
+            </motion.div>
+          ))}
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">

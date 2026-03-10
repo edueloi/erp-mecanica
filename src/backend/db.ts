@@ -51,6 +51,32 @@ export function initDb() {
   // Custom Permissions Profiles
   db.exec('CREATE TABLE IF NOT EXISTS permission_profiles (id TEXT PRIMARY KEY, name TEXT NOT NULL, description TEXT, permissions TEXT NOT NULL, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)');
   
+  // User Preferences
+  db.exec(`CREATE TABLE IF NOT EXISTS user_preferences (
+    id TEXT PRIMARY KEY,
+    tenant_id TEXT NOT NULL,
+    user_id TEXT NOT NULL,
+    theme_mode TEXT DEFAULT 'light',
+    primary_color TEXT DEFAULT '#1e293b',
+    secondary_color TEXT DEFAULT '#64748b',
+    sidebar_color TEXT DEFAULT '#0f172a',
+    sidebar_text_color TEXT DEFAULT '#94a3b8',
+    header_color TEXT DEFAULT '#ffffff',
+    sidebar_collapsed INTEGER DEFAULT 0,
+    show_dashboard_cards INTEGER DEFAULT 1,
+    default_rows_per_page INTEGER DEFAULT 20,
+    filters_json TEXT DEFAULT '{}',
+    table_preferences_json TEXT DEFAULT '{}',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
+
+  // Migrations for more colors
+  try { db.exec('ALTER TABLE user_preferences ADD COLUMN secondary_color TEXT DEFAULT "#64748b"'); } catch (e) {}
+  try { db.exec('ALTER TABLE user_preferences ADD COLUMN sidebar_color TEXT DEFAULT "#0f172a"'); } catch (e) {}
+  try { db.exec('ALTER TABLE user_preferences ADD COLUMN sidebar_text_color TEXT DEFAULT "#94a3b8"'); } catch (e) {}
+  try { db.exec('ALTER TABLE user_preferences ADD COLUMN header_color TEXT DEFAULT "#ffffff"'); } catch (e) {}
+
   try {
     const superAdminEmail = 'admin@mecaerp.com.br';
     const existingAdmin = db.prepare('SELECT id FROM users WHERE email = ?').get(superAdminEmail);

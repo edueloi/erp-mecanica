@@ -41,6 +41,10 @@ router.patch("/preferences", (req: any, res) => {
   const {
     theme_mode,
     primary_color,
+    secondary_color,
+    sidebar_color,
+    sidebar_text_color,
+    header_color,
     sidebar_collapsed,
     show_dashboard_cards,
     default_rows_per_page,
@@ -66,6 +70,10 @@ router.patch("/preferences", (req: any, res) => {
       `UPDATE user_preferences 
        SET theme_mode = COALESCE(?, theme_mode),
            primary_color = COALESCE(?, primary_color),
+           secondary_color = COALESCE(?, secondary_color),
+           sidebar_color = COALESCE(?, sidebar_color),
+           sidebar_text_color = COALESCE(?, sidebar_text_color),
+           header_color = COALESCE(?, header_color),
            sidebar_collapsed = COALESCE(?, sidebar_collapsed),
            show_dashboard_cards = COALESCE(?, show_dashboard_cards),
            default_rows_per_page = COALESCE(?, default_rows_per_page),
@@ -76,8 +84,12 @@ router.patch("/preferences", (req: any, res) => {
     ).run(
       theme_mode,
       primary_color,
-      sidebar_collapsed,
-      show_dashboard_cards,
+      secondary_color,
+      sidebar_color,
+      sidebar_text_color,
+      header_color,
+      sidebar_collapsed !== undefined ? (sidebar_collapsed ? 1 : 0) : null,
+      show_dashboard_cards !== undefined ? (show_dashboard_cards ? 1 : 0) : null,
       default_rows_per_page,
       filters_json,
       table_preferences_json,
@@ -190,11 +202,29 @@ router.patch("/tenant", (req: any, res) => {
     }
 
     if (updates.length > 0) {
+      const tenantId = req.user.tenant_id;
       updates.push('updated_at = CURRENT_TIMESTAMP');
-      values.push(req.user.tenant_id);
+      values.push(tenantId);
 
       const query = `UPDATE tenant_settings SET ${updates.join(', ')} WHERE tenant_id = ?`;
       db.prepare(query).run(...values);
+
+      // Sincronizar campos compartilhados com a tabela principal 'tenants'
+      const syncUpdates: string[] = [];
+      const syncValues: any[] = [];
+
+      if (settingsData.hasOwnProperty('trade_name')) { syncUpdates.push("name = ?"); syncValues.push(settingsData.trade_name); }
+      else if (settingsData.hasOwnProperty('company_name')) { syncUpdates.push("name = ?"); syncValues.push(settingsData.company_name); }
+      
+      if (settingsData.hasOwnProperty('cnpj')) { syncUpdates.push("document = ?"); syncValues.push(settingsData.cnpj); }
+      if (settingsData.hasOwnProperty('phone')) { syncUpdates.push("phone = ?"); syncValues.push(settingsData.phone); }
+      if (settingsData.hasOwnProperty('address')) { syncUpdates.push("address = ?"); syncValues.push(settingsData.address); }
+      if (settingsData.hasOwnProperty('logo_url')) { syncUpdates.push("logo_url = ?"); syncValues.push(settingsData.logo_url); }
+
+      if (syncUpdates.length > 0) {
+        syncValues.push(tenantId);
+        db.prepare(`UPDATE tenants SET ${syncUpdates.join(', ')} WHERE id = ?`).run(...syncValues);
+      }
     }
 
     const updated = db

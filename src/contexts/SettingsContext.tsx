@@ -6,6 +6,10 @@ interface UserPreferences {
   id?: string;
   theme_mode: "light" | "dark" | "auto";
   primary_color: string;
+  secondary_color: string;
+  sidebar_color: string;
+  sidebar_text_color: string;
+  header_color: string;
   sidebar_collapsed: boolean;
   show_dashboard_cards: boolean;
   default_rows_per_page: number;
@@ -111,6 +115,10 @@ interface SettingsContextType {
 const defaultPreferences: UserPreferences = {
   theme_mode: "light",
   primary_color: "#1e293b",
+  secondary_color: "#64748b",
+  sidebar_color: "#0f172a",
+  sidebar_text_color: "#94a3b8",
+  header_color: "#ffffff",
   sidebar_collapsed: false,
   show_dashboard_cards: true,
   default_rows_per_page: 20,
@@ -151,7 +159,7 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
   // Apply theme whenever preferences change
   useEffect(() => {
     applyTheme();
-  }, [preferences.theme_mode, preferences.primary_color]);
+  }, [preferences.theme_mode, preferences.primary_color, preferences.secondary_color, preferences.sidebar_color, preferences.sidebar_text_color, preferences.header_color]);
 
   const loadSettings = async () => {
     try {
@@ -160,7 +168,13 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
         api.get("/settings/tenant"),
       ]);
 
-      setPreferences(preferencesResponse.data);
+      const prefs = preferencesResponse.data;
+      // Convert SQLite 0/1 to boolean
+      setPreferences({
+        ...prefs,
+        sidebar_collapsed: !!prefs.sidebar_collapsed,
+        show_dashboard_cards: !!prefs.show_dashboard_cards
+      });
       setTenantSettings(tenantResponse.data);
     } catch (error) {
       console.error("Error loading settings:", error);
@@ -169,30 +183,15 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const loadPreferences = async () => {
-    try {
-      const response = await api.get("/settings/preferences");
-      setPreferences(response.data);
-    } catch (error) {
-      console.error("Error loading preferences:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loadTenantSettings = async () => {
-    try {
-      const response = await api.get("/settings/tenant");
-      setTenantSettings(response.data);
-    } catch (error) {
-      console.error("Error loading tenant settings:", error);
-    }
-  };
-
   const updatePreferences = async (prefs: Partial<UserPreferences>) => {
     try {
       const response = await api.patch("/settings/preferences", prefs);
-      setPreferences(response.data);
+      const updatedPrefs = response.data;
+      setPreferences({
+        ...updatedPrefs,
+        sidebar_collapsed: !!updatedPrefs.sidebar_collapsed,
+        show_dashboard_cards: !!updatedPrefs.show_dashboard_cards
+      });
     } catch (error) {
       console.error("Error updating preferences:", error);
       throw error;
@@ -227,10 +226,11 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
     // Apply primary color with fallback and smooth transition
     const primaryColor = preferences.primary_color || "#1e293b";
     root.style.setProperty("--primary-color", primaryColor);
-    
-    // Generate hover color (slightly darker)
-    const hoverColor = adjustColorBrightness(primaryColor, -20);
-    root.style.setProperty("--primary-hover", hoverColor);
+    root.style.setProperty("--primary-hover", adjustColorBrightness(primaryColor, -20));
+    root.style.setProperty("--secondary-color", preferences.secondary_color || "#64748b");
+    root.style.setProperty("--sidebar-color", preferences.sidebar_color || "#0f172a");
+    root.style.setProperty("--sidebar-text", preferences.sidebar_text_color || "#94a3b8");
+    root.style.setProperty("--header-bg", preferences.header_color || "#ffffff");
   };
 
   // Helper to adjust color brightness

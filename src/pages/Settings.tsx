@@ -2076,184 +2076,221 @@ export default function Settings() {
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              className="max-w-2xl mx-auto space-y-8"
+              className="max-w-4xl mx-auto space-y-8"
             >
-              <div>
-                <h2 className="text-xl font-bold text-slate-900 mb-1">🎨 Aparência</h2>
-                <p className="text-sm text-slate-500">
-                  Personalize o visual do sistema
-                </p>
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-xl font-bold text-slate-900 mb-1">🎨 Aparência & Personalização</h2>
+                  <p className="text-sm text-slate-500">
+                    Ajuste as cores e o comportamento visual do seu sistema
+                  </p>
+                </div>
+                <button
+                  onClick={async () => {
+                    if (confirm("Deseja restaurar as cores padrões do sistema?")) {
+                      setSaving(true);
+                      try {
+                        await updatePreferences({
+                          primary_color: "#1e293b",
+                          secondary_color: "#64748b",
+                          sidebar_color: "#0f172a",
+                          sidebar_text_color: "#94a3b8",
+                          header_color: "#ffffff"
+                        });
+                        showToast("Cores restauradas!", "success");
+                      } finally {
+                        setSaving(false);
+                      }
+                    }
+                  }}
+                  className="px-4 py-2 text-xs font-black uppercase tracking-widest text-slate-400 hover:text-slate-900 transition-colors cursor-pointer"
+                >
+                  Restaurar Padrões
+                </button>
               </div>
 
               {/* Theme Mode */}
-              <div className="bg-white rounded-2xl border border-slate-200 p-6">
-                <h3 className="text-sm font-semibold text-slate-700 uppercase tracking-wide mb-4">
-                  Tema
+              <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+                <h3 className="text-sm font-black text-slate-700 uppercase tracking-[0.2em] mb-6 flex items-center gap-2">
+                  <Sun className="w-4 h-4" /> Modo de Visualização
                 </h3>
                 <div className="grid grid-cols-3 gap-4">
-                  <button
-                    onClick={() => handleThemeChange("light")}
-                    disabled={saving}
-                    className={`flex flex-col items-center gap-3 p-4 rounded-xl border-2 transition-all cursor-pointer ${
-                      preferences.theme_mode === "light"
-                        ? "border-slate-700 bg-slate-50"
-                        : "border-slate-200 hover:border-slate-300"
-                    } ${saving ? 'opacity-50 cursor-not-allowed' : ''}`}
-                  >
-                    <Sun className="w-8 h-8 text-slate-700" />
-                    <div className="text-center">
-                      <div className="font-medium text-slate-900">Claro</div>
-                      <div className="text-xs text-slate-500">Tema diurno</div>
-                    </div>
-                    {preferences.theme_mode === "light" && (
-                      <Check className="w-5 h-5 text-slate-700" />
-                    )}
-                  </button>
-
-                  <button
-                    onClick={() => handleThemeChange("dark")}
-                    disabled={saving}
-                    className={`flex flex-col items-center gap-3 p-4 rounded-xl border-2 transition-all cursor-pointer ${
-                      preferences.theme_mode === "dark"
-                        ? "border-slate-700 bg-slate-50"
-                        : "border-slate-200 hover:border-slate-300"
-                    } ${saving ? 'opacity-50 cursor-not-allowed' : ''}`}
-                  >
-                    <Moon className="w-8 h-8 text-slate-700" />
-                    <div className="text-center">
-                      <div className="font-medium text-slate-900">Escuro</div>
-                      <div className="text-xs text-slate-500">Tema noturno</div>
-                    </div>
-                    {preferences.theme_mode === "dark" && (
-                      <Check className="w-5 h-5 text-slate-700" />
-                    )}
-                  </button>
-
-                  <button
-                    onClick={() => handleThemeChange("auto")}
-                    disabled={saving}
-                    className={`flex flex-col items-center gap-3 p-4 rounded-xl border-2 transition-all cursor-pointer ${
-                      preferences.theme_mode === "auto"
-                        ? "border-slate-700 bg-slate-50"
-                        : "border-slate-200 hover:border-slate-300"
-                    } ${saving ? 'opacity-50 cursor-not-allowed' : ''}`}
-                  >
-                    <MonitorSmartphone className="w-8 h-8 text-slate-700" />
-                    <div className="text-center">
-                      <div className="font-medium text-slate-900">Auto</div>
-                      <div className="text-xs text-slate-500">Segue sistema</div>
-                    </div>
-                    {preferences.theme_mode === "auto" && (
-                      <Check className="w-5 h-5 text-slate-700" />
-                    )}
-                  </button>
+                  {[
+                    { id: 'light', label: 'Claro', icon: Sun, desc: 'Ideal para ambientes iluminados' },
+                    { id: 'dark', label: 'Escuro', icon: Moon, desc: 'Conforto visual e economia' },
+                    { id: 'auto', label: 'Sistema', icon: MonitorSmartphone, desc: 'Segue seu computador' }
+                  ].map((mode) => (
+                    <button
+                      key={mode.id}
+                      onClick={() => handleThemeChange(mode.id as any)}
+                      disabled={saving}
+                      className={`flex flex-col items-center gap-3 p-5 rounded-2xl border-2 transition-all cursor-pointer group ${
+                        preferences.theme_mode === mode.id
+                          ? "border-slate-900 bg-slate-50 shadow-md"
+                          : "border-slate-100 hover:border-slate-200 hover:bg-slate-50/50"
+                      } ${saving ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    >
+                      <mode.icon className={`w-8 h-8 transition-colors ${preferences.theme_mode === mode.id ? 'text-slate-900' : 'text-slate-300 group-hover:text-slate-400'}`} />
+                      <div className="text-center">
+                        <div className={`font-black text-xs uppercase tracking-widest ${preferences.theme_mode === mode.id ? 'text-slate-900' : 'text-slate-400'}`}>{mode.label}</div>
+                        <div className="text-[10px] text-slate-400 font-medium mt-1 leading-tight">{mode.desc}</div>
+                      </div>
+                    </button>
+                  ))}
                 </div>
               </div>
 
-              {/* Primary Color */}
-              <div className="bg-white rounded-2xl border border-slate-200 p-6">
-                <h3 className="text-sm font-semibold text-slate-700 uppercase tracking-wide mb-4">
-                  Cor Primária
+              {/* Color Palette */}
+              <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+                <h3 className="text-sm font-black text-slate-700 uppercase tracking-[0.2em] mb-6 flex items-center gap-2">
+                  <Palette className="w-4 h-4" /> Paleta de Cores do Sistema
                 </h3>
-                <p className="text-sm text-slate-500 mb-6">
-                  Escolha a cor principal do sistema (botões, destaques, etc)
-                </p>
-                <div className="grid grid-cols-6 gap-4">
-                  {PREDEFINED_COLORS.map((color) => {
-                    const isActive = preferences.primary_color === color.value;
-                    return (
-                      <button
-                        key={color.value}
-                        onClick={() => handleColorChange(color.value)}
-                        disabled={saving}
-                        className={`group relative cursor-pointer ${saving ? 'opacity-50 cursor-not-allowed' : ''}`}
-                        title={color.name}
-                      >
-                        <div
-                          className={`w-full aspect-square rounded-2xl transition-all ${
-                            color.class
-                          } ${
-                            isActive
-                              ? "ring-4 ring-offset-2 ring-slate-400"
-                              : "hover:scale-110"
-                          }`}
-                        >
-                          {isActive && (
-                            <div className="absolute inset-0 flex items-center justify-center">
-                              <Check className="w-6 h-6 text-white" />
-                            </div>
-                          )}
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  {/* Primary & Secondary */}
+                  <div className="space-y-6">
+                    <div>
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Cor de Destaque (Primária)</label>
+                      <div className="flex items-center gap-4 p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                        <input
+                          type="color"
+                          value={preferences.primary_color || "#1e293b"}
+                          onChange={(e) => updatePreferences({ primary_color: e.target.value })}
+                          className="w-12 h-12 rounded-xl border-4 border-white shadow-lg cursor-pointer"
+                        />
+                        <div className="flex-1">
+                          <input
+                            type="text"
+                            value={preferences.primary_color || ""}
+                            onChange={(e) => updatePreferences({ primary_color: e.target.value })}
+                            className="bg-transparent border-none font-mono font-bold text-sm text-slate-600 focus:ring-0 p-0 w-full"
+                          />
+                          <p className="text-[10px] text-slate-400 font-bold uppercase mt-1">Botões, seleções e ícones ativos</p>
                         </div>
-                        <div className="text-xs text-center mt-2 text-slate-600 opacity-0 group-hover:opacity-100 transition-opacity">
-                          {color.name}
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Cor de Apoio (Secundária)</label>
+                      <div className="flex items-center gap-4 p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                        <input
+                          type="color"
+                          value={preferences.secondary_color || "#64748b"}
+                          onChange={(e) => updatePreferences({ secondary_color: e.target.value })}
+                          className="w-12 h-12 rounded-xl border-4 border-white shadow-lg cursor-pointer"
+                        />
+                        <div className="flex-1">
+                          <input
+                            type="text"
+                            value={preferences.secondary_color || ""}
+                            onChange={(e) => updatePreferences({ secondary_color: e.target.value })}
+                            className="bg-transparent border-none font-mono font-bold text-sm text-slate-600 focus:ring-0 p-0 w-full"
+                          />
+                          <p className="text-[10px] text-slate-400 font-bold uppercase mt-1">Textos de apoio e ícones inativos</p>
                         </div>
-                      </button>
-                    );
-                  })}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Sidebar & Header */}
+                  <div className="space-y-6">
+                    <div>
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Menu Lateral (Fundo)</label>
+                      <div className="flex items-center gap-4 p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                        <input
+                          type="color"
+                          value={preferences.sidebar_color || "#0f172a"}
+                          onChange={(e) => updatePreferences({ sidebar_color: e.target.value })}
+                          className="w-12 h-12 rounded-xl border-4 border-white shadow-lg cursor-pointer"
+                        />
+                        <div className="flex-1">
+                          <input
+                            type="text"
+                            value={preferences.sidebar_color || ""}
+                            onChange={(e) => updatePreferences({ sidebar_color: e.target.value })}
+                            className="bg-transparent border-none font-mono font-bold text-sm text-slate-600 focus:ring-0 p-0 w-full"
+                          />
+                          <p className="text-[10px] text-slate-400 font-bold uppercase mt-1">Cor de fundo da barra lateral</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Menu Lateral (Texto)</label>
+                      <div className="flex items-center gap-4 p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                        <input
+                          type="color"
+                          value={preferences.sidebar_text_color || "#94a3b8"}
+                          onChange={(e) => updatePreferences({ sidebar_text_color: e.target.value })}
+                          className="w-12 h-12 rounded-xl border-4 border-white shadow-lg cursor-pointer"
+                        />
+                        <div className="flex-1">
+                          <input
+                            type="text"
+                            value={preferences.sidebar_text_color || ""}
+                            onChange={(e) => updatePreferences({ sidebar_text_color: e.target.value })}
+                            className="bg-transparent border-none font-mono font-bold text-sm text-slate-600 focus:ring-0 p-0 w-full"
+                          />
+                          <p className="text-[10px] text-slate-400 font-bold uppercase mt-1">Nomes e ícones inativos do menu</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
 
               {/* Display Preferences */}
-              <div className="bg-white rounded-2xl border border-slate-200 p-6">
-                <h3 className="text-sm font-semibold text-slate-700 uppercase tracking-wide mb-4">
-                  Exibição
+              <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+                <h3 className="text-sm font-black text-slate-700 uppercase tracking-[0.2em] mb-6 flex items-center gap-2">
+                  <MonitorSmartphone className="w-4 h-4" /> Comportamento da Interface
                 </h3>
                 <div className="space-y-4">
-                  <label className="flex items-center justify-between cursor-pointer">
+                  <label className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100 cursor-pointer group">
                     <div>
-                      <div className="font-medium text-slate-900">
-                        Mostrar Cards de Resumo
-                      </div>
-                      <div className="text-sm text-slate-500">
-                        Exibir cards com estatísticas no topo das páginas
-                      </div>
+                      <div className="font-bold text-slate-900 uppercase text-[10px] tracking-widest">Resumo Automático</div>
+                      <div className="text-[10px] text-slate-400 font-bold uppercase mt-1">Mostrar cards de estatísticas no topo</div>
                     </div>
-                    <input
-                      type="checkbox"
-                      checked={preferences.show_dashboard_cards}
-                      onChange={(e) =>
-                        updatePreferences({ show_dashboard_cards: e.target.checked })
-                      }
-                      className="w-5 h-5 text-slate-600 rounded focus:ring-slate-500 cursor-pointer"
-                    />
+                    <div className="relative inline-flex items-center">
+                      <input
+                        type="checkbox"
+                        checked={preferences.show_dashboard_cards}
+                        onChange={(e) => updatePreferences({ show_dashboard_cards: e.target.checked })}
+                        className="sr-only peer"
+                      />
+                      <div className="w-11 h-6 bg-slate-200 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-slate-900"></div>
+                    </div>
                   </label>
 
-                  <label className="flex items-center justify-between cursor-pointer">
+                  <label className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100 cursor-pointer group">
                     <div>
-                      <div className="font-medium text-slate-900">
-                        Barra Lateral Recolhida
-                      </div>
-                      <div className="text-sm text-slate-500">
-                        Iniciar com menu lateral minimizado
-                      </div>
+                      <div className="font-bold text-slate-900 uppercase text-[10px] tracking-widest">Menu Minimalista</div>
+                      <div className="text-[10px] text-slate-400 font-bold uppercase mt-1">Iniciar com a barra lateral recolhida</div>
                     </div>
-                    <input
-                      type="checkbox"
-                      checked={preferences.sidebar_collapsed}
-                      onChange={(e) =>
-                        updatePreferences({ sidebar_collapsed: e.target.checked })
-                      }
-                      className="w-5 h-5 text-slate-600 rounded focus:ring-slate-500 cursor-pointer"
-                    />
+                    <div className="relative inline-flex items-center">
+                      <input
+                        type="checkbox"
+                        checked={preferences.sidebar_collapsed}
+                        onChange={(e) => updatePreferences({ sidebar_collapsed: e.target.checked })}
+                        className="sr-only peer"
+                      />
+                      <div className="w-11 h-6 bg-slate-200 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-slate-900"></div>
+                    </div>
                   </label>
 
-                  <div>
-                    <label className="block font-medium text-slate-900 mb-2">
-                      Linhas por Página
-                    </label>
+                  <div className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                    <div>
+                      <div className="font-bold text-slate-900 uppercase text-[10px] tracking-widest">Volume de Dados</div>
+                      <div className="text-[10px] text-slate-400 font-bold uppercase mt-1">Linhas exibidas por página em tabelas</div>
+                    </div>
                     <select
                       value={preferences.default_rows_per_page}
-                      onChange={(e) =>
-                        updatePreferences({
-                          default_rows_per_page: parseInt(e.target.value),
-                        })
-                      }
-                      className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-slate-400 cursor-pointer"
+                      onChange={(e) => updatePreferences({ default_rows_per_page: parseInt(e.target.value) })}
+                      className="bg-white border border-slate-200 rounded-xl px-4 py-2 text-xs font-black uppercase tracking-widest outline-none focus:ring-2 focus:ring-slate-900/5 cursor-pointer"
                     >
-                      <option value="10">10 linhas</option>
-                      <option value="20">20 linhas</option>
-                      <option value="50">50 linhas</option>
-                      <option value="100">100 linhas</option>
+                      <option value="10">10 Linhas</option>
+                      <option value="20">20 Linhas</option>
+                      <option value="50">50 Linhas</option>
+                      <option value="100">100 Linhas</option>
                     </select>
                   </div>
                 </div>
