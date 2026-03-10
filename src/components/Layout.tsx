@@ -59,7 +59,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     {
       title: 'Operação',
       items: [
-        { icon: LayoutDashboard, label: 'Dashboard', path: '/' },
+        { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
         { icon: Calendar, label: 'Agendamentos', path: '/appointments' },
         { icon: ClipboardList, label: 'Ordens de Serviço', path: '/work-orders' },
         { icon: ClipboardCheck, label: 'Entrada / Checklist', path: '/vehicle-entries' },

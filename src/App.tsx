@@ -34,7 +34,8 @@ import VehicleEntries from './pages/VehicleEntries';
 import VehicleEntryDetail from './pages/VehicleEntryDetail';
 import EntryPublicForm from './pages/EntryPublicForm';
 import SuperAdmin from './pages/SuperAdmin';
-import WarrantyTerms from './pages/WarrantyTerms';
+import WarrantyTermsPage from './pages/WarrantyTerms';
+import LandingPage from './pages/LandingPage';
 import SplashScreen from './components/SplashScreen';
 
 const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
@@ -61,9 +62,10 @@ const SuperAdminRoute = ({ children }: { children: React.ReactNode }) => {
 const router = createBrowserRouter(
   createRoutesFromElements(
     <>
+      <Route path="/" element={<LandingPage />} />
       <Route path="/login" element={<Login />} />
       
-      <Route path="/" element={<PrivateRoute><Layout><Dashboard /></Layout></PrivateRoute>} />
+      <Route path="/dashboard" element={<PrivateRoute><Layout><Dashboard /></Layout></PrivateRoute>} />
       <Route path="/clients" element={<PrivateRoute><Layout><Clients /></Layout></PrivateRoute>} />
       <Route path="/clients/:id" element={<PrivateRoute><Layout><ClientDetail /></Layout></PrivateRoute>} />
       <Route path="/vehicles" element={<PrivateRoute><Layout><Vehicles /></Layout></PrivateRoute>} />
@@ -84,7 +86,7 @@ const router = createBrowserRouter(
       <Route path="/action-plans/:boardId" element={<PrivateRoute><Layout><ActionPlans /></Layout></PrivateRoute>} />
       <Route path="/vehicle-entries" element={<PrivateRoute><Layout><VehicleEntries /></Layout></PrivateRoute>} />
       <Route path="/vehicle-entries/:id" element={<PrivateRoute><Layout><VehicleEntryDetail /></Layout></PrivateRoute>} />
-      <Route path="/warranty" element={<PrivateRoute><Layout><WarrantyTerms /></Layout></PrivateRoute>} />
+      <Route path="/warranty" element={<PrivateRoute><Layout><WarrantyTermsPage /></Layout></PrivateRoute>} />
       <Route path="/settings/:tab?" element={<PrivateRoute><Layout><Settings /></Layout></PrivateRoute>} />
       <Route path="/checklist-upload/:token" element={<ChecklistPublicUpload />} />
       <Route path="/entry-upload/:token" element={<EntryPublicForm />} />

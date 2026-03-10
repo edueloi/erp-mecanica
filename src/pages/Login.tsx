@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../services/authStore';
 import api from '../services/api';
-import { motion } from 'framer-motion';
+import { motion } from 'motion/react';
 import { 
   LogIn, 
   Eye, 
@@ -48,7 +48,7 @@ export default function Login() {
       if (res.data.user.role === 'SUPER_ADMIN') {
         navigate('/superadmin');
       } else {
-        navigate('/');
+        navigate('/dashboard');
       }
     } catch (err: any) {
       setError(err.response?.data?.error || 'E-mail ou senha inválidos.');

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { format } from 'date-fns';
 import api from '../services/api';
@@ -34,8 +34,8 @@ export default function WarrantyTerms() {
   const [editingTemplate, setEditingTemplate] = useState<any>(null);
   const [searchQuery, setSearchQuery] = useState('');
   
-  // Editor content state
-  const [editorContent, setEditorContent] = useState('');
+  // Editor states
+  const editorRef = useRef<HTMLDivElement>(null);
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [showHighlightPicker, setShowHighlightPicker] = useState(false);
   
@@ -102,7 +102,6 @@ export default function WarrantyTerms() {
       setTemplates(Array.isArray(templatesRes.data) ? templatesRes.data : []);
     } catch (err) {
       console.error('Error fetching warranty data:', err);
-      // Ensure state is always array even on error to prevent crashes
       setIssuedTerms([]);
       setTemplates([]);
     } finally {
@@ -113,6 +112,20 @@ export default function WarrantyTerms() {
   useEffect(() => {
     fetchData();
   }, []);
+
+  // Popula o editor apenas quando ele é aberto (evita o reset do React ao digitar)
+  useEffect(() => {
+    if (showEditor && editorRef.current) {
+        editorRef.current.innerHTML = editingTemplate?.content || `
+            <h3>Condições de Garantia Técnica</h3>
+            <p>Este documento estabelece as cláusulas de garantia para os serviços executados em nossa unidade.</p>
+            <p><b>1. Validade:</b> O prazo de cobertura é contado em dias corridos a partir da data de entrega do veículo.</p>
+            <p><b>2. Itens Cobertos:</b> Falhas decorrentes de montagem ou defeitos em componentes novos instalados.</p>
+            <hr/>
+            <p>Qualquer intervenção de terceiros invalidará este termo permanentemente.</p>
+        `;
+    }
+  }, [showEditor, editingTemplate]);
 
   const handleSaveTemplate = async (templateData: any) => {
     try {
@@ -141,8 +154,7 @@ export default function WarrantyTerms() {
 
   const generatePDF = (term: any) => {
     const doc = new jsPDF();
-    const primaryColor = [30, 41, 59]; // slate-800
-
+    
     // Header
     doc.setFillColor(248, 250, 252);
     doc.rect(0, 0, 210, 40, 'F');
@@ -194,7 +206,8 @@ export default function WarrantyTerms() {
         doc.text('Assinatura da Oficina', 40, 290);
         doc.text('Assinatura do Cliente', 140, 290);
     }
-
+    
+    doc.save(`Garantia_${term.plate || 'Documento'}.pdf`);
   }
 
   return (
@@ -256,7 +269,7 @@ export default function WarrantyTerms() {
             animate={{ opacity: 1, scale: 1 }}
             className="fixed inset-0 z-[100] bg-slate-50 flex flex-col items-center overflow-hidden"
         >
-            {/* Header / Top Bar - Compact */}
+            {/* Header / Top Bar */}
             <div className="w-full h-16 bg-white border-b border-slate-200 px-6 flex items-center justify-between shrink-0 shadow-sm z-20">
                 <div className="flex items-center gap-3">
                     <div className="w-10 h-10 bg-slate-900 rounded-xl flex items-center justify-center text-white">
@@ -279,7 +292,7 @@ export default function WarrantyTerms() {
                          onClick={() => {
                             const title = (document.getElementById('tpl_title') as HTMLInputElement).value;
                             const duration = parseInt((document.getElementById('tpl_duration') as HTMLInputElement).value) || 90;
-                            const content = document.getElementById('rich-editor')?.innerHTML || '';
+                            const content = editorRef.current?.innerHTML || '';
                             handleSaveTemplate({ title, days_duration: duration, content });
                          }}
                          className="h-10 px-6 bg-slate-900 text-white rounded-lg font-black text-xs hover:bg-slate-800 transition-all shadow-md flex items-center gap-2 active:scale-95"
@@ -290,7 +303,7 @@ export default function WarrantyTerms() {
             </div>
 
             <div className="flex-1 w-full flex overflow-hidden">
-                {/* Sidebar Configuration - Narrower */}
+                {/* Sidebar Configuration */}
                 <div className="w-72 bg-white border-r border-slate-100 p-6 flex flex-col gap-6 shrink-0 overflow-y-auto custom-scrollbar">
                     <div className="space-y-1">
                         <span className="text-[9px] font-black uppercase text-indigo-500 tracking-widest italic">Configuração</span>
@@ -340,33 +353,34 @@ export default function WarrantyTerms() {
                             </div>
                         </div>
                     </div>
-
-                    <div className="mt-auto p-5 bg-slate-900 rounded-2xl text-white">
-                         <div className="flex items-center gap-2 mb-2">
-                             <AlertCircle size={14} className="text-emerald-400" />
-                             <span className="text-[9px] font-black uppercase tracking-widest text-white/50">Dica Prática</span>
-                         </div>
-                         <p className="text-[10px] font-bold leading-relaxed text-slate-300">
-                             Destaque as exclusões para evitar ambiguidades com o cliente.
-                         </p>
-                    </div>
                 </div>
 
                 {/* Main Workspace */}
                 <div className="flex-1 flex flex-col overflow-hidden">
-                    {/* Toolbar - Compact */}
+                    {/* Toolbar - onMouseDown evita que o editor perca o foco */}
                     <div className="bg-white border-b border-slate-200 p-2 shadow-sm flex items-center justify-center shrink-0 z-10 gap-2 flex-wrap">
                         <div className="flex items-center gap-1 bg-slate-50 p-1 rounded-lg border border-slate-100">
-                             <button onClick={() => { document.execCommand('formatBlock', false, 'p'); updateToolbarStates(); }} className="h-8 px-2.5 hover:bg-white hover:shadow-sm rounded text-[10px] font-black transition-all flex items-center gap-1.5 cursor-pointer" title="Texto">
+                             <button 
+                                onMouseDown={(e) => e.preventDefault()}
+                                onClick={() => { document.execCommand('formatBlock', false, 'p'); updateToolbarStates(); }} 
+                                className="h-8 px-2.5 hover:bg-white hover:shadow-sm rounded text-[10px] font-black transition-all flex items-center gap-1.5 cursor-pointer" title="Texto"
+                             >
                                  <Type size={12} /> TEXTO
                              </button>
-                             <button onClick={() => { document.execCommand('formatBlock', false, 'h2'); updateToolbarStates(); }} className="h-8 w-8 hover:bg-white hover:shadow-sm rounded text-[10px] font-black transition-all cursor-pointer" title="Título">H</button>
+                             <button 
+                                onMouseDown={(e) => e.preventDefault()}
+                                onClick={() => { document.execCommand('formatBlock', false, 'h2'); updateToolbarStates(); }} 
+                                className="h-8 w-8 hover:bg-white hover:shadow-sm rounded text-[10px] font-black transition-all cursor-pointer" title="Título"
+                             >
+                                H
+                             </button>
                         </div>
 
                         <div className="w-px h-5 bg-slate-200 mx-1" />
 
                         <div className="flex items-center gap-1">
                              <button 
+                                onMouseDown={(e) => e.preventDefault()}
                                 onClick={() => { document.execCommand('bold'); updateToolbarStates(); }} 
                                 className={cn("w-8 h-8 flex items-center justify-center rounded transition-all cursor-pointer", toolbarStates.bold ? "bg-slate-900 text-white shadow-md" : "hover:bg-slate-100 text-slate-700")} 
                                 title="Negrito"
@@ -374,6 +388,7 @@ export default function WarrantyTerms() {
                                 <Bold size={16} />
                              </button>
                              <button 
+                                onMouseDown={(e) => e.preventDefault()}
                                 onClick={() => { document.execCommand('italic'); updateToolbarStates(); }} 
                                 className={cn("w-8 h-8 flex items-center justify-center rounded transition-all cursor-pointer", toolbarStates.italic ? "bg-slate-900 text-white shadow-md" : "hover:bg-slate-100 text-slate-700")} 
                                 title="Itálico"
@@ -381,6 +396,7 @@ export default function WarrantyTerms() {
                                 <Italic size={16} />
                              </button>
                              <button 
+                                onMouseDown={(e) => e.preventDefault()}
                                 onClick={() => { document.execCommand('underline'); updateToolbarStates(); }} 
                                 className={cn("w-8 h-8 flex items-center justify-center rounded transition-all cursor-pointer", toolbarStates.underline ? "bg-slate-900 text-white shadow-md" : "hover:bg-slate-100 text-slate-700")} 
                                 title="Sublinhado"
@@ -393,23 +409,23 @@ export default function WarrantyTerms() {
 
                         <div className="flex items-center gap-1 bg-slate-50 p-1 rounded-lg border border-slate-100">
                              <button 
+                                onMouseDown={(e) => e.preventDefault()}
                                 onClick={() => { document.execCommand('justifyLeft'); updateToolbarStates(); }} 
                                 className={cn("w-8 h-8 flex items-center justify-center rounded transition-all cursor-pointer", toolbarStates.alignLeft ? "bg-white shadow-sm text-slate-900" : "text-slate-400 hover:text-slate-600")} 
-                                title="Esquerda"
                              >
                                 <AlignLeft size={16} />
                              </button>
                              <button 
+                                onMouseDown={(e) => e.preventDefault()}
                                 onClick={() => { document.execCommand('justifyCenter'); updateToolbarStates(); }} 
                                 className={cn("w-8 h-8 flex items-center justify-center rounded transition-all cursor-pointer", toolbarStates.alignCenter ? "bg-white shadow-sm text-slate-900" : "text-slate-400 hover:text-slate-600")} 
-                                title="Centro"
                              >
                                 <AlignCenter size={16} />
                              </button>
                              <button 
+                                onMouseDown={(e) => e.preventDefault()}
                                 onClick={() => { document.execCommand('justifyRight'); updateToolbarStates(); }} 
                                 className={cn("w-8 h-8 flex items-center justify-center rounded transition-all cursor-pointer", toolbarStates.alignRight ? "bg-white shadow-sm text-slate-900" : "text-slate-400 hover:text-slate-600")} 
-                                title="Direita"
                              >
                                 <AlignRight size={16} />
                              </button>
@@ -419,9 +435,9 @@ export default function WarrantyTerms() {
 
                         <div className="flex items-center gap-1 relative">
                              <button 
+                                onMouseDown={(e) => e.preventDefault()}
                                 onClick={() => { document.execCommand('insertUnorderedList'); updateToolbarStates(); }} 
                                 className={cn("w-8 h-8 flex items-center justify-center rounded transition-all cursor-pointer", toolbarStates.list ? "bg-slate-900 text-white shadow-md" : "hover:bg-slate-100 text-slate-600")} 
-                                title="Lista"
                              >
                                 <List size={16} />
                              </button>
@@ -430,9 +446,9 @@ export default function WarrantyTerms() {
                                 {/* Text Color Picker */}
                                 <div className="relative">
                                     <button 
+                                        onMouseDown={(e) => e.preventDefault()}
                                         onClick={() => { setShowColorPicker(!showColorPicker); setShowHighlightPicker(false); }} 
                                         className={cn("w-9 h-9 flex flex-col items-center justify-center hover:bg-white rounded transition-all cursor-pointer", showColorPicker && "bg-white shadow-sm")} 
-                                        title="Cor do Texto"
                                     >
                                         <Palette size={16} />
                                         <div className="w-5 h-1 bg-slate-900 rounded-full mt-0.5" />
@@ -443,6 +459,7 @@ export default function WarrantyTerms() {
                                             {['#000000', '#ef4444', '#f87171', '#10b981', '#34d399', '#3b82f6', '#60a5fa', '#f59e0b', '#fbbf24', '#6366f1', '#818cf8', '#8b5cf6', '#a78bfa', '#ec4899', '#f472b6', '#64748b', '#94a3b8', '#1e293b', '#334155', '#ffffff'].map(c => (
                                                 <button 
                                                     key={c} 
+                                                    onMouseDown={(e) => e.preventDefault()}
                                                     onClick={() => { document.execCommand('foreColor', false, c); setShowColorPicker(false); }}
                                                     className="w-7 h-7 rounded-lg border border-slate-100 hover:scale-110 transition-transform cursor-pointer shadow-sm" 
                                                     style={{ backgroundColor: c }}
@@ -455,9 +472,9 @@ export default function WarrantyTerms() {
                                 {/* Highlight Picker */}
                                 <div className="relative">
                                     <button 
+                                        onMouseDown={(e) => e.preventDefault()}
                                         onClick={() => { setShowHighlightPicker(!showHighlightPicker); setShowColorPicker(false); }} 
                                         className={cn("w-9 h-9 flex flex-col items-center justify-center hover:bg-white rounded transition-all cursor-pointer", showHighlightPicker && "bg-white shadow-sm")} 
-                                        title="Grifar Texto"
                                     >
                                         <Highlighter size={16} />
                                         <div className="w-5 h-1 bg-yellow-400 rounded-full mt-0.5" />
@@ -468,6 +485,7 @@ export default function WarrantyTerms() {
                                             {['#fef08a', '#bbf7d0', '#bfdbfe', '#fbcfe8', '#ddd6fe', '#fed7aa', '#f3f4f6', 'transparent'].map(c => (
                                                 <button 
                                                     key={c} 
+                                                    onMouseDown={(e) => e.preventDefault()}
                                                     onClick={() => { 
                                                         if (c === 'transparent') {
                                                             document.execCommand('removeFormat', false, 'backColor');
@@ -489,11 +507,9 @@ export default function WarrantyTerms() {
                         </div>
                     </div>
 
-                    {/* Editor Background - Compact Padding */}
+                    {/* Editor Background */}
                     <div className="flex-1 bg-slate-200/50 p-6 overflow-y-auto custom-scrollbar flex justify-center">
-                        {/* The Paper Simulation - Scaled down for standard screen */}
                         <div className="w-[180mm] min-h-[250mm] bg-white shadow-xl rounded-sm p-[1.5cm] flex flex-col relative animate-in zoom-in-95 duration-500">
-                             {/* Letterhead Design - Slimmer */}
                              <div className="border-b-[4px] border-slate-900 pb-5 mb-10 flex justify-between items-start">
                                  <div>
                                      <h1 className="text-2xl font-black text-slate-900 uppercase tracking-tighter leading-none mb-1.5">Termo de Garantia</h1>
@@ -505,25 +521,19 @@ export default function WarrantyTerms() {
                                  <Shield size={40} className="text-slate-900 opacity-5" />
                              </div>
 
-                             {/* Editable Content - Smaller font for standard print look */}
+                             {/* Editor React-Safe */}
                              <div 
                                 id="rich-editor"
+                                ref={editorRef}
                                 contentEditable 
+                                suppressContentEditableWarning
                                 onKeyUp={updateToolbarStates}
                                 onMouseUp={updateToolbarStates}
                                 className="prose prose-slate max-w-none focus:outline-none flex-1 font-serif text-slate-800 text-[14px] leading-[1.6] text-justify"
                                 spellCheck={false}
-                                dangerouslySetInnerHTML={{ __html: editingTemplate?.content || `
-                                    <h3>Condições de Garantia Técnica</h3>
-                                    <p>Este documento estabelece as cláusulas de garantia para os serviços executados em nossa unidade.</p>
-                                    <p><b>1. Validade:</b> O prazo de cobertura é contado em dias corridos a partir da data de entrega do veículo.</p>
-                                    <p><b>2. Itens Cobertos:</b> Falhas decorrentes de montagem ou defeitos em componentes novos instalados.</p>
-                                    <hr/>
-                                    <p>Qualquer intervenção de terceiros invalidará este termo permanentemente.</p>
-                                ` }}
                              />
 
-                             {/* Signature Footer - Compact */}
+                             {/* Signature Footer */}
                              <div className="mt-16 pt-10 border-t border-slate-100 flex justify-between items-center px-8">
                                  <div className="text-center">
                                      <div className="w-48 h-px bg-slate-300 mb-1.5" />
@@ -578,9 +588,6 @@ export default function WarrantyTerms() {
                                  <div className="flex items-center justify-between pt-3 border-t border-slate-100">
                                     <button onClick={() => generatePDF(term)} className="text-[10px] font-black uppercase text-slate-400 hover:text-slate-900 flex items-center gap-1.5 transition-colors">
                                        <Download size={12} /> PDF
-                                    </button>
-                                    <button className="text-[10px] font-black uppercase text-slate-400 hover:text-slate-900 flex items-center gap-1.5 transition-colors">
-                                       <Send size={12} /> ENVIAR
                                     </button>
                                  </div>
                               </div>
@@ -666,7 +673,7 @@ export default function WarrantyTerms() {
               </div>
 
               <div className="flex-1 overflow-hidden flex flex-col md:flex-row">
-                  {/* Step 1: Search & Template - More compact */}
+                  {/* Step 1: Search & Template */}
                   <div className="flex-1 p-8 space-y-6 overflow-y-auto custom-scrollbar border-r border-slate-50">
                      <div className="space-y-3">
                         <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest px-1">1. Selecione o Modelo Base</label>
@@ -752,7 +759,7 @@ export default function WarrantyTerms() {
                      </div>
                   </div>
 
-                  {/* Step 2: Content Details - More compact */}
+                  {/* Step 2: Content Details */}
                   <div className="w-full md:w-[350px] bg-slate-50/50 p-8 flex flex-col gap-6 shrink-0 border-l border-slate-100 shadow-inner">
                      <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest px-1">3. Personalização</label>
 
@@ -818,7 +825,7 @@ export default function WarrantyTerms() {
         </div>
       )}
 
-        {/* Seed Templates - Standard Alert */}
+      {/* Seed Templates - Standard Alert */}
       {templates.length === 0 && !loading && activeTab === 'TEMPLATES' && (
         <motion.div 
             initial={{ opacity: 0, scale: 0.99 }}
