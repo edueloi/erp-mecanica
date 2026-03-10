@@ -27,11 +27,14 @@ export default function WarrantyTerms() {
   const [loading, setLoading] = useState(true);
   const [issuedTerms, setIssuedTerms] = useState<any[]>([]);
   const [templates, setTemplates] = useState<any[]>([]);
-  const [showTemplateModal, setShowTemplateModal] = useState(false);
+  const [showEditor, setShowEditor] = useState<boolean>(false);
   const [showIssueModal, setShowIssueModal] = useState(false);
   
   const [editingTemplate, setEditingTemplate] = useState<any>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  
+  // Editor content state
+  const [editorContent, setEditorContent] = useState('');
   
   // Vehicle Search
   const [vehicles, setVehicles] = useState<any[]>([]);
@@ -84,7 +87,7 @@ export default function WarrantyTerms() {
       } else {
         await api.post('/warranty/templates', templateData);
       }
-      setShowTemplateModal(false);
+      setShowEditor(false);
       setEditingTemplate(null);
       fetchData();
     } catch (err) {
@@ -158,260 +161,290 @@ export default function WarrantyTerms() {
         doc.text('Assinatura do Cliente', 140, 290);
     }
 
-    doc.save(`Garantia_${term.plate || 'Documento'}.pdf`);
-  };
+  }
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
       {/* Header Section */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-black text-slate-900 tracking-tight flex items-center gap-3">
-            <Shield className="text-slate-900" size={32} />
-            Termos de Garantia
-          </h1>
-          <p className="text-slate-500 font-medium mt-1">Gerencie modelos e emita garantias técnicas para seus clientes.</p>
+      {!showEditor && (
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+            <h1 className="text-3xl font-black text-slate-900 tracking-tight flex items-center gap-3">
+                <Shield className="text-slate-900" size={32} />
+                Termos de Garantia
+            </h1>
+            <p className="text-slate-500 font-medium mt-1">Gerencie modelos e emita garantias técnicas para seus clientes.</p>
+            </div>
+            
+            <div className="flex items-center gap-2">
+                <button 
+                    onClick={() => { setEditingTemplate(null); setShowEditor(true); }}
+                    className="h-11 px-6 bg-white border border-slate-200 text-slate-700 rounded-xl text-sm font-bold flex items-center gap-2 hover:bg-slate-50 transition-all shadow-sm"
+                >
+                    <PlusCircle size={18} /> Novo Modelo
+                </button>
+                <button 
+                    onClick={() => setShowIssueModal(true)}
+                    className="h-11 px-8 bg-slate-900 text-white rounded-xl text-sm font-bold flex items-center gap-2 hover:bg-slate-800 transition-all shadow-lg active:scale-95"
+                >
+                    <Plus size={18} /> Emitir Garantia
+                </button>
+            </div>
         </div>
-        
-        <div className="flex items-center gap-2">
-            <button 
-                onClick={() => setShowTemplateModal(true)}
-                className="h-11 px-6 bg-white border border-slate-200 text-slate-700 rounded-xl text-sm font-bold flex items-center gap-2 hover:bg-slate-50 transition-all shadow-sm"
-            >
-                <PlusCircle size={18} /> Novo Modelo
-            </button>
-            <button 
-                onClick={() => setShowIssueModal(true)}
-                className="h-11 px-8 bg-slate-900 text-white rounded-xl text-sm font-bold flex items-center gap-2 hover:bg-slate-800 transition-all shadow-lg active:scale-95"
-            >
-                <Plus size={18} /> Emitir Garantia
-            </button>
-        </div>
-      </div>
+      )}
 
-      {/* Tabs */}
-      <div className="flex items-center gap-1 bg-white p-1 rounded-2xl border border-slate-200 w-fit shadow-sm">
-        <button
-          onClick={() => setActiveTab('ISSUED')}
-          className={cn(
-            "px-6 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center gap-2",
-            activeTab === 'ISSUED' ? "bg-slate-900 text-white shadow-md" : "text-slate-500 hover:text-slate-900 hover:bg-slate-50"
-          )}
-        >
-          <History size={16} /> Emitidos
-        </button>
-        <button
-          onClick={() => setActiveTab('TEMPLATES')}
-          className={cn(
-            "px-6 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center gap-2",
-            activeTab === 'TEMPLATES' ? "bg-slate-900 text-white shadow-md" : "text-slate-500 hover:text-slate-900 hover:bg-slate-50"
-          )}
-        >
-          <Copy size={16} /> Modelos / Templates
-        </button>
-      </div>
-
-      {/* Content Area */}
-      <div className="min-h-[400px]">
-        {loading ? (
-          <div className="flex flex-col items-center justify-center py-20 grayscale opacity-50">
-            <div className="w-12 h-12 border-4 border-slate-900 border-t-transparent rounded-full animate-spin mb-4" />
-            <p className="text-sm font-bold text-slate-600">Sincronizando termos...</p>
-          </div>
-        ) : (
-          <AnimatePresence mode="wait">
-            {activeTab === 'ISSUED' ? (
-              <motion.div 
-                key="issued"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                className="space-y-4"
-              >
-                {Array.isArray(issuedTerms) && issuedTerms.length > 0 ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {issuedTerms.map((term) => (
-                      <div key={term.id} className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden group hover:border-slate-300 transition-all hover:shadow-xl">
-                        <div className="p-6">
-                           <div className="flex items-start justify-between mb-4">
-                              <div className="w-12 h-12 bg-slate-50 rounded-xl flex items-center justify-center text-slate-400 group-hover:bg-slate-900 group-hover:text-white transition-all">
-                                 <Shield size={24} />
-                              </div>
-                              <span className={cn(
-                                "px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider shadow-sm",
-                                term.status === 'ACTIVE' ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"
-                              )}>
-                                {term.status === 'ACTIVE' ? 'Ativo' : 'Expirado'}
-                              </span>
-                           </div>
-                           
-                           <h3 className="text-lg font-black text-slate-900 mb-1 truncate">{term.title}</h3>
-                           <p className="text-xs text-slate-400 font-bold uppercase tracking-tight mb-4">
-                              Emitido: {format(new Date(term.issued_at), 'dd/MM/yyyy')}
-                           </p>
-
-                           <div className="space-y-2 mb-6">
-                              <div className="flex items-center gap-2 text-sm text-slate-600 font-medium">
-                                 <User size={14} className="text-slate-400" />
-                                 <span className="truncate">{term.client_name || 'Visitante'}</span>
-                              </div>
-                              <div className="flex items-center gap-2 text-sm text-slate-600 font-medium">
-                                 <Car size={14} className="text-slate-400" />
-                                 <span className="font-mono uppercase text-xs bg-slate-100 px-1.5 py-0.5 rounded">{term.plate || 'Sem Placa'}</span>
-                              </div>
-                              <div className="flex items-center gap-2 text-sm text-slate-600 font-medium">
-                                 <Clock size={14} className="text-red-400" />
-                                 <span>Expira: {format(new Date(term.expires_at), 'dd/MM/yyyy')}</span>
-                              </div>
-                           </div>
-
-                           <div className="flex items-center justify-between pt-4 border-t border-slate-100">
-                              <button 
-                                onClick={() => generatePDF(term)}
-                                className="text-xs font-black uppercase text-slate-400 hover:text-slate-900 flex items-center gap-1.5 transition-all"
-                              >
-                                 <Download size={14} /> PDF
-                              </button>
-                              <button className="text-xs font-black uppercase text-slate-400 hover:text-emerald-600 flex items-center gap-1.5 transition-all">
-                                 <Send size={14} /> Enviar
-                              </button>
-                           </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="bg-white rounded-[32px] border-2 border-dashed border-slate-100 p-20 text-center">
-                    <div className="w-20 h-20 bg-slate-50 rounded-3xl flex items-center justify-center mx-auto mb-6 text-slate-200">
-                        <Shield size={40} />
-                    </div>
-                    <h2 className="text-xl font-black text-slate-900 mb-2">Sem Certificados Emitidos</h2>
-                    <p className="text-slate-500 max-w-sm mx-auto font-medium">Comece a emitir certificados de garantia para aumentar a confiança dos seus clientes.</p>
-                  </div>
-                )}
-              </motion.div>
-            ) : (
-              <motion.div 
-                key="templates"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                className="space-y-6"
-              >
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {Array.isArray(templates) && templates.map((tpl) => (
-                    <div key={tpl.id} className="bg-white p-6 rounded-2xl border border-slate-200 hover:border-slate-300 transition-all hover:shadow-md group">
-                       <div className="flex items-start justify-between mb-4">
-                          <div className="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center">
-                             <FileText size={20} />
-                          </div>
-                          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                             <button onClick={() => { setEditingTemplate(tpl); setShowTemplateModal(true); }} className="p-2 text-slate-400 hover:text-slate-900 hover:bg-slate-50 rounded-lg transition-all">
-                                <Edit size={16} />
-                             </button>
-                             <button onClick={() => handleDeleteTemplate(tpl.id)} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all">
-                                <Trash2 size={16} />
-                             </button>
-                          </div>
-                       </div>
-                       <h3 className="text-md font-black text-slate-900 mb-2">{tpl.title}</h3>
-                       <p className="text-xs text-slate-500 line-clamp-3 mb-4 font-medium leading-relaxed">{tpl.content}</p>
-                       <div className="flex items-center justify-between pt-4 border-t border-slate-50">
-                          <span className="text-[10px] font-black uppercase text-slate-400">{tpl.days_duration} dias de cobertura</span>
-                          <button 
-                            className="text-xs font-black text-indigo-600 hover:bg-indigo-50 px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5"
-                            onClick={() => {
-                                // Logic to start issuing from this template
-                                setShowIssueModal(true);
-                            }}
-                          >
-                             Usar este <ArrowRight size={14} />
-                          </button>
-                       </div>
-                    </div>
-                  ))}
-
-                  {/* Add Template Card */}
-                  <button 
-                    onClick={() => setShowTemplateModal(true)}
-                    className="border-2 border-dashed border-slate-200 rounded-2xl p-6 flex flex-col items-center justify-center gap-3 text-slate-400 hover:border-slate-400 hover:text-slate-600 transition-all group min-h-[220px]"
-                  >
-                     <div className="w-12 h-12 rounded-full border-2 border-current flex items-center justify-center group-hover:scale-110 transition-transform">
-                        <Plus size={24} />
-                     </div>
-                     <span className="text-sm font-black uppercase tracking-widest">Criar novo modelo</span>
-                  </button>
-                </div>
-              </motion.div>
+      {!showEditor && (
+        <div className="flex items-center gap-1 bg-white p-1 rounded-2xl border border-slate-200 w-fit shadow-sm">
+            <button
+            onClick={() => setActiveTab('ISSUED')}
+            className={cn(
+                "px-6 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center gap-2",
+                activeTab === 'ISSUED' ? "bg-slate-900 text-white shadow-md" : "text-slate-500 hover:text-slate-900 hover:bg-slate-50"
             )}
-          </AnimatePresence>
-        )}
-      </div>
+            >
+            <History size={16} /> Emitidos
+            </button>
+            <button
+            onClick={() => setActiveTab('TEMPLATES')}
+            className={cn(
+                "px-6 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center gap-2",
+                activeTab === 'TEMPLATES' ? "bg-slate-900 text-white shadow-md" : "text-slate-500 hover:text-slate-900 hover:bg-slate-50"
+            )}
+            >
+            <Copy size={16} /> Modelos / Templates
+            </button>
+        </div>
+      )}
 
-      {/* Template Modal */}
-      {showTemplateModal && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
-           <div className="bg-white rounded-3xl w-full max-w-2xl overflow-hidden shadow-2xl flex flex-col">
-              <div className="p-8 border-b border-slate-100 flex items-center justify-between shrink-0">
-                 <div>
-                    <h2 className="text-xl font-black text-slate-900">Configurar Modelo</h2>
-                    <p className="text-xs text-slate-500 font-bold uppercase tracking-widest mt-1">Crie um padrão para suas garantias</p>
-                 </div>
-                 <button onClick={() => { setShowTemplateModal(false); setEditingTemplate(null); }} className="w-10 h-10 bg-slate-50 text-slate-400 hover:text-slate-900 rounded-xl flex items-center justify-center transition-all">
-                    <Plus size={24} className="rotate-45" />
-                 </button>
-              </div>
+      {showEditor ? (
+        <motion.div 
+            initial={{ opacity: 0, scale: 0.98, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            className="bg-white rounded-[40px] border border-slate-200 shadow-2xl overflow-hidden flex flex-col md:flex-row min-h-[85vh]"
+        >
+            {/* Editor Sidebar/Fields */}
+            <div className="w-full md:w-80 bg-slate-50 border-r border-slate-100 p-8 flex flex-col gap-8 shrink-0">
+                <div className="flex items-center justify-between">
+                   <div>
+                    <h2 className="text-xl font-black text-slate-900 leading-tight">Painel de Cadastro</h2>
+                    <p className="text-[10px] font-black uppercase text-slate-400 tracking-wider mt-1">Configure o modelo</p>
+                   </div>
+                   <button onClick={() => setShowEditor(false)} className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-slate-900">
+                      <Plus className="rotate-45" size={24} />
+                   </button>
+                </div>
 
-              <div className="p-8 space-y-6 overflow-y-auto max-h-[60vh] custom-scrollbar">
-                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-6">
                     <div className="space-y-2">
-                       <label className="text-xs font-black text-slate-400 uppercase tracking-widest px-1">Título do Modelo</label>
-                       <input 
-                         id="tpl_title"
-                         defaultValue={editingTemplate?.title}
-                         type="text" 
-                         placeholder="Ex: Garantia de Motor e Câmbio" 
-                         className="w-full h-12 px-4 rounded-xl border border-slate-200 focus:border-slate-900 focus:ring-0 text-sm font-bold transition-all bg-slate-50 focus:bg-white"
-                       />
+                        <label className="text-[10px] font-black uppercase text-slate-400 px-1 italic">Data de Registro</label>
+                        <div className="h-12 px-4 bg-white border border-slate-200 rounded-xl flex items-center gap-3 text-slate-900 font-bold text-sm shadow-sm">
+                           <Clock size={16} className="text-indigo-500" />
+                           {format(new Date(), 'dd/MM/yyyy')}
+                        </div>
                     </div>
+
                     <div className="space-y-2">
-                       <label className="text-xs font-black text-slate-400 uppercase tracking-widest px-1">Duração (Dias)</label>
-                       <input 
-                         id="tpl_duration"
-                         defaultValue={editingTemplate?.days_duration || 90}
-                         type="number" 
-                         className="w-full h-12 px-4 rounded-xl border border-slate-200 focus:border-slate-900 focus:ring-0 text-sm font-bold transition-all bg-slate-50 focus:bg-white"
-                       />
+                        <label className="text-[10px] font-black uppercase text-slate-400 px-1 italic">Responsável Técnico</label>
+                        <div className="h-12 px-4 bg-white border border-slate-200 rounded-xl flex items-center gap-3 text-slate-900 font-bold text-sm shadow-sm">
+                           <User size={16} className="text-emerald-500" />
+                           {user?.name || 'Admin MecaERP'}
+                        </div>
                     </div>
-                 </div>
 
-                 <div className="space-y-2">
-                    <label className="text-xs font-black text-slate-400 uppercase tracking-widest px-1">Conteúdo do Termo</label>
-                    <textarea 
-                      id="tpl_content"
-                      defaultValue={editingTemplate?.content}
-                      rows={8}
-                      placeholder="Descreva as condições da garantia, o que cobre e o que não cobre..."
-                      className="w-full p-4 rounded-2xl border border-slate-200 focus:border-slate-900 focus:ring-0 text-sm font-bold transition-all bg-slate-50 focus:bg-white custom-scrollbar resize-none"
-                    />
-                 </div>
-              </div>
+                    <div className="space-y-2">
+                        <label className="text-[10px] font-black uppercase text-slate-400 px-1 italic">Ref. Garantia (Título)*</label>
+                        <input 
+                            id="tpl_title"
+                            defaultValue={editingTemplate?.title}
+                            type="text"
+                            placeholder="Motor, Notebook..."
+                            className="w-full h-12 px-4 bg-white border border-slate-200 rounded-xl focus:border-slate-900 focus:ring-0 text-sm font-bold shadow-sm"
+                        />
+                    </div>
 
-              <div className="p-8 shrink-0 bg-slate-50 border-t border-slate-200 flex items-center justify-end gap-3">
-                 <button onClick={() => { setShowTemplateModal(false); setEditingTemplate(null); }} className="h-12 px-6 text-slate-500 font-bold hover:text-slate-900 transition-colors">Cancelar</button>
-                 <button 
-                   onClick={() => {
-                       const title = (document.getElementById('tpl_title') as HTMLInputElement).value;
-                       const days_duration = parseInt((document.getElementById('tpl_duration') as HTMLInputElement).value);
-                       const content = (document.getElementById('tpl_content') as HTMLTextAreaElement).value;
-                       handleSaveTemplate({ title, days_duration, content });
-                   }}
-                   className="h-12 px-10 bg-slate-900 text-white rounded-xl font-bold hover:bg-slate-800 transition-all shadow-lg active:scale-95"
-                 >
-                    Salvar Modelo
-                 </button>
-              </div>
-           </div>
+                    <div className="space-y-2">
+                        <label className="text-[10px] font-black uppercase text-slate-400 px-1 italic">Duração (Dias)</label>
+                        <input 
+                           id="tpl_duration"
+                           type="number"
+                           defaultValue={editingTemplate?.days_duration || 90}
+                           className="w-full h-12 px-4 bg-white border border-slate-200 rounded-xl focus:border-slate-900 text-sm font-bold shadow-sm"
+                        />
+                    </div>
+                </div>
+
+                <div className="mt-auto pt-6 border-t border-slate-200 flex flex-col gap-3">
+                   <button 
+                     onClick={() => {
+                        const title = (document.getElementById('tpl_title') as HTMLInputElement).value;
+                        const duration = parseInt((document.getElementById('tpl_duration') as HTMLInputElement).value) || 90;
+                        const content = document.getElementById('rich-editor')?.innerHTML || '';
+                        handleSaveTemplate({ title, days_duration: duration, content });
+                     }}
+                     className="w-full h-14 bg-slate-900 text-white rounded-2xl font-black text-sm hover:bg-slate-800 transition-all shadow-xl flex items-center justify-center gap-2"
+                   >
+                     🚀 Salvar Documento
+                   </button>
+                   <button onClick={() => setShowEditor(false)} className="h-10 text-[10px] font-black uppercase text-slate-400 hover:text-slate-900">
+                     Cancelar
+                   </button>
+                </div>
+            </div>
+
+            {/* Main Editor */}
+            <div className="flex-1 bg-slate-100/30 p-4 md:p-10 flex flex-col">
+                <div className="max-w-4xl mx-auto w-full flex flex-col h-full gap-6">
+                    {/* Toolbar */}
+                    <div className="bg-white border border-slate-200 p-2 rounded-2xl shadow-sm flex items-center flex-wrap gap-1 sticky top-0 z-10">
+                        <button onClick={() => document.execCommand('bold')} className="w-10 h-10 flex items-center justify-center hover:bg-slate-50 rounded-xl text-slate-700" title="Negrito">
+                            <Plus size={18} className="rotate-[135deg]" /> {/* Simulation of Bold if needed, or use specific icon if available */}
+                            <b>B</b>
+                        </button>
+                        <button onClick={() => document.execCommand('italic')} className="w-10 h-10 flex items-center justify-center hover:bg-slate-50 rounded-xl text-slate-700" title="Itálico">
+                            <i>I</i>
+                        </button>
+                        <button onClick={() => document.execCommand('underline')} className="w-10 h-10 flex items-center justify-center hover:bg-slate-50 rounded-xl text-slate-700" title="Sublinhado">
+                            <u>U</u>
+                        </button>
+                        <div className="w-px h-6 bg-slate-200 mx-2" />
+                        <button onClick={() => document.execCommand('justifyLeft')} className="w-10 h-10 flex items-center justify-center hover:bg-slate-50 rounded-xl text-slate-700" title="Esquerda"><Edit size={16} /></button>
+                        <button onClick={() => document.execCommand('justifyCenter')} className="w-10 h-10 flex items-center justify-center hover:bg-slate-50 rounded-xl text-slate-700" title="Centro"><ChevronRight size={16} /></button>
+                        <button onClick={() => document.execCommand('justifyRight')} className="w-10 h-10 flex items-center justify-center hover:bg-slate-50 rounded-xl text-slate-700" title="Direita"><ArrowRight size={16} /></button>
+                        <div className="w-px h-6 bg-slate-200 mx-2" />
+                        <button onClick={() => document.execCommand('insertUnorderedList')} className="w-10 h-10 flex items-center justify-center hover:bg-slate-50 rounded-xl text-slate-700" title="Lista"><ClipboardList size={18} /></button>
+                    </div>
+
+                    {/* Paper */}
+                    <div className="flex-1 bg-white shadow-2xl rounded-sm p-[2cm] border border-slate-200 min-h-[1000px] outline-none overflow-y-auto">
+                        <div className="border-b-4 border-slate-900 pb-6 mb-12 flex justify-between items-end">
+                            <div>
+                                <h1 className="text-3xl font-black text-slate-900 uppercase tracking-tight">Termo de Garantia</h1>
+                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.4em] mt-2">MecaERP Professional Warranty Cloud</p>
+                            </div>
+                            <Shield size={50} className="text-slate-900 opacity-10" />
+                        </div>
+
+                        <div 
+                          id="rich-editor"
+                          contentEditable 
+                          className="prose prose-slate max-w-none focus:outline-none min-h-[500px] font-serif text-slate-800 text-xl leading-relaxed"
+                          dangerouslySetInnerHTML={{ __html: editingTemplate?.content || '<p>Descreva aqui todas as condições e coberturas da sua garantia...</p>' }}
+                        />
+
+                        <div className="mt-20 pt-16 border-t border-slate-200 flex justify-between">
+                            <div className="text-center w-64">
+                                <div className="h-px bg-slate-300 w-full mb-2" />
+                                <p className="text-[10px] font-black uppercase text-slate-400">Assinatura do Técnico Responsável</p>
+                            </div>
+                            <div className="text-center w-64">
+                                <div className="h-px bg-slate-300 w-full mb-2" />
+                                <p className="text-[10px] font-black uppercase text-slate-400">Assinatura do Cliente / Proprietário</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </motion.div>
+      ) : (
+        <div className="min-h-[400px]">
+          {loading ? (
+             <div className="flex flex-col items-center justify-center py-20 opacity-50">
+                <div className="w-10 h-10 border-2 border-slate-900 border-t-transparent rounded-full animate-spin mb-4" />
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">Sincronizando Módulo...</p>
+             </div>
+          ) : (
+             <AnimatePresence mode="wait">
+               {activeTab === 'ISSUED' ? (
+                 <motion.div key="issued" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+                    {Array.isArray(issuedTerms) && issuedTerms.length > 0 ? (
+                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                          {issuedTerms.map(term => (
+                             <div key={term.id} className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm hover:shadow-xl transition-all group">
+                                <div className="flex items-start justify-between mb-4">
+                                   <div className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-400 group-hover:bg-slate-900 group-hover:text-white transition-all">
+                                      <Shield size={24} />
+                                   </div>
+                                   <span className={cn(
+                                       "px-2.5 py-1 rounded-lg text-[10px] font-black uppercase shadow-sm",
+                                       term.status === 'ACTIVE' ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"
+                                   )}>
+                                      {term.status === 'ACTIVE' ? 'Ativo' : 'Espirado'}
+                                   </span>
+                                </div>
+                                <h3 className="text-lg font-black text-slate-900 mb-1 truncate">{term.title}</h3>
+                                <p className="text-[10px] text-slate-400 font-bold uppercase mb-4">Emitido: {format(new Date(term.issued_at), 'dd/MM/yyyy')}</p>
+                                <div className="space-y-4 mb-6 pt-4 border-t border-slate-50">
+                                   <div className="flex items-center gap-3 text-sm font-bold text-slate-600">
+                                      <User size={16} className="text-slate-300" /> {term.client_name || 'Diversos'}
+                                   </div>
+                                   <div className="flex items-center gap-3 text-sm font-bold text-slate-600">
+                                      <Car size={16} className="text-slate-300" /> <span className="uppercase bg-slate-100 px-2 py-0.5 rounded text-xs">{term.plate || 'V-000'}</span>
+                                   </div>
+                                </div>
+                                <div className="flex items-center justify-between pt-4 border-t border-slate-100 italic">
+                                   <button onClick={() => generatePDF(term)} className="text-xs font-black uppercase text-slate-400 hover:text-slate-900 flex items-center gap-2">
+                                      <Download size={14} /> Baixar PDF
+                                   </button>
+                                   <button className="text-xs font-black uppercase text-slate-400 hover:text-emerald-600 flex items-center gap-2">
+                                      <Send size={14} /> Enviar
+                                   </button>
+                                </div>
+                             </div>
+                          ))}
+                       </div>
+                    ) : (
+                       <div className="bg-white rounded-[40px] border-2 border-dashed border-slate-100 p-20 text-center">
+                          <Shield className="mx-auto text-slate-100 mb-6" size={60} />
+                          <h2 className="text-xl font-black text-slate-900">Nenhuma Garantia Emitida</h2>
+                          <p className="text-sm text-slate-400 font-medium mt-2">Os certificados gerados aparecerão aqui para gestão.</p>
+                       </div>
+                    )}
+                 </motion.div>
+               ) : (
+                 <motion.div key="templates" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                       {Array.isArray(templates) && templates.map(tpl => (
+                          <div key={tpl.id} className="bg-white p-7 rounded-[32px] border border-slate-200 hover:border-slate-400 transition-all hover:shadow-2xl group flex flex-col h-full">
+                             <div className="flex items-start justify-between mb-4">
+                                <div className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center">
+                                   <FileText size={24} />
+                                </div>
+                                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                   <button onClick={() => { setEditingTemplate(tpl); setShowEditor(true); }} className="p-2 text-slate-400 hover:text-slate-900 hover:bg-slate-50 rounded-xl transition-all">
+                                      <Edit size={18} />
+                                   </button>
+                                   <button onClick={() => handleDeleteTemplate(tpl.id)} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all">
+                                      <Trash2 size={18} />
+                                   </button>
+                                </div>
+                             </div>
+                             <h3 className="text-xl font-black text-slate-900 mb-2 leading-tight">{tpl.title}</h3>
+                             <div className="text-xs text-slate-500 line-clamp-3 mb-8 font-medium leading-relaxed opacity-70" dangerouslySetInnerHTML={{ __html: tpl.content }} />
+                             <div className="mt-auto flex items-center justify-between pt-6 border-t border-slate-50">
+                                <span className="text-[10px] font-black uppercase text-slate-400">{tpl.days_duration} dias úteis</span>
+                                <button 
+                                   onClick={() => setShowIssueModal(true)} 
+                                   className="h-10 px-5 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-600 transition-all shadow-lg active:scale-95 flex items-center gap-2"
+                                >
+                                   Emitir Agora <ArrowRight size={14} />
+                                </button>
+                             </div>
+                          </div>
+                       ))}
+                       <button 
+                         onClick={() => { setEditingTemplate(null); setShowEditor(true); }}
+                         className="border-2 border-dashed border-slate-200 rounded-[32px] p-8 flex flex-col items-center justify-center gap-4 text-slate-400 hover:border-slate-900 hover:text-slate-900 transition-all group min-h-[250px]"
+                       >
+                          <div className="w-14 h-14 rounded-full border-2 border-current flex items-center justify-center group-hover:scale-110 transition-transform">
+                             <PlusCircle size={32} />
+                          </div>
+                          <span className="text-sm font-black uppercase tracking-[0.2em]">Novo Modelo Blindado</span>
+                       </button>
+                    </div>
+                 </motion.div>
+               )}
+             </AnimatePresence>
+          )}
         </div>
       )}
 
