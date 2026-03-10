@@ -347,111 +347,172 @@ export default function WorkOrderDetail() {
     const pageWidth = doc.internal.pageSize.getWidth();
     const margin = 15;
     
-    // Header - Workshop Info
-    doc.setFontSize(16);
-    doc.setFont('helvetica', 'bold');
-    doc.text(settings?.company_name || 'Workshop Name', margin, 20);
+    // --- COLORS ---
+    const primaryColor = [30, 41, 59] as [number, number, number]; // Slate-800
+    const accentColor = [79, 70, 229] as [number, number, number];  // Indigo-600
+    const lightGray = [248, 250, 252] as [number, number, number]; // Slate-50
+    const borderColor = [226, 232, 240] as [number, number, number]; // Slate-200
     
-    doc.setFontSize(8);
-    doc.setFont('helvetica', 'normal');
-    const workshopInfo = [
-      settings?.address || 'Address not set',
-      `${settings?.city || ''} - ${settings?.state || ''} ${settings?.zip_code || ''}`,
-      `CNPJ: ${settings?.cnpj || 'N/A'} | Fone: ${settings?.phone || 'N/A'}`,
-      `Email: ${settings?.email || 'N/A'}`
-    ];
-    workshopInfo.forEach((text, i) => doc.text(text, margin, 26 + (i * 4)));
-
-    // Header Right - OS Info
-    doc.setFontSize(14);
-    doc.setFont('helvetica', 'bold');
-    doc.text(`OS #${wo.number}`, pageWidth - margin, 20, { align: 'right' });
+    // --- HEADER ---
+    doc.setFillColor(...primaryColor);
+    doc.rect(0, 0, pageWidth, 40, 'F');
     
-    doc.setFontSize(8);
-    doc.setFont('helvetica', 'normal');
-    doc.text(`Data: ${format(new Date(wo.created_at), 'dd/MM/yyyy HH:mm')}`, pageWidth - margin, 26, { align: 'right' });
-    doc.text(`Status: ${statusMap[wo.status].label}`, pageWidth - margin, 30, { align: 'right' });
-    if (wo.estimated_delivery) {
-      doc.text(`Previsão: ${format(new Date(wo.estimated_delivery), 'dd/MM/yyyy HH:mm')}`, pageWidth - margin, 34, { align: 'right' });
+    let logoLoaded = false;
+    if (settings?.logo_url) {
+      try {
+        const format = settings.logo_url.includes('png') ? 'PNG' : 
+                      settings.logo_url.includes('jpg') || settings.logo_url.includes('jpeg') ? 'JPEG' : 'PNG';
+        doc.addImage(settings.logo_url, format, margin, 8, 24, 24);
+        logoLoaded = true;
+      } catch (e) {
+        console.error('Error adding logo to PDF:', e);
+      }
     }
 
-    doc.setDrawColor(200);
-    doc.line(margin, 45, pageWidth - margin, 45);
-
-    // Client & Vehicle Grid
-    doc.setFontSize(10);
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(16);
     doc.setFont('helvetica', 'bold');
-    doc.text('CLIENTE', margin, 55);
-    doc.text('VEIÍCULO', pageWidth / 2 + 5, 55);
-
+    doc.text(settings?.trade_name || settings?.company_name || 'Workshop Name', logoLoaded ? margin + 28 : margin, 18);
+    
     doc.setFontSize(8);
     doc.setFont('helvetica', 'normal');
-    doc.text(`Nome: ${wo.client_name}`, margin, 60);
-    doc.text(`Documento: ${wo.client_document || 'N/A'}`, margin, 64);
-    doc.text(`Telefone: ${wo.client_phone || 'N/A'}`, margin, 68);
+    const companySubtext = [
+      settings?.cnpj ? `CNPJ: ${settings.cnpj}` : '',
+      settings?.address ? settings.address : '',
+      settings?.phone ? `Fone: ${settings.phone}` : ''
+    ].filter(Boolean).join('  |  ');
+    doc.text(companySubtext, logoLoaded ? margin + 28 : margin, 24);
 
-    doc.text(`Marca/Modelo: ${wo.brand} ${wo.model}`, pageWidth / 2 + 5, 60);
-    doc.text(`Placa: ${wo.plate || 'N/A'}`, pageWidth / 2 + 5, 64);
-    doc.text(`KM: ${wo.km || 0}`, pageWidth / 2 + 5, 68);
-    doc.text(`Cor: ${wo.color || 'N/A'}`, pageWidth / 2 + 25, 64); // Small space for color
+    doc.setFontSize(14);
+    doc.text(`ORDEM DE SERVIÇO`, pageWidth - margin, 18, { align: 'right' });
+    doc.setFontSize(22);
+    doc.text(`#${wo.number}`, pageWidth - margin, 28, { align: 'right' });
 
-    doc.line(margin, 75, pageWidth - margin, 75);
+    // Secondary Header
+    doc.setTextColor(...primaryColor);
+    doc.setFontSize(8);
+    let currentY = 50;
+    
+    doc.text(`Emissão: ${format(new Date(wo.created_at), 'dd/MM/yyyy HH:mm')}`, margin, currentY);
+    const statusLabel = statusMap[wo.status]?.label || wo.status;
+    doc.text(`Status: ${statusLabel}`, pageWidth / 2, currentY, { align: 'center' });
+    if (wo.delivery_forecast) {
+      doc.text(`Previsão: ${format(new Date(wo.delivery_forecast), 'dd/MM/yyyy HH:mm')}`, pageWidth - margin, currentY, { align: 'right' });
+    }
+    
+    currentY += 8;
+    doc.setDrawColor(...borderColor);
+    doc.line(margin, currentY, pageWidth - margin, currentY);
+    currentY += 10;
+
+    // --- CLIENT & VEHICLE SECTIONS ---
+    const boxWidth = (pageWidth - (margin * 2) - 10) / 2;
+    const boxHeight = 35;
+
+    // Client Box
+    doc.setFillColor(...lightGray);
+    doc.rect(margin, currentY, boxWidth, boxHeight, 'F');
+    doc.setDrawColor(...borderColor);
+    doc.rect(margin, currentY, boxWidth, boxHeight, 'S');
+    
+    doc.setTextColor(...accentColor);
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'bold');
+    doc.text('DADOS DO CLIENTE', margin + 5, currentY + 7);
+    
+    doc.setTextColor(30, 41, 59);
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Nome: ${wo.client_name}`, margin + 5, currentY + 13);
+    doc.text(`CPF/CNPJ: ${wo.client_document || 'N/A'}`, margin + 5, currentY + 18);
+    doc.text(`Telefone: ${wo.client_phone || 'N/A'}`, margin + 5, currentY + 23);
+    doc.text(`Email: ${wo.client_email || 'N/A'}`, margin + 5, currentY + 28);
+
+    // Vehicle Box
+    doc.setFillColor(...lightGray);
+    doc.rect(margin + boxWidth + 10, currentY, boxWidth, boxHeight, 'F');
+    doc.setDrawColor(...borderColor);
+    doc.rect(margin + boxWidth + 10, currentY, boxWidth, boxHeight, 'S');
+    
+    doc.setTextColor(...accentColor);
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'bold');
+    doc.text('DADOS DO VEÍCULO', margin + boxWidth + 15, currentY + 7);
+    
+    doc.setTextColor(30, 41, 59);
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Veículo: ${wo.brand} ${wo.model}`, margin + boxWidth + 15, currentY + 13);
+    doc.text(`Placa: ${wo.plate || 'N/A'}`, margin + boxWidth + 15, currentY + 18);
+    doc.text(`KM: ${wo.km?.toLocaleString() || 0}  |  Cor: ${wo.color || 'N/A'}`, margin + boxWidth + 15, currentY + 23);
+    doc.text(`Ano: ${wo.year || 'N/A'}  |  Comb: ${wo.fuel_type || 'N/A'}`, margin + boxWidth + 15, currentY + 28);
+
+    currentY += boxHeight + 12;
 
     // Diagnosis
+    doc.setTextColor(...accentColor);
     doc.setFontSize(10);
     doc.setFont('helvetica', 'bold');
-    doc.text('RECLAMAÇÃO / DIAGNÓSTICO', margin, 85);
-    
-    doc.setFontSize(8);
-    doc.setFont('helvetica', 'normal');
-    const complaint = wo.complaint || 'Não informado';
-    const diagnosis = wo.diagnosis || 'Não informado';
-    
-    doc.text('Relato:', margin, 90);
-    doc.text(doc.splitTextToSize(complaint, pageWidth - 40), 35, 90);
-    
-    doc.text('Diagnóstico:', margin, 98);
-    doc.text(doc.splitTextToSize(diagnosis, pageWidth - 40), 35, 98);
+    doc.text('RECLAMAÇÃO E DIAGNÓSTICO', margin, currentY);
+    currentY += 8;
 
-    // Items Tables
+    doc.setTextColor(30, 41, 59);
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Relato/Queixa:', margin, currentY);
+    doc.setFont('helvetica', 'normal');
+    const complaintText = wo.complaint || 'Nenhuma reclamação informada.';
+    const splitComplaint = doc.splitTextToSize(complaintText, pageWidth - (margin * 2));
+    doc.text(splitComplaint, margin, currentY + 5);
+    currentY += (splitComplaint.length * 4) + 8;
+
+    doc.setFont('helvetica', 'bold');
+    doc.text('Laudo Técnico / Diagnóstico:', margin, currentY);
+    doc.setFont('helvetica', 'normal');
+    const diagnosisText = wo.diagnosis || 'Nenhum diagnóstico técnico realizado.';
+    const splitDiagnosis = doc.splitTextToSize(diagnosisText, pageWidth - (margin * 2));
+    doc.text(splitDiagnosis, margin, currentY + 5);
+    currentY += (splitDiagnosis.length * 4) + 12;
+
+    // Items
     const services = (wo.items || []).filter((i:any) => i.type === 'SERVICE');
     const parts = (wo.items || []).filter((i:any) => i.type === 'PART');
-
-    let currentY = 110;
 
     if (services.length > 0) {
       autoTable(doc, {
         startY: currentY,
-        head: [['Serviços', 'Descrição Detalhada', 'Executante', 'Valor']],
-        body: services.map((i: any) => [
-          i.description, 
-          i.long_description || '---',
-          users.find(u => u.id === i.mechanic_id)?.name || 'N/A',
+        head: [[{ content: 'SERVIÇOS REALIZADOS', colSpan: 4, styles: { halign: 'center', fillColor: primaryColor } }], ['Cód/Item', 'Descrição Detalhada', 'Técnico', 'Valor']],
+        body: services.map((i: any, index: number) => [
+          index + 1,
+          i.description + (i.long_description ? `\n${i.long_description}` : ''),
+          users.find(u => u.id === i.mechanic_id)?.name || '---',
           `R$ ${parseFloat(i.unit_price).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
         ]),
-        headStyles: { fillColor: [40, 40, 40] },
-        styles: { fontSize: 8 },
-        columnStyles: {
-          1: { cellWidth: 60 } // Give more width to description
-        }
+        styles: { fontSize: 8, cellPadding: 3 },
+        headStyles: { fillColor: [51, 65, 85], fontStyle: 'bold' },
+        columnStyles: { 1: { cellWidth: 80 }, 3: { halign: 'right', fontStyle: 'bold' } },
+        alternateRowStyles: { fillColor: [252, 252, 252] }
       });
-      currentY = (doc as any).lastAutoTable.finalY + 5;
+      currentY = (doc as any).lastAutoTable.finalY + 10;
     }
 
     if (parts.length > 0) {
+      if (currentY > 230) { doc.addPage(); currentY = 20; }
       autoTable(doc, {
         startY: currentY,
-        head: [['Peças / Produtos', 'Qtd', 'Unitário', 'Total']],
+        head: [[{ content: 'PEÇAS E MATERIAIS', colSpan: 4, styles: { halign: 'center', fillColor: [51, 65, 85] } }], ['Item/Peça', 'Qtd', 'Unitário', 'Subtotal']],
         body: parts.map((i: any) => [
           i.description, 
           i.quantity, 
           `R$ ${parseFloat(i.unit_price).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
           `R$ ${(i.quantity * i.unit_price).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
         ]),
-        headStyles: { fillColor: [70, 70, 70] },
-        styles: { fontSize: 8 }
+        styles: { fontSize: 8, cellPadding: 3 },
+        headStyles: { fillColor: [71, 85, 105], fontStyle: 'bold' },
+        columnStyles: { 1: { halign: 'center' }, 2: { halign: 'right' }, 3: { halign: 'right', fontStyle: 'bold' } },
+        alternateRowStyles: { fillColor: [252, 252, 252] }
       });
-      currentY = (doc as any).lastAutoTable.finalY + 5;
+      currentY = (doc as any).lastAutoTable.finalY + 10;
     }
 
     // Totals
@@ -462,43 +523,54 @@ export default function WorkOrderDetail() {
     const discount = wo.discount || 0;
     const total = subtotal + taxes - discount;
 
+    if (currentY > 230) { doc.addPage(); currentY = 20; }
+
+    const totalsWidth = 70;
+    const totalsX = pageWidth - margin - totalsWidth;
+    doc.setFillColor(...lightGray);
+    doc.rect(totalsX, currentY, totalsWidth, 35, 'F');
+    doc.setDrawColor(...borderColor);
+    doc.rect(totalsX, currentY, totalsWidth, 35, 'S');
+
+    doc.setFontSize(8);
+    doc.setTextColor(100, 116, 139);
+    doc.text(`Total Serviços:`, totalsX + 5, currentY + 7);
+    doc.setTextColor(30, 41, 59);
+    doc.text(`R$ ${servicesTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, pageWidth - margin - 5, currentY + 7, { align: 'right' });
+    doc.setTextColor(100, 116, 139);
+    doc.text(`Total Peças:`, totalsX + 5, currentY + 12);
+    doc.setTextColor(30, 41, 59);
+    doc.text(`R$ ${partsTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, pageWidth - margin - 5, currentY + 12, { align: 'right' });
+    if (discount > 0) {
+      doc.setTextColor(220, 38, 38);
+      doc.text(`Desconto:`, totalsX + 5, currentY + 17);
+      doc.text(`- R$ ${discount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, pageWidth - margin - 5, currentY + 17, { align: 'right' });
+    }
+    doc.line(totalsX + 5, currentY + 22, pageWidth - margin - 5, currentY + 22);
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(...accentColor);
+    doc.text(`TOTAL GERAL:`, totalsX + 5, currentY + 30);
+    doc.text(`R$ ${total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, pageWidth - margin - 5, currentY + 30, { align: 'right' });
+
+    currentY += 45;
     if (currentY > 240) { doc.addPage(); currentY = 20; }
 
-    const totalsX = pageWidth - margin - 50;
-    doc.setFontSize(9);
-    doc.text(`Total Serviços:`, totalsX, currentY + 5);
-    doc.text(`R$ ${servicesTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, pageWidth - margin, currentY + 5, { align: 'right' });
-    
-    doc.text(`Total Peças:`, totalsX, currentY + 10);
-    doc.text(`R$ ${partsTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, pageWidth - margin, currentY + 10, { align: 'right' });
-    
-    if (discount > 0) {
-      doc.text(`Desconto:`, totalsX, currentY + 15);
-      doc.text(`- R$ ${discount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, pageWidth - margin, currentY + 15, { align: 'right' });
-      currentY += 5;
-    }
-
-    doc.setFontSize(11);
-    doc.setFont('helvetica', 'bold');
-    doc.text(`TOTAL GERAL:`, totalsX, currentY + 15);
-    doc.text(`R$ ${total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, pageWidth - margin, currentY + 15, { align: 'right' });
-
-    // Footer - Terms & Signature
-    currentY += 35;
-    if (currentY > 250) { doc.addPage(); currentY = 20; }
-
     doc.setFontSize(7);
+    doc.setFont('helvetica', 'italic');
+    doc.setTextColor(100, 116, 139);
+    doc.text('Termos e Observações:', margin, currentY);
+    const terms = settings?.quote_terms || 'Garantia de 90 dias para serviços e peças.';
+    doc.text(doc.splitTextToSize(terms, pageWidth - (margin * 2)), margin, currentY + 4);
+    
+    currentY += 25;
+    const sigLine = 60;
+    doc.setDrawColor(200);
+    doc.line(margin, currentY, margin + sigLine, currentY);
+    doc.line(pageWidth - margin - sigLine, currentY, pageWidth - margin, currentY);
     doc.setFont('helvetica', 'normal');
-    const terms = settings?.terms_and_conditions || 'Termos e condições padrão: Garantia de 90 dias para serviços. Peças seguem garantia do fabricante.';
-    doc.text('OBSERVAÇÕES / TERMOS:', margin, currentY);
-    doc.text(doc.splitTextToSize(terms, pageWidth - 30), margin, currentY + 4);
-
-    doc.setDrawColor(150);
-    doc.line(margin + 10, currentY + 40, margin + 80, currentY + 40);
-    doc.text('ASSINATURA DO CLIENTE', margin + 45, currentY + 44, { align: 'center' });
-
-    doc.line(pageWidth - margin - 80, currentY + 40, pageWidth - margin - 10, currentY + 40);
-    doc.text('RESPONSÁVEL TÉCNICO', pageWidth - margin - 45, currentY + 44, { align: 'center' });
+    doc.text('Assinatura da Oficina', margin + (sigLine / 2), currentY + 4, { align: 'center' });
+    doc.text('Assinatura do Cliente', pageWidth - margin - (sigLine / 2), currentY + 4, { align: 'center' });
 
     doc.save(`OS_${wo.number}.pdf`);
   };

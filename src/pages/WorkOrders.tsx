@@ -157,70 +157,137 @@ export default function WorkOrders() {
       const pageWidth = doc.internal.pageSize.getWidth();
       const margin = 15;
       
-      // Header
+      // --- COLORS ---
+      const primaryColor = [30, 41, 59] as [number, number, number];
+      const accentColor = [79, 70, 229] as [number, number, number];
+      const lightGray = [248, 250, 252] as [number, number, number];
+      const borderColor = [226, 232, 240] as [number, number, number];
+      
+      // --- HEADER ---
+      doc.setFillColor(...primaryColor);
+      doc.rect(0, 0, pageWidth, 40, 'F');
+      
+      let logoLoaded = false;
+      if (workshopSettings?.logo_url) {
+        try {
+          const format = workshopSettings.logo_url.includes('png') ? 'PNG' : 
+                        workshopSettings.logo_url.includes('jpg') || workshopSettings.logo_url.includes('jpeg') ? 'JPEG' : 'PNG';
+          doc.addImage(workshopSettings.logo_url, format, margin, 8, 24, 24);
+          logoLoaded = true;
+        } catch (e) {
+          console.error('Error adding logo to PDF:', e);
+        }
+      }
+
+      doc.setTextColor(255, 255, 255);
       doc.setFontSize(16);
       doc.setFont('helvetica', 'bold');
-      doc.text(workshopSettings?.company_name || 'Workflow Workshop', margin, 20);
+      doc.text(workshopSettings?.trade_name || workshopSettings?.company_name || 'Workshop Name', logoLoaded ? margin + 28 : margin, 18);
       
       doc.setFontSize(8);
       doc.setFont('helvetica', 'normal');
-      const workshopInfo = [
-        workshopSettings?.address || 'Address not set',
-        `${workshopSettings?.city || ''} - ${workshopSettings?.state || ''} ${workshopSettings?.zip_code || ''}`,
-        `CNPJ: ${workshopSettings?.cnpj || 'N/A'} | Phone: ${workshopSettings?.phone || 'N/A'}`,
-        `Email: ${workshopSettings?.email || 'N/A'}`
-      ];
-      workshopInfo.forEach((text, i) => doc.text(text, margin, 26 + (i * 4)));
+      const companySubtext = [
+        workshopSettings?.cnpj ? `CNPJ: ${workshopSettings.cnpj}` : '',
+        workshopSettings?.address ? workshopSettings.address : '',
+        workshopSettings?.phone ? `Fone: ${workshopSettings.phone}` : ''
+      ].filter(Boolean).join('  |  ');
+      doc.text(companySubtext, logoLoaded ? margin + 28 : margin, 24);
 
-      doc.setFontSize(14);
-      doc.setFont('helvetica', 'bold');
-      doc.text(`OS #${fullWo.number}`, pageWidth - margin, 20, { align: 'right' });
+      doc.setFontSize(12);
+      doc.text(`ORDEM DE SERVIÇO`, pageWidth - margin, 18, { align: 'right' });
+      doc.setFontSize(22);
+      doc.text(`#${fullWo.number}`, pageWidth - margin, 28, { align: 'right' });
+
+      // Secondary Header
+      doc.setTextColor(...primaryColor);
+      doc.setFontSize(8);
+      let currentY = 50;
+      doc.text(`Emissão: ${format(parseISO(fullWo.created_at), 'dd/MM/yyyy HH:mm')}`, margin, currentY);
+      const statusLabel = statusConfig[fullWo.status]?.label || fullWo.status;
+      doc.text(`Status: ${statusLabel}`, pageWidth / 2, currentY, { align: 'center' });
       
-      doc.setFontSize(8);
-      doc.setFont('helvetica', 'normal');
-      doc.text(`Data: ${format(parseISO(fullWo.created_at), 'dd/MM/yyyy HH:mm')}`, pageWidth - margin, 26, { align: 'right' });
-      doc.text(`Status: ${statusConfig[fullWo.status]?.label || fullWo.status}`, pageWidth - margin, 30, { align: 'right' });
+      currentY += 8;
+      doc.setDrawColor(...borderColor);
+      doc.line(margin, currentY, pageWidth - margin, currentY);
+      currentY += 10;
 
-      doc.setDrawColor(200);
-      doc.line(margin, 40, pageWidth - margin, 40);
+      // --- CLIENT & VEHICLE SECTIONS ---
+      const boxWidth = (pageWidth - (margin * 2) - 10) / 2;
+      const boxHeight = 35;
 
-      // Client & Vehicle
-      doc.setFontSize(10);
+      doc.setFillColor(...lightGray);
+      doc.rect(margin, currentY, boxWidth, boxHeight, 'F');
+      doc.setDrawColor(...borderColor);
+      doc.rect(margin, currentY, boxWidth, boxHeight, 'S');
+      
+      doc.setTextColor(...accentColor);
+      doc.setFontSize(9);
       doc.setFont('helvetica', 'bold');
-      doc.text('CLIENTE', margin, 50);
-      doc.text('VEIÍCULO', pageWidth / 2 + 5, 50);
-
+      doc.text('DADOS DO CLIENTE', margin + 5, currentY + 7);
+      doc.setTextColor(30, 41, 59);
       doc.setFontSize(8);
       doc.setFont('helvetica', 'normal');
-      doc.text(`Nome: ${fullWo.client_name}`, margin, 55);
-      doc.text(`Telefone: ${fullWo.client_phone || 'N/A'}`, margin, 59);
+      doc.text(`Nome: ${fullWo.client_name}`, margin + 5, currentY + 13);
+      doc.text(`Telefone: ${fullWo.client_phone || 'N/A'}`, margin + 5, currentY + 18);
+      doc.text(`Email: ${fullWo.client_email || 'N/A'}`, margin + 5, currentY + 23);
 
-      doc.text(`Marca/Modelo: ${fullWo.brand} ${fullWo.model}`, pageWidth / 2 + 5, 55);
-      doc.text(`Placa: ${fullWo.plate || 'N/A'}`, pageWidth / 2 + 5, 59);
-      doc.text(`KM: ${fullWo.km || 0}`, pageWidth / 2 + 5, 63);
+      doc.setFillColor(...lightGray);
+      doc.rect(margin + boxWidth + 10, currentY, boxWidth, boxHeight, 'F');
+      doc.setDrawColor(...borderColor);
+      doc.rect(margin + boxWidth + 10, currentY, boxWidth, boxHeight, 'S');
+      
+      doc.setTextColor(...accentColor);
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'bold');
+      doc.text('DADOS DO VEÍCULO', margin + boxWidth + 15, currentY + 7);
+      doc.setTextColor(30, 41, 59);
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'normal');
+      doc.text(`Veículo: ${fullWo.brand} ${fullWo.model}`, margin + boxWidth + 15, currentY + 13);
+      doc.text(`Placa: ${fullWo.plate || 'N/A'}`, margin + boxWidth + 15, currentY + 18);
+      doc.text(`KM: ${fullWo.km?.toLocaleString() || 0}`, margin + boxWidth + 15, currentY + 23);
 
-      doc.line(margin, 70, pageWidth - margin, 70);
+      currentY += boxHeight + 10;
 
       // Items Table
       const items = fullWo.items || [];
       if (items.length > 0) {
         autoTable(doc, {
-          startY: 80,
-          head: [['Item/Descrição', 'Qtd', 'Unitário', 'Total']],
+          startY: currentY,
+          head: [[{ content: 'ITENS DA ORDEM DE SERVIÇO', colSpan: 4, styles: { halign: 'center', fillColor: primaryColor } }], ['Descrição', 'Qtd', 'Unitário', 'Subtotal']],
           body: items.map((i: any) => [
             i.description, 
             i.quantity, 
             `R$ ${parseFloat(i.unit_price).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
             `R$ ${(i.quantity * i.unit_price).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
           ]),
-          headStyles: { fillColor: [40, 40, 40] },
-          styles: { fontSize: 8 }
+          styles: { fontSize: 8, cellPadding: 3 },
+          headStyles: { fillColor: [51, 65, 85], fontStyle: 'bold' },
+          columnStyles: {
+            1: { halign: 'center' },
+            2: { halign: 'right' },
+            3: { halign: 'right', fontStyle: 'bold' }
+          },
+          alternateRowStyles: { fillColor: [252, 252, 252] }
         });
         
+        currentY = (doc as any).lastAutoTable.finalY + 10;
+        if (currentY > 230) { doc.addPage(); currentY = 20; }
+        
+        const totalsWidth = 60;
+        const totalsX = pageWidth - margin - totalsWidth;
         const subtotal = items.reduce((sum: number, i: any) => sum + (i.unit_price * i.quantity), 0);
-        const totalY = (doc as any).lastAutoTable.finalY + 10;
+        
+        doc.setFillColor(...lightGray);
+        doc.rect(totalsX, currentY, totalsWidth, 15, 'F');
+        doc.setDrawColor(...borderColor);
+        doc.rect(totalsX, currentY, totalsWidth, 15, 'S');
+
         doc.setFont('helvetica', 'bold');
-        doc.text(`TOTAL GERAL: R$ ${subtotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, pageWidth - margin, totalY, { align: 'right' });
+        doc.setFontSize(10);
+        doc.setTextColor(...accentColor);
+        doc.text(`TOTAL GERAL:`, totalsX + 5, currentY + 9);
+        doc.text(`R$ ${subtotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, pageWidth - margin - 5, currentY + 9, { align: 'right' });
       }
 
       doc.save(`OS_${fullWo.number}.pdf`);

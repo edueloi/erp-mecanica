@@ -62,6 +62,7 @@ export default function VehicleChecklist() {
   const [showNewForm, setShowNewForm] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const selectedItemIdRef = useRef<string | null>(null);
+  const [settings, setSettings] = useState<any>(null);
   const [newForm, setNewForm] = useState({ km: '', inspector_name: '', general_notes: '' });
   const [editingNote, setEditingNote] = useState<string | null>(null);
   const [noteValue, setNoteValue] = useState('');
@@ -92,11 +93,13 @@ export default function VehicleChecklist() {
       return;
     }
     try {
-      const [vRes, clRes] = await Promise.all([
+      const [vRes, clRes, settingsRes] = await Promise.all([
         api.get(`/vehicles/${vehicleId}`),
-        api.get(`/checklists/vehicle/${vehicleId}`)
+        api.get(`/checklists/vehicle/${vehicleId}`),
+        api.get('/settings/tenant')
       ]);
       setVehicle(vRes.data);
+      setSettings(settingsRes.data);
       const cls = Array.isArray(clRes.data) ? clRes.data : [];
       setChecklists(cls);
 
@@ -296,21 +299,66 @@ export default function VehicleChecklist() {
   const handleGeneratePDF = () => {
     if (!activeChecklist || !vehicle) return;
 
-    const doc = new jsPDF();
+    const doc = new jsPDF() as any;
     const pageWidth = doc.internal.pageSize.getWidth();
     const margin = 15;
+    
+    // --- COLORS ---
+    const primaryColor = [30, 41, 59] as [number, number, number];
+    const accentColor = [79, 70, 229] as [number, number, number];
+    const lightGray = [248, 250, 252] as [number, number, number];
+    const borderColor = [226, 232, 240] as [number, number, number];
 
-    // Header
-    doc.setFillColor(15, 23, 42);
-    doc.rect(0, 0, pageWidth, 38, 'F');
+    // --- HEADER ---
+    doc.setFillColor(...primaryColor);
+    doc.rect(0, 0, pageWidth, 40, 'F');
+    
+    let logoLoaded = false;
+    if (settings?.logo_url) {
+      try {
+        const format = settings.logo_url.includes('png') ? 'PNG' : 
+                      settings.logo_url.includes('jpg') || settings.logo_url.includes('jpeg') ? 'JPEG' : 'PNG';
+        doc.addImage(settings.logo_url, format, margin, 8, 24, 24);
+        logoLoaded = true;
+      } catch (e) {
+        console.error('Error adding logo to Checklist PDF:', e);
+      }
+    }
+
     doc.setTextColor(255, 255, 255);
-    doc.setFontSize(16);
+    doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
-    doc.text('CHECKLIST DE INSPEÇÃO VEICULAR', margin, 18);
-    doc.setFontSize(9);
+    doc.text('CHECKLIST DE INSPEÇÃO', logoLoaded ? margin + 28 : margin, 18);
+    
+    doc.setFontSize(8);
     doc.setFont('helvetica', 'normal');
-    doc.text(`${vehicle.brand} ${vehicle.model} — Placa ${vehicle.plate?.toUpperCase() || '---'}`, margin, 28);
-    doc.text(`Data: ${format(new Date(activeChecklist.created_at), 'dd/MM/yyyy HH:mm')} | KM: ${activeChecklist.km?.toLocaleString()}`, pageWidth - margin, 28, { align: 'right' });
+    const workshopName = settings?.trade_name || settings?.company_name || '';
+    if (workshopName) {
+      doc.text(workshopName, logoLoaded ? margin + 28 : margin, 24);
+    }
+
+    doc.setFontSize(10);
+    doc.text(`DATA: ${format(new Date(activeChecklist.created_at), 'dd/MM/yyyy HH:mm')}`, pageWidth - margin, 18, { align: 'right' });
+    doc.text(`KM: ${activeChecklist.km?.toLocaleString()}`, pageWidth - margin, 24, { align: 'right' });
+
+    let currentY = 50;
+    
+    // --- VEHICLE INFO BOX ---
+    doc.setFillColor(...lightGray);
+    doc.rect(margin, currentY, pageWidth - (margin * 2), 20, 'F');
+    doc.setDrawColor(...borderColor);
+    doc.rect(margin, currentY, pageWidth - (margin * 2), 20, 'S');
+    
+    doc.setTextColor(...primaryColor);
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
+    doc.text(`${vehicle.brand} ${vehicle.model}`, margin + 5, currentY + 8);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.text(`PLACA: ${vehicle.plate?.toUpperCase() || '---'}`, margin + 5, currentY + 15);
+    doc.text(`INSPETOR: ${activeChecklist.inspector_name || 'N/A'}`, pageWidth - margin - 5, currentY + 15, { align: 'right' });
+
+    currentY += 28;
 
     // Summary bar
     const items = activeChecklist.items;
@@ -319,15 +367,24 @@ export default function VehicleChecklist() {
     const critical = items.filter(i => i.status === 'CRITICAL').length;
     const na = items.filter(i => i.status === 'NA').length;
 
+    doc.setTextColor(...primaryColor);
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'bold');
+    doc.text('RESUMO DA INSPEÇÃO:', margin, currentY);
+    currentY += 5;
+    
     doc.setFillColor(248, 250, 252);
-    doc.rect(margin, 44, pageWidth - margin * 2, 14, 'F');
+    doc.rect(margin, currentY, pageWidth - margin * 2, 12, 'F');
     doc.setTextColor(30, 41, 59);
     doc.setFontSize(8);
-    doc.text(`✅ OK: ${ok}   ⚠️ Atenção: ${attention}   🔴 Crítico: ${critical}   — N/A: ${na}   |   Inspetor: ${activeChecklist.inspector_name || '—'}`, margin + 3, 53);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`✅ OK: ${ok}   ⚠️ ATENÇÃO: ${attention}   🔴 CRÍTICO: ${critical}   — N/A: ${na}`, margin + 5, currentY + 8);
+    
+    currentY += 18;
 
     // Group by category
     const categories = [...new Set(items.map(i => i.category))];
-    let startY = 64;
+    let startY = currentY;
 
     for (const cat of categories) {
       const catItems = items.filter(i => i.category === cat);

@@ -127,13 +127,25 @@ export default function Suppliers() {
     notes: "",
   });
 
+  const [settings, setSettings] = useState<any>(null);
+
   useEffect(() => {
     fetchSuppliers();
     fetchStats();
     fetchCategories();
     fetchCities();
     fetchPurchaseOrders();
+    fetchTenantSettings();
   }, []);
+
+  const fetchTenantSettings = async () => {
+    try {
+      const res = await api.get('/settings/tenant');
+      setSettings(res.data);
+    } catch (err) {
+      console.error('Error fetching tenant settings:', err);
+    }
+  };
 
   useEffect(() => {
     filterSuppliers();
@@ -456,97 +468,140 @@ export default function Suppliers() {
       const res = await api.get(`/purchase-orders/${po.id}`);
       const fullPO = res.data;
 
-      const doc = new jsPDF();
+      const doc = new jsPDF() as any;
       const pageWidth = doc.internal.pageSize.getWidth();
+      const margin = 15;
       
-      // Header
-      doc.setFillColor(30, 41, 59); // slate-800
+      // --- COLORS ---
+      const primaryColor = [30, 41, 59] as [number, number, number];
+      const accentColor = [79, 70, 229] as [number, number, number];
+      const lightGray = [248, 250, 252] as [number, number, number];
+      const borderColor = [226, 232, 240] as [number, number, number];
+      
+      // --- HEADER ---
+      doc.setFillColor(...primaryColor);
       doc.rect(0, 0, pageWidth, 40, 'F');
       
-      doc.setTextColor(255, 255, 255);
-      doc.setFontSize(22);
-      doc.setFont('helvetica', 'bold');
-      doc.text('PEDIDO DE COMPRA', 20, 25);
-      
-      doc.setFontSize(10);
-      doc.setFont('helvetica', 'normal');
-      doc.text(`Nº ${fullPO.number}`, pageWidth - 20, 20, { align: 'right' });
-      doc.text(`Data: ${formatDate(fullPO.order_date)}`, pageWidth - 20, 28, { align: 'right' });
-      
-      // Status badge
-      const statusText = fullPO.status === 'RECEIVED' ? 'RECEBIDO' : fullPO.status === 'DRAFT' ? 'RASCUNHO' : 'PENDENTE';
-      doc.text(`Status: ${statusText}`, pageWidth - 20, 36, { align: 'right' });
-
-      // Supplier Info
-      doc.setTextColor(30, 41, 59);
-      doc.setFontSize(12);
-      doc.setFont('helvetica', 'bold');
-      doc.text('FORNECEDOR', 20, 55);
-      
-      doc.setFontSize(10);
-      doc.setFont('helvetica', 'normal');
-      doc.text(fullPO.supplier_name, 20, 62);
-      
-      if (fullPO.expected_delivery) {
-        doc.text(`Entrega prevista: ${formatDate(fullPO.expected_delivery)}`, 20, 68);
+      let logoLoaded = false;
+      if (settings?.logo_url) {
+        try {
+          const format = settings.logo_url.includes('png') ? 'PNG' : 
+                        settings.logo_url.includes('jpg') || settings.logo_url.includes('jpeg') ? 'JPEG' : 'PNG';
+          doc.addImage(settings.logo_url, format, margin, 8, 24, 24);
+          logoLoaded = true;
+        } catch (e) {
+          console.error('Error adding logo to PO PDF:', e);
+        }
       }
+
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(16);
+      doc.setFont('helvetica', 'bold');
+      doc.text(settings?.trade_name || settings?.company_name || 'Workshop Name', logoLoaded ? margin + 28 : margin, 18);
+      
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'normal');
+      const companySubtext = [
+        settings?.cnpj ? `CNPJ: ${settings.cnpj}` : '',
+        settings?.address ? settings.address : '',
+        settings?.phone ? `Fone: ${settings.phone}` : ''
+      ].filter(Boolean).join('  |  ');
+      doc.text(companySubtext, logoLoaded ? margin + 28 : margin, 24);
+
+      doc.setFontSize(12);
+      doc.text(`PEDIDO DE COMPRA`, pageWidth - margin, 18, { align: 'right' });
+      doc.setFontSize(22);
+      doc.text(`#${fullPO.number}`, pageWidth - margin, 28, { align: 'right' });
+
+      // Secondary Header
+      doc.setTextColor(...primaryColor);
+      doc.setFontSize(8);
+      let currentY = 50;
+      doc.text(`Data do Pedido: ${formatDate(fullPO.order_date)}`, margin, currentY);
+      const statusText = fullPO.status === 'RECEIVED' ? 'RECEBIDO' : fullPO.status === 'DRAFT' ? 'RASCUNHO' : 'PENDENTE';
+      doc.text(`Status: ${statusText}`, pageWidth / 2, currentY, { align: 'center' });
+      
+      currentY += 8;
+      doc.setDrawColor(...borderColor);
+      doc.line(margin, currentY, pageWidth - margin, currentY);
+      currentY += 10;
+
+      // --- SUPPLIER INFO BOX ---
+      const boxWidth = pageWidth - (margin * 2);
+      const boxHeight = 25;
+
+      doc.setFillColor(...lightGray);
+      doc.rect(margin, currentY, boxWidth, boxHeight, 'F');
+      doc.setDrawColor(...borderColor);
+      doc.rect(margin, currentY, boxWidth, boxHeight, 'S');
+      
+      doc.setTextColor(...accentColor);
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'bold');
+      doc.text('DADOS DO FORNECEDOR', margin + 5, currentY + 7);
+      
+      doc.setTextColor(30, 41, 59);
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      doc.text(fullPO.supplier_name, margin + 5, currentY + 13);
+      doc.setFontSize(8);
+      doc.text(`${fullPO.supplier?.email || 'Sem email'}  |  ${fullPO.supplier?.phone || 'Sem telefone'}`, margin + 5, currentY + 18);
+
+      currentY += boxHeight + 10;
 
       // Items Table
       const items = fullPO.items || [];
       if (items.length > 0) {
         autoTable(doc, {
-          startY: 78,
-          head: [['Item / Peça', 'Qtd', 'Vlr. Unit.', 'Subtotal']],
-          body: items.map((item: any) => [
-            item.name || item.description || 'N/A',
-            item.quantity,
-            `R$ ${(item.unit_cost || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
-            `R$ ${(item.subtotal || item.quantity * item.unit_cost || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
+          startY: currentY,
+          head: [[{ content: 'ITENS DO PEDIDO', colSpan: 4, styles: { halign: 'center', fillColor: primaryColor } }], ['Produto/Material', 'Qtd', 'Unitário', 'Subtotal']],
+          body: items.map((i: any) => [
+            i.product_name || i.description || '---', 
+            i.quantity, 
+            `R$ ${parseFloat(i.unit_price).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
+            `R$ ${(i.quantity * i.unit_price).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`
           ]),
-          headStyles: { fillColor: [79, 70, 229] }, // indigo-600
-          styles: { fontSize: 9 },
-          margin: { horizontal: 20 }
+          styles: { fontSize: 8, cellPadding: 3 },
+          headStyles: { fillColor: [51, 65, 85], fontStyle: 'bold' },
+          columnStyles: {
+            1: { halign: 'center' },
+            2: { halign: 'right' },
+            3: { halign: 'right', fontStyle: 'bold' }
+          },
+          alternateRowStyles: { fillColor: [252, 252, 252] }
         });
-      } else {
-        doc.setFontSize(9);
-        doc.setTextColor(150, 150, 150);
-        doc.text('Nenhum item neste pedido.', 20, 85);
-      }
-      
-      const finalY = ((doc as any).lastAutoTable?.finalY ?? 85) + 10;
-      
-      // Summary
-      doc.setTextColor(30, 41, 59);
-      doc.setFontSize(10);
-      doc.setFont('helvetica', 'normal');
+        
+        currentY = (doc as any).lastAutoTable.finalY + 10;
+        if (currentY > 230) { doc.addPage(); currentY = 20; }
+        
+        const totalsWidth = 60;
+        const totalsX = pageWidth - margin - totalsWidth;
+        
+        doc.setFillColor(...lightGray);
+        doc.rect(totalsX, currentY, totalsWidth, 15, 'F');
+        doc.setDrawColor(...borderColor);
+        doc.rect(totalsX, currentY, totalsWidth, 15, 'S');
 
-      const subtotal = fullPO.total - (fullPO.freight || 0) + (fullPO.discount || 0);
-      doc.text('Subtotal:', pageWidth - 60, finalY);
-      doc.text(`R$ ${subtotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, pageWidth - 20, finalY, { align: 'right' });
-      
-      doc.text('Frete:', pageWidth - 60, finalY + 7);
-      doc.text(`+ R$ ${(fullPO.freight || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, pageWidth - 20, finalY + 7, { align: 'right' });
-      
-      doc.text('Desconto:', pageWidth - 60, finalY + 14);
-      doc.text(`- R$ ${(fullPO.discount || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, pageWidth - 20, finalY + 14, { align: 'right' });
-      
-      doc.line(pageWidth - 65, finalY + 18, pageWidth - 20, finalY + 18);
-      
-      doc.setFontSize(12);
-      doc.setFont('helvetica', 'bold');
-      doc.text('TOTAL:', pageWidth - 60, finalY + 25);
-      doc.text(`R$ ${(fullPO.total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, pageWidth - 20, finalY + 25, { align: 'right' });
-      
-      if (fullPO.notes) {
-        doc.setFontSize(9);
-        doc.setFont('helvetica', 'italic');
-        doc.setTextColor(100, 116, 139);
-        doc.text('Observações:', 20, finalY + 40);
-        doc.text(doc.splitTextToSize(fullPO.notes, pageWidth - 40), 20, finalY + 46);
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(10);
+        doc.setTextColor(...accentColor);
+        doc.text(`TOTAL GERAL:`, totalsX + 5, currentY + 9);
+        doc.text(`R$ ${fullPO.total_amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, pageWidth - margin - 5, currentY + 9, { align: 'right' });
       }
-      
-      doc.save(`Pedido_Compra_${fullPO.number}.pdf`);
-      showNotification('success', 'Sucesso', 'PDF gerado com sucesso!');
+
+      if (fullPO.notes) {
+        currentY += 25;
+        if (currentY > 240) { doc.addPage(); currentY = 20; }
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(30, 41, 59);
+        doc.text('OBSERVAÇÕES:', margin, currentY);
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(8);
+        doc.text(doc.splitTextToSize(fullPO.notes, pageWidth - margin * 2), margin, currentY + 5);
+      }
+
+      doc.save(`Pedido_${fullPO.number}.pdf`);
     } catch (err) {
       console.error(err);
       showNotification('error', 'Erro', 'Falha ao gerar PDF do pedido.');
