@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useBlocker } from 'react-router-dom';
 import { 
   ArrowLeft, Printer, Save, Plus, Trash2, CheckCircle2, AlertCircle,
@@ -726,8 +726,8 @@ export default function WorkOrderDetail() {
         ))}
       </div>
 
-      {/* Main Content - 2 Columns: Left (tabs) + Right (Financial Summary) */}
-      <main className="flex-1 overflow-hidden flex">
+      {/* Main Content - Responsive Columns */}
+      <main className="flex-1 overflow-hidden flex flex-col lg:flex-row">
         {/* Left Column - Tabs Content */}
         <div className="flex-1 overflow-auto p-6">
           <AnimatePresence mode="wait">
@@ -1231,13 +1231,13 @@ export default function WorkOrderDetail() {
         </AnimatePresence>
       </div>
 
-      {/* Right Column - Financial Summary (Fixed) */}
-      <aside className="w-96 border-l border-slate-200 bg-white overflow-auto p-6 flex-shrink-0">
-        <div className="sticky top-0 space-y-6">
+      {/* Right Column - Financial Summary & Actions */}
+      <aside className="w-full lg:w-96 border-t lg:border-t-0 lg:border-l border-slate-200 bg-white overflow-auto p-4 lg:p-6 shrink-0">
+        <div className="space-y-6">
           {/* Quick Actions */}
-          <div className="bg-gradient-to-br from-slate-900 to-slate-700 rounded-2xl p-6 text-white">
-            <h3 className="text-sm font-bold uppercase tracking-wider mb-4 opacity-80">Ações Rápidas</h3>
-            <div className="space-y-2">
+          <div className="bg-slate-900 rounded-2xl p-5 text-white shadow-xl shadow-slate-200/50">
+            <h3 className="text-[10px] font-black uppercase tracking-[0.2em] mb-4 opacity-50">Ações Rápidas</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-2">
               {wo.status === 'DRAFT' && (
                 <button 
                   onClick={() => handleStatusChange('OPEN')}
@@ -1388,9 +1388,9 @@ export default function WorkOrderDetail() {
               {/* Payment Status */}
               <div className="pt-3 border-t border-slate-200 mt-3">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-slate-400 uppercase">Status Pagamento</span>
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Status Pagamento</span>
                   <span className={cn(
-                    "px-2 py-1 rounded text-xs font-bold",
+                    "px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-tight",
                     wo.payment_data?.status === 'PAID' ? 'bg-emerald-100 text-emerald-700' :
                     wo.payment_data?.status === 'PARTIAL' ? 'bg-yellow-100 text-yellow-700' :
                     'bg-slate-100 text-slate-700'
@@ -1405,22 +1405,22 @@ export default function WorkOrderDetail() {
           </div>
 
           {/* Alerts & Warnings */}
-          <div className="space-y-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-2">
             {(wo.items || []).some((i: any) => i.type === 'PART' && i.stock < i.quantity) && (
-              <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 flex items-start gap-2">
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 flex items-start gap-2">
                 <AlertTriangle size={16} className="text-amber-600 mt-0.5 flex-shrink-0" />
                 <div>
-                  <p className="text-xs font-bold text-amber-900">Estoque Insuficiente</p>
-                  <p className="text-xs text-amber-700">Algumas peças estão com estoque baixo</p>
+                  <p className="text-[10px] font-black text-amber-900 uppercase">Estoque Insuficiente</p>
+                  <p className="text-[10px] text-amber-700 font-bold">Algumas peças estão com estoque baixo</p>
                 </div>
               </div>
             )}
             {wo.estimated_delivery && new Date(wo.estimated_delivery) < new Date() && wo.status !== 'DELIVERED' && (
-              <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex items-start gap-2">
+              <div className="bg-red-50 border border-red-200 rounded-xl p-3 flex items-start gap-2">
                 <Clock size={16} className="text-red-600 mt-0.5 flex-shrink-0" />
                 <div>
-                  <p className="text-xs font-bold text-red-900">Prazo Vencido</p>
-                  <p className="text-xs text-red-700">A previsão de entrega passou</p>
+                  <p className="text-[10px] font-black text-red-900 uppercase">Prazo Vencido</p>
+                  <p className="text-[10px] text-red-700 font-bold">A previsão de entrega passou</p>
                 </div>
               </div>
             )}

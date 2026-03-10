@@ -207,17 +207,29 @@ export default function Dashboard() {
               </div>
             </div>
             <div className="flex flex-col gap-2">
-              {(stats?.statusDistribution || []).map((entry: any, index: number) => (
-                <div key={index} className="flex items-center gap-2">
-                  <div className={cn("w-3 h-3 rounded-full",
-                    entry.status === 'OPEN' ? 'bg-blue-500' : 
-                    entry.status === 'FINISHED' ? 'bg-emerald-500' :
-                    entry.status === 'CANCELLED' ? 'bg-red-500' : 'bg-slate-300'
-                  )} />
-                  <span className="text-xs font-medium text-slate-600 uppercase tracking-wider">{entry.status}</span>
-                  <span className="text-xs font-bold text-slate-900">{entry.count}</span>
-                </div>
-              ))}
+              {(stats?.statusDistribution || []).map((entry: any, index: number) => {
+                const statusLabels: any = {
+                  'OPEN': 'Aberta',
+                  'FINISHED': 'Finalizada',
+                  'CANCELLED': 'Cancelada',
+                  'DRAFT': 'Rascunho',
+                  'DIAGNOSIS': 'Diagnóstico',
+                  'WAITING_APPROVAL': 'Aguard. Aprovação',
+                  'EXECUTING': 'Em Execução',
+                  'DELIVERED': 'Entregue'
+                };
+                return (
+                  <div key={index} className="flex items-center gap-2">
+                    <div className={cn("w-3 h-3 rounded-full",
+                      entry.status === 'OPEN' ? 'bg-blue-500' : 
+                      entry.status === 'FINISHED' ? 'bg-emerald-500' :
+                      entry.status === 'CANCELLED' ? 'bg-red-500' : 'bg-slate-300'
+                    )} />
+                    <span className="text-xs font-medium text-slate-600 uppercase tracking-wider">{statusLabels[entry.status] || entry.status}</span>
+                    <span className="text-xs font-bold text-slate-900">{entry.count}</span>
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>
@@ -337,19 +349,20 @@ export default function Dashboard() {
                         wo.priority === 'HIGH' ? 'bg-red-100 text-red-600' : 
                         wo.priority === 'MEDIUM' ? 'bg-orange-100 text-orange-600' : 'bg-blue-100 text-blue-600'
                       )}>
-                        {wo.priority}
+                        {wo.priority === 'HIGH' ? 'Alta' : wo.priority === 'MEDIUM' ? 'Média' : 'Baixa'}
                       </span>
                     </div>
                     <p className="text-sm text-slate-500">{wo.client_name} • <span className="font-mono">{wo.plate}</span></p>
                   </div>
                 </div>
                 <div className="text-right">
-                  <span className={`text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-wider ${
+                  <span className={cn(
+                    "text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-wider",
                     wo.status === 'OPEN' ? 'bg-blue-50 text-blue-600' :
                     wo.status === 'FINISHED' ? 'bg-emerald-50 text-emerald-600' :
                     'bg-slate-50 text-slate-600'
-                  }`}>
-                    {wo.status}
+                  )}>
+                    {wo.status === 'OPEN' ? 'Aberta' : wo.status === 'FINISHED' ? 'Finalizada' : wo.status === 'DRAFT' ? 'Rascunho' : wo.status}
                   </span>
                   <p className="text-sm font-bold text-slate-900 mt-1">
                     R$ {wo.total_amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
