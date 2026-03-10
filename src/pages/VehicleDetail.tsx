@@ -29,6 +29,7 @@ export default function VehicleDetail() {
 
   const [checklists, setChecklists] = useState<any[]>([]);
   const [entries, setEntries] = useState<any[]>([]);
+  const [attachments, setAttachments] = useState<any[]>([]);
 
   const fetchData = async () => {
     try {
@@ -36,6 +37,7 @@ export default function VehicleDetail() {
       // Fetch main vehicle data first
       const vRes = await api.get(`/vehicles/${id}`);
       setVehicle(vRes.data);
+      if (vRes.data.attachments) setAttachments(vRes.data.attachments);
 
       // Then fetch secondary data independently
       api.get(`/checklists/vehicle/${id}`)
@@ -61,6 +63,45 @@ export default function VehicleDetail() {
       if (!vehicle) navigate('/vehicles');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: 'PHOTO' | 'DOCUMENT') => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 10 * 1024 * 1024) {
+      alert("Arquivo muito grande. Limite de 10MB.");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onloadend = async () => {
+      try {
+        const base64String = reader.result as string;
+        await api.post(`/vehicles/${id}/attachments`, {
+          type,
+          url: base64String,
+          name: file.name,
+          size: file.size,
+          mime_type: file.type
+        });
+        fetchData(); // Refresh everything to update history too
+      } catch (err) {
+        console.error('Error uploading file:', err);
+        alert("Erro ao enviar arquivo.");
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleDeleteAttachment = async (attachmentId: string) => {
+    if (!window.confirm("Deseja excluir este anexo?")) return;
+    try {
+      await api.delete(`/vehicles/${id}/attachments/${attachmentId}`);
+      fetchData();
+    } catch (err) {
+      console.error('Error deleting attachment:', err);
     }
   };
 
@@ -519,7 +560,107 @@ export default function VehicleDetail() {
               </div>
             )}
 
-            {['APPOINTMENTS', 'PHOTOS', 'DOCUMENTS'].includes(activeTab) && (
+            {activeTab === 'PHOTOS' && (
+              <div className="space-y-6">
+                <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden p-8">
+                  <div className="flex items-center justify-between mb-8">
+                    <div>
+                      <h3 className="text-xl font-black text-slate-900 leading-tight">Fotos do Veículo</h3>
+                      <p className="text-sm text-slate-500 font-medium">Histórico visual, danos e vistorias</p>
+                    </div>
+                    <div>
+                        <label className="h-10 px-6 bg-slate-900 text-white rounded-xl text-xs font-bold flex items-center gap-2 hover:bg-slate-800 transition-all shadow-sm cursor-pointer">
+                          <Plus size={16} /> Adicionar Foto
+                          <input type="file" className="hidden" accept="image/*" onChange={(e) => handleFileUpload(e, 'PHOTO')} />
+                        </label>
+                    </div>
+                  </div>
+
+                  {attachments.filter(a => a.type === 'PHOTO').length > 0 ? (
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                        {attachments.filter(a => a.type === 'PHOTO').map((img) => (
+                          <div key={img.id} className="relative aspect-square group rounded-2xl overflow-hidden border border-slate-100 bg-slate-50">
+                              <img src={img.url} alt={img.name} className="w-full h-full object-cover" />
+                              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                                 <button onClick={() => window.open(img.url, '_blank')} className="p-2 bg-white text-slate-900 rounded-lg hover:bg-slate-100 transition-all">
+                                    <ExternalLink size={16} />
+                                 </button>
+                                 <button onClick={() => handleDeleteAttachment(img.id)} className="p-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-all">
+                                    <Trash2 size={16} />
+                                 </button>
+                              </div>
+                              <div className="absolute bottom-2 left-2 right-2 p-2 bg-white/90 backdrop-blur-sm rounded-lg opacity-0 group-hover:opacity-100 transition-all transform translate-y-2 group-hover:translate-y-0">
+                                 <p className="text-[10px] font-bold text-slate-700 truncate">{img.name}</p>
+                                 <p className="text-[8px] text-slate-400 font-bold uppercase">{format(new Date(img.created_at), 'dd/MM/yyyy')}</p>
+                              </div>
+                          </div>
+                        ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-20 px-10 border-2 border-dashed border-slate-100 rounded-3xl">
+                        <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                           <Camera size={24} className="text-slate-200" />
+                        </div>
+                        <h3 className="text-slate-900 font-bold text-sm mb-1">Câmera pronta</h3>
+                        <p className="text-xs text-slate-400 leading-relaxed font-medium">Nenhuma foto anexada a este veículo.</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'DOCUMENTS' && (
+              <div className="space-y-6">
+                 <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden p-8">
+                  <div className="flex items-center justify-between mb-8">
+                    <div>
+                      <h3 className="text-xl font-black text-slate-900 leading-tight">Documentação</h3>
+                      <p className="text-sm text-slate-500 font-medium">Certificados, notas fiscais e comprovantes</p>
+                    </div>
+                    <div>
+                        <label className="h-10 px-6 bg-slate-900 text-white rounded-xl text-xs font-bold flex items-center gap-2 hover:bg-slate-800 transition-all shadow-sm cursor-pointer">
+                          <Plus size={16} /> Novo Documento
+                          <input type="file" className="hidden" onChange={(e) => handleFileUpload(e, 'DOCUMENT')} />
+                        </label>
+                    </div>
+                  </div>
+
+                  {attachments.filter(a => a.type === 'DOCUMENT').length > 0 ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {attachments.filter(a => a.type === 'DOCUMENT').map((doc) => (
+                           <div key={doc.id} className="flex items-center gap-4 p-4 bg-slate-50 rounded-2xl border border-slate-100 group transition-all hover:bg-white hover:border-blue-100 hover:shadow-md">
+                              <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center text-slate-400 shadow-sm">
+                                 <FileText size={24} />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                 <p className="text-sm font-bold text-slate-900 truncate">{doc.name}</p>
+                                 <p className="text-[10px] text-slate-400 font-bold uppercase">{format(new Date(doc.created_at), 'dd/MM/yyyy HH:mm')}</p>
+                              </div>
+                              <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <button onClick={() => window.open(doc.url, '_blank')} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all">
+                                   <ExternalLink size={16} />
+                                </button>
+                                <button onClick={() => handleDeleteAttachment(doc.id)} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all">
+                                   <Trash2 size={16} />
+                                </button>
+                              </div>
+                           </div>
+                        ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-20 px-10 border-2 border-dashed border-slate-100 rounded-3xl">
+                        <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                           <FileText size={24} className="text-slate-200" />
+                        </div>
+                        <h3 className="text-slate-900 font-bold text-sm mb-1">Arquivos vazios</h3>
+                        <p className="text-xs text-slate-400 leading-relaxed font-medium">Nenhum documento anexado a este veículo.</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {['APPOINTMENTS'].includes(activeTab) && (
               <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-12 text-center">
                 <div className="w-16 h-16 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-300 mx-auto mb-4">
                   <Clock size={32} />

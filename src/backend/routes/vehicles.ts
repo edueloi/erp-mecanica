@@ -117,6 +117,13 @@ router.get("/:id", (req: AuthRequest, res) => {
         vehicle.history = unifiedHistory;
     }
 
+    // --- Attachments ---
+    vehicle.attachments = db.prepare(`
+      SELECT * FROM vehicle_attachments 
+      WHERE vehicle_id = ? AND tenant_id = ?
+      ORDER BY created_at DESC
+    `).all(vehicle.id, req.user!.tenant_id);
+
     res.json(vehicle);
   } catch (error: any) {
     console.error(`Error fetching vehicle ${req.params.id}:`, error);
@@ -144,6 +151,42 @@ router.post("/", (req: AuthRequest, res) => {
     
     const newVehicle = db.prepare("SELECT * FROM vehicles WHERE id = ?").get(id);
     res.status(201).json(newVehicle);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Adicionar anexo ao veículo (foto ou documento)
+router.post("/:id/attachments", (req: AuthRequest, res) => {
+  const { type, url, name, size, mime_type } = req.body;
+  const id = uuidv4();
+  try {
+    db.prepare(`
+      INSERT INTO vehicle_attachments (id, vehicle_id, tenant_id, type, url, name, size, mime_type)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(id, req.params.id, req.user!.tenant_id, type, url, name, size || null, mime_type || null);
+    
+    // Log history
+    db.prepare(`
+      INSERT INTO vehicle_history_logs (id, vehicle_id, tenant_id, event_type, description, responsible_id)
+      VALUES (?, ?, ?, 'MAINTENANCE', ?, ?)
+    `).run(uuidv4(), req.params.id, req.user!.tenant_id, `Anexo adicionado: ${name} (${type})`, req.user!.id);
+
+    const attachment = db.prepare("SELECT * FROM vehicle_attachments WHERE id = ?").get(id);
+    res.status(201).json(attachment);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Remover anexo do veículo
+router.delete("/:id/attachments/:attachmentId", (req: AuthRequest, res) => {
+  try {
+    db.prepare(`
+      DELETE FROM vehicle_attachments 
+      WHERE id = ? AND vehicle_id = ? AND tenant_id = ?
+    `).run(req.params.attachmentId, req.params.id, req.user!.tenant_id);
+    res.json({ success: true });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }

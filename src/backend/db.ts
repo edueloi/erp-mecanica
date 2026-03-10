@@ -112,6 +112,19 @@ export function initDb() {
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   )`);
 
+  // Vehicle Attachments (Photos and Documents)
+  db.exec(`CREATE TABLE IF NOT EXISTS vehicle_attachments (
+    id TEXT PRIMARY KEY,
+    vehicle_id TEXT NOT NULL,
+    tenant_id TEXT NOT NULL,
+    type TEXT CHECK(type IN ('PHOTO', 'DOCUMENT')) NOT NULL,
+    url TEXT NOT NULL,
+    name TEXT NOT NULL,
+    size INTEGER,
+    mime_type TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
+
   try {
     const superAdminEmail = 'admin@mecaerp.com.br';
     const existingAdmin = db.prepare('SELECT id FROM users WHERE email = ?').get(superAdminEmail);
