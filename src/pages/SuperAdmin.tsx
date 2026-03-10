@@ -487,8 +487,30 @@ export default function SuperAdmin() {
     try {
       const selectedProfile = permissionProfiles.find(p => p.id === teamForm.permission_profile_id);
       const permissions = selectedProfile ? selectedProfile.permissions : (teamForm.role === 'SUPER_ADMIN' ? {
-          ver_dashboard: true, ver_clientes: true, gerenciar_clientes: true, ver_veiculos: true, gerenciar_veiculos: true, ver_os: true, gerenciar_os: true, ver_financeiro: true, gerenciar_financeiro: true, ver_estoque: true, gerenciar_estoque: true, ver_equipe: true, gerenciar_equipe: true, ver_configuracoes: true, gerenciar_configuracoes: true, ver_relatorios: true
-      } : {});
+          ver_dashboard: true, 
+          ver_parceiros: true, 
+          gerenciar_parceiros: true, 
+          ver_equipe: true, 
+          gerenciar_equipe: true, 
+          ver_planos: true, 
+          gerenciar_planos: true, 
+          ver_configuracoes: true, 
+          gerenciar_configuracoes: true, 
+          ver_relatorios: true,
+          acesso_suporte: true
+      } : {
+          ver_dashboard: true,
+          ver_parceiros: true,
+          gerenciar_parceiros: false,
+          ver_equipe: false,
+          gerenciar_equipe: false,
+          ver_planos: false,
+          gerenciar_planos: false,
+          ver_configuracoes: false,
+          gerenciar_configuracoes: false,
+          ver_relatorios: false,
+          acesso_suporte: false
+      });
 
       const finalData = { ...teamForm, permissions };
       if (!finalData.password) delete (finalData as any).password;
@@ -1136,7 +1158,7 @@ export default function SuperAdmin() {
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
                 <div className="flex items-center justify-between">
                   <h2 className="text-xl font-black text-slate-900 uppercase">Gestão de Permissões</h2>
-                  <button onClick={() => { setEditingProfile(null); setPermissionsForm({ name: "", description: "", permissions: { ver_dashboard: true, ver_clientes: false, gerenciar_clientes: false, ver_veiculos: false, gerenciar_veiculos: false, ver_os: false, gerenciar_os: false, ver_financeiro: false, gerenciar_financeiro: false, ver_estoque: false, gerenciar_estoque: false, ver_equipe: false, gerenciar_equipe: false, ver_configuracoes: false, gerenciar_configuracoes: false, ver_relatorios: false } }); setShowPermissionsModal(true); }} className="h-10 px-6 bg-slate-900 text-white rounded-xl font-black text-[10px] uppercase flex items-center gap-2 hover:bg-emerald-600 transition-all shadow-lg">
+                  <button onClick={() => { setEditingProfile(null); setPermissionsForm({ name: "", description: "", permissions: { ver_dashboard: true, ver_parceiros: false, gerenciar_parceiros: false, ver_equipe: false, gerenciar_equipe: false, ver_planos: false, gerenciar_planos: false, ver_configuracoes: false, gerenciar_configuracoes: false, ver_relatorios: false, acesso_suporte: false } }); setShowPermissionsModal(true); }} className="h-10 px-6 bg-slate-900 text-white rounded-xl font-black text-[10px] uppercase flex items-center gap-2 hover:bg-emerald-600 transition-all shadow-lg">
                     <Plus size={16} /> Criar Perfil de Acesso
                   </button>
                 </div>

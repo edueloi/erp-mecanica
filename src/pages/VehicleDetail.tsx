@@ -5,7 +5,7 @@ import {
   ClipboardList, History, Camera, FileText, 
   Plus, Edit, Trash2, MessageSquare, ExternalLink,
   CheckCircle2, AlertCircle, Info, ChevronRight,
-  Printer, Share2, Settings, Wrench, CheckSquare, LogIn
+  Printer, Share2, Settings, Wrench, CheckSquare, LogIn, Package
 } from 'lucide-react';
 import api from '../services/api';
 import { motion, AnimatePresence } from 'motion/react';
@@ -298,24 +298,55 @@ export default function VehicleDetail() {
             {activeTab === 'TECH_HISTORY' && (
               <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-8">
                 <div className="relative space-y-8 before:absolute before:inset-0 before:ml-5 before:-translate-x-px before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-slate-200 before:to-transparent">
-                  {[
-                    { date: '01/03/2024', title: 'Troca de Óleo e Filtros', desc: 'Óleo 5W30 Sintético + Filtro de Óleo e Ar.', km: '120.450 KM', icon: Wrench },
-                    { date: '15/12/2023', title: 'Sistema de Freios', desc: 'Troca de pastilhas dianteiras e retífica de discos.', km: '115.200 KM', icon: Wrench },
-                    { date: '10/08/2023', title: 'Suspensão Dianteira', desc: 'Troca de buchas da bandeja e alinhamento.', km: '108.900 KM', icon: Wrench },
-                  ].map((item, i) => (
-                    <div key={i} className="relative flex items-start gap-6 group">
-                      <div className="w-10 h-10 rounded-xl bg-slate-50 text-slate-500 flex items-center justify-center shrink-0 z-10 shadow-sm border border-white transition-transform group-hover:scale-110">
-                        <item.icon size={18} />
-                      </div>
-                      <div className="flex-1 pt-1">
-                        <div className="flex items-center justify-between mb-1">
-                          <h4 className="text-sm font-bold text-slate-900">{item.title}</h4>
-                          <span className="text-[10px] font-bold text-slate-400 uppercase">{item.date} • {item.km}</span>
+                  {vehicle.workOrders && vehicle.workOrders.length > 0 ? (
+                    vehicle.workOrders.flatMap((wo: any) => 
+                      (wo.items || []).map((item: any, itemIdx: number) => ({
+                        ...item,
+                        woId: wo.id,
+                        woNumber: wo.number,
+                        date: wo.created_at,
+                        km: wo.km
+                      }))
+                    )
+                    .sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                    .map((item: any, i: number) => (
+                      <div key={i} className="relative flex items-start gap-6 group">
+                        <div className={cn(
+                          "w-10 h-10 rounded-xl flex items-center justify-center shrink-0 z-10 shadow-sm border border-white transition-transform group-hover:scale-110",
+                          item.type === 'SERVICE' ? "bg-blue-50 text-blue-500" : "bg-purple-50 text-purple-500"
+                        )}>
+                          {item.type === 'SERVICE' ? <Wrench size={18} /> : <Package size={18} />}
                         </div>
-                        <p className="text-xs text-slate-500 leading-relaxed">{item.desc}</p>
+                        <div className="flex-1 pt-1">
+                          <div className="flex items-center justify-between mb-1">
+                            <h4 className="text-sm font-bold text-slate-900">{item.description}</h4>
+                            <span className="text-[10px] font-bold text-slate-400 uppercase">
+                              {format(new Date(item.date), 'dd/MM/yyyy')} • {item.km?.toLocaleString()} KM
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <p className="text-xs text-slate-500 leading-relaxed max-w-xl">
+                              {item.long_description || (item.type === 'PART' ? `Peça/Produto: ${item.description}` : 'Nenhuma descrição detalhada informada.')}
+                            </p>
+                            <button 
+                              onClick={() => navigate(`/work-orders/${item.woId}`)}
+                              className="text-[10px] font-black text-slate-400 hover:text-slate-900 flex items-center gap-1 transition-colors bg-slate-50 px-2 py-1 rounded border border-slate-100"
+                            >
+                              OS #{item.woNumber} <ExternalLink size={10} />
+                            </button>
+                          </div>
+                        </div>
                       </div>
+                    ))
+                  ) : (
+                    <div className="text-center py-12">
+                      <div className="w-16 h-16 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-300 mx-auto mb-4">
+                        <History size={32} />
+                      </div>
+                      <h3 className="text-lg font-bold text-slate-900 mb-2">Sem Histórico Técnico</h3>
+                      <p className="text-sm text-slate-500 max-w-sm mx-auto">Este veículo ainda não possui serviços ou peças registradas em ordens de serviço.</p>
                     </div>
-                  ))}
+                  )}
                 </div>
               </div>
             )}

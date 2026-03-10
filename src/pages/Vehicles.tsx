@@ -1,11 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Plus, Search, Car, User, Calendar, Hash, ChevronRight, X, 
   Fuel, Gauge, Palette, Shield, History, ClipboardList, 
   MoreVertical, Edit, Trash2, Info, AlertCircle, Filter,
   ArrowUpDown, Download, Upload, ExternalLink, MessageCircle,
-  AlertTriangle, CheckCircle2, Clock, Printer
+  AlertTriangle, CheckCircle2, Clock, Printer,
+  Package
 } from 'lucide-react';
 import api from '../services/api';
 import { motion, AnimatePresence } from 'motion/react';
@@ -159,20 +160,40 @@ export default function Vehicles() {
     }
   };
 
-  const fuelMap: any = {
-    FLEX: 'Flex',
-    GASOLINE: 'Gasolina',
-    ETHANOL: 'Etanol',
-    DIESEL: 'Diesel',
-    ELECTRIC: 'Elétrico',
-    HYBRID: 'Híbrido'
+  const openHistory = async (vehicle: any) => {
+    try {
+      setLoading(true);
+      const res = await api.get(`/vehicles/${vehicle.id}`);
+      setSelectedVehicle(res.data);
+      setIsHistoryDrawerOpen(true);
+    } catch (err) {
+      console.error('Error fetching history:', err);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const filteredVehicles = vehicles.filter(v => {
-    if (statusFilter && v.status !== statusFilter) return false;
-    if (brandFilter && v.brand !== brandFilter) return false;
-    return true;
-  });
+  const statusMap: any = {
+    ACTIVE: { label: 'Ativo', color: 'bg-emerald-50 text-emerald-600 border-emerald-100' },
+    INACTIVE: { label: 'Inativo', color: 'bg-slate-50 text-slate-400 border-slate-100' }
+  };
+
+  const fuelMap: any = {
+    'FLEX': 'Flex',
+    'GASOLINE': 'Gasolina',
+    'ETHANOL': 'Etanol',
+    'DIESEL': 'Diesel',
+    'ELECTRIC': 'Elétrico',
+    'HYBRID': 'Híbrido'
+  };
+
+  const filteredVehicles = useMemo(() => {
+    return vehicles.filter(v => {
+      const matchStatus = !statusFilter || v.status === statusFilter;
+      const matchBrand = !brandFilter || v.brand === brandFilter;
+      return matchStatus && matchBrand;
+    });
+  }, [vehicles, statusFilter, brandFilter]);
 
   return (
     <div className="flex flex-col h-full -m-6 bg-[#F6F8FB]">
@@ -288,7 +309,7 @@ export default function Vehicles() {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {loading ? (
+            {loading && !vehicles.length ? (
               <tr>
                 <td colSpan={8} className="px-6 py-12 text-center text-slate-400 text-sm italic">Carregando veículos...</td>
               </tr>
@@ -357,9 +378,9 @@ export default function Vehicles() {
                 <td className="px-4 py-2">
                   <span className={cn(
                     "px-2 py-0.5 rounded text-[10px] font-bold border uppercase tracking-tight",
-                    vehicle.status === 'ACTIVE' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-slate-50 text-slate-400 border-slate-100'
+                    statusMap[vehicle.status || 'ACTIVE']?.color
                   )}>
-                    {vehicle.status === 'ACTIVE' ? 'Ativo' : 'Inativo'}
+                    {statusMap[vehicle.status || 'ACTIVE']?.label}
                   </span>
                 </td>
                 <td className="px-6 py-2 text-right">
@@ -382,7 +403,7 @@ export default function Vehicles() {
                       <Plus size={14} />
                     </button>
                     <button 
-                      onClick={() => { setSelectedVehicle(vehicle); setIsHistoryDrawerOpen(true); }}
+                      onClick={() => openHistory(vehicle)}
                       className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-all" 
                       title="Histórico"
                     >
@@ -568,96 +589,249 @@ export default function Vehicles() {
         )}
       </AnimatePresence>
 
-      {/* Edit Drawer - Compact */}
+      {/* Edit Drawer - Premium */}
       <AnimatePresence>
         {isEditDrawerOpen && (
-          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[100] flex justify-end">
+          <div className="fixed inset-0 z-[100] flex justify-end">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsEditDrawerOpen(false)}
+              className="absolute inset-0 bg-black/40 backdrop-blur-sm cursor-pointer"
+            />
             <motion.div 
               initial={{ x: '100%' }}
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
-              className="bg-white w-full max-w-sm h-full shadow-2xl flex flex-col"
+              transition={{ type: "spring", damping: 25, stiffness: 200 }}
+              className="bg-white w-full max-w-[40%] h-full shadow-2xl flex flex-col relative z-10"
             >
-              <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between bg-slate-50 shrink-0">
-                <h2 className="text-sm font-bold text-slate-900">Editar Veículo</h2>
-                <button onClick={() => setIsEditDrawerOpen(false)} className="text-slate-400 hover:text-slate-900">
-                  <X size={18} />
+              <div className="px-6 py-6 border-b border-slate-100 flex items-center justify-between bg-slate-900 shrink-0">
+                <div className="flex items-center gap-3 text-white">
+                  <div className="w-10 h-10 rounded-xl bg-emerald-500/20 flex items-center justify-center">
+                    <Edit size={20} className="text-emerald-400" />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-black italic uppercase tracking-tight">Editar Veículo</h2>
+                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Atualizar informações da frota</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setIsEditDrawerOpen(false)} 
+                  className="w-10 h-10 rounded-xl bg-white/10 text-white hover:bg-white/20 transition-all flex items-center justify-center active:scale-90 cursor-pointer"
+                >
+                  <X size={20} />
                 </button>
               </div>
-              <div className="p-4 overflow-y-auto space-y-4">
-                <div className="space-y-3">
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Placa</label>
-                    <input type="text" defaultValue={selectedVehicle?.plate} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-slate-900 font-mono uppercase" />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Marca / Modelo</label>
-                    <div className="grid grid-cols-2 gap-2">
-                      <input type="text" defaultValue={selectedVehicle?.brand} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-slate-900" />
-                      <input type="text" defaultValue={selectedVehicle?.model} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-slate-900" />
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">KM Atual</label>
-                    <input type="number" defaultValue={selectedVehicle?.km} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-slate-900" />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Status</label>
-                    <select defaultValue={selectedVehicle?.status} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-slate-900">
-                      <option value="ACTIVE">Ativo</option>
-                      <option value="INACTIVE">Inativo</option>
+
+              <div className="p-8 overflow-y-auto space-y-8 flex-1 custom-scrollbar">
+                <div className="grid grid-cols-2 gap-6">
+                  <div className="col-span-2">
+                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-2 tracking-widest">Proprietário Atual</label>
+                    <select 
+                      defaultValue={selectedVehicle?.client_id}
+                      className="w-full h-14 bg-slate-50 border border-slate-200 rounded-2xl px-5 text-sm font-bold text-slate-700 focus:ring-4 focus:ring-slate-900/5 focus:border-slate-900 outline-none transition-all appearance-none cursor-pointer"
+                    >
+                      {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                     </select>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-2 tracking-widest">Placa</label>
+                    <input 
+                      type="text" 
+                      defaultValue={selectedVehicle?.plate} 
+                      className="w-full h-14 bg-slate-50 border border-slate-200 rounded-2xl px-5 text-sm font-bold text-slate-700 focus:ring-4 focus:ring-slate-900/5 focus:border-slate-900 outline-none transition-all font-mono uppercase" 
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-2 tracking-widest">Status do Veículo</label>
+                    <select 
+                      defaultValue={selectedVehicle?.status}
+                      className="w-full h-14 bg-slate-50 border border-slate-200 rounded-2xl px-5 text-sm font-bold text-slate-700 focus:ring-4 focus:ring-slate-900/5 focus:border-slate-900 outline-none transition-all appearance-none cursor-pointer"
+                    >
+                      <option value="ACTIVE">Ativo na Oficina</option>
+                      <option value="INACTIVE">Inativo / Vendido</option>
+                    </select>
+                  </div>
+
+                  <div className="col-span-2 h-px bg-slate-100 my-2" />
+
+                  <div>
+                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-2 tracking-widest">Marca</label>
+                    <input type="text" defaultValue={selectedVehicle?.brand} className="w-full h-12 bg-slate-50 border border-slate-200 rounded-xl px-4 text-sm font-bold" />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-2 tracking-widest">Modelo</label>
+                    <input type="text" defaultValue={selectedVehicle?.model} className="w-full h-12 bg-slate-50 border border-slate-200 rounded-xl px-4 text-sm font-bold" />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-2 tracking-widest">Ano</label>
+                    <input type="number" defaultValue={selectedVehicle?.year} className="w-full h-12 bg-slate-50 border border-slate-200 rounded-xl px-4 text-sm font-bold" />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-2 tracking-widest">KM Atual</label>
+                    <input type="number" defaultValue={selectedVehicle?.km} className="w-full h-12 bg-slate-50 border border-slate-200 rounded-xl px-4 text-sm font-bold" />
                   </div>
                 </div>
               </div>
-              <div className="p-4 border-t border-slate-100 flex gap-2 shrink-0">
-                <button onClick={() => setIsEditDrawerOpen(false)} className="flex-1 py-2 border border-slate-200 rounded-lg text-xs font-bold text-slate-600 hover:bg-slate-50">Cancelar</button>
-                <button className="flex-1 py-2 bg-slate-900 text-white rounded-lg text-xs font-bold hover:bg-slate-800">Salvar Alterações</button>
+
+              <div className="p-6 border-t border-slate-100 shrink-0 bg-slate-50 flex gap-4">
+                <button 
+                  onClick={() => setIsEditDrawerOpen(false)} 
+                  className="flex-1 py-4 border-2 border-slate-200 rounded-2xl text-xs font-black uppercase tracking-widest text-slate-400 hover:bg-white hover:text-slate-600 transition-all cursor-pointer"
+                >
+                  Descartar
+                </button>
+                <button className="flex-[2] py-4 bg-slate-900 text-white rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-slate-800 transition-all shadow-xl shadow-slate-900/20 active:scale-95 cursor-pointer">
+                  Salvar Alterações
+                </button>
               </div>
             </motion.div>
           </div>
         )}
       </AnimatePresence>
 
-      {/* History Drawer - Compact */}
+      {/* History Drawer - Premium */}
       <AnimatePresence>
         {isHistoryDrawerOpen && (
-          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[100] flex justify-end">
+          <div className="fixed inset-0 z-[100] flex justify-end">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsHistoryDrawerOpen(false)}
+              className="absolute inset-0 bg-black/40 backdrop-blur-sm cursor-pointer"
+            />
             <motion.div 
               initial={{ x: '100%' }}
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
-              className="bg-white w-full max-w-md h-full shadow-2xl flex flex-col"
+              transition={{ type: "spring", damping: 25, stiffness: 200 }}
+              className="bg-white w-full max-w-[40%] h-full shadow-2xl flex flex-col relative z-10"
             >
-              <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between bg-slate-50 shrink-0">
-                <div>
-                  <h2 className="text-sm font-bold text-slate-900">Histórico de OS</h2>
-                  <p className="text-[10px] text-slate-400 font-mono">{selectedVehicle?.plate?.toUpperCase() || '---'}</p>
+              <div className="px-6 py-6 border-b border-slate-100 flex items-center justify-between bg-slate-900 shrink-0">
+                <div className="flex items-center gap-3 text-white">
+                  <div className="w-10 h-10 rounded-xl bg-blue-500/20 flex items-center justify-center">
+                    <History size={20} className="text-blue-400" />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-black italic uppercase tracking-tight">Linha do Tempo</h2>
+                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Histórico de Manutenções</p>
+                  </div>
                 </div>
-                <button onClick={() => setIsHistoryDrawerOpen(false)} className="text-slate-400 hover:text-slate-900">
-                  <X size={18} />
+                <button 
+                  onClick={() => setIsHistoryDrawerOpen(false)} 
+                  className="w-10 h-10 rounded-xl bg-white/10 text-white hover:bg-white/20 transition-all flex items-center justify-center active:scale-90 cursor-pointer"
+                >
+                  <X size={20} />
                 </button>
               </div>
-              <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                {selectedVehicle?.workOrders?.map((wo: any) => (
-                  <div key={wo.id} className="p-4 bg-slate-50 rounded-xl border border-slate-200 hover:border-slate-300 transition-all cursor-pointer" onClick={() => navigate(`/work-orders/${wo.id}`)}>
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-xs font-bold text-slate-900">#{wo.number}</span>
-                      <span className="px-2 py-0.5 bg-white border border-slate-200 rounded text-[10px] font-bold text-slate-500 uppercase">{wo.status}</span>
+
+              <div className="px-8 py-6 bg-slate-50 border-b border-slate-100 shrink-0">
+                <div className="flex items-center gap-4">
+                    <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center shadow-sm border border-slate-200">
+                        <Car size={28} className="text-slate-400" />
                     </div>
-                    <div className="flex items-center justify-between text-[10px] text-slate-400">
-                      <span>{format(new Date(wo.created_at), 'dd/MM/yyyy')}</span>
-                      <span className="font-bold text-slate-700">R$ {wo.total_amount.toLocaleString('pt-BR')}</span>
+                    <div>
+                        <h3 className="font-black text-slate-900 text-lg leading-tight uppercase italic">{selectedVehicle?.brand} {selectedVehicle?.model}</h3>
+                        <p className="text-[10px] font-black text-slate-400 bg-white border border-slate-200 px-2 py-0.5 rounded mt-1 inline-block font-mono tracking-wider">
+                            {selectedVehicle?.plate?.toUpperCase()}
+                        </p>
                     </div>
+                </div>
+              </div>
+
+              <div className="flex-1 overflow-y-auto custom-scrollbar p-8">
+                {(!selectedVehicle?.workOrders || selectedVehicle?.workOrders.length === 0) ? (
+                  <div className="text-center py-20">
+                    <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-6">
+                      <ClipboardList size={40} className="text-slate-200" />
+                    </div>
+                    <h3 className="text-slate-900 font-bold mb-1 italic uppercase">Sem registros</h3>
+                    <p className="text-xs text-slate-500 font-medium">Este veículo ainda não possui ordens de serviço finalizadas.</p>
                   </div>
-                ))}
-                {(!selectedVehicle?.workOrders || selectedVehicle?.workOrders.length === 0) && (
-                  <div className="text-center py-12 text-slate-400 text-sm italic">Nenhuma OS registrada.</div>
+                ) : (
+                  <div className="relative border-l-2 border-slate-100 ml-3 pl-10 space-y-10 py-4">
+                    {selectedVehicle.workOrders.map((wo: any) => (
+                      <div key={wo.id} className="relative group">
+                        {/* Timeline Dot */}
+                        <div className="absolute -left-[49px] top-0 w-6 h-6 rounded-full border-4 border-white bg-blue-500 shadow-sm z-10 transition-transform group-hover:scale-125" />
+                        
+                        <div 
+                            className="bg-white rounded-3xl border border-slate-100 p-6 shadow-sm group-hover:shadow-xl group-hover:border-blue-100 transition-all group-hover:-translate-y-1 cursor-pointer"
+                            onClick={() => navigate(`/work-orders/${wo.id}`)}
+                        >
+                          <div className="flex items-start justify-between mb-4">
+                            <div>
+                              <span className="text-[10px] font-black text-blue-600 uppercase tracking-[0.2em] mb-1 block">#{wo.number}</span>
+                              <h4 className="font-black text-slate-900 text-base leading-tight uppercase italic">
+                                {wo.items?.find((i: any) => i.category === 'SERVICE')?.name || 'Manutenção Corretiva'}
+                              </h4>
+                            </div>
+                            <span className={cn(
+                                "px-3 py-1 rounded-full text-[9px] font-black uppercase border",
+                                wo.status === 'FINISHED' ? "bg-emerald-50 text-emerald-600 border-emerald-100" : "bg-blue-50 text-blue-600 border-blue-100"
+                            )}>
+                                {wo.status === 'FINISHED' ? 'Finalizada' : wo.status}
+                            </span>
+                          </div>
+
+                          {/* Items List (Services & Parts) */}
+                          <div className="space-y-2 mb-4">
+                            {wo.items?.map((item: any, idx: number) => (
+                              <div key={idx} className="flex items-center justify-between text-[11px] py-1 border-b border-slate-50 last:border-0">
+                                <div className="flex items-center gap-2">
+                                  {item.category === 'PART' ? <Package size={12} className="text-orange-400" /> : <Shield size={12} className="text-blue-400" />}
+                                  <span className="font-bold text-slate-700 uppercase">{item.name}</span>
+                                </div>
+                                <span className="text-slate-400 font-bold">x{item.quantity}</span>
+                              </div>
+                            ))}
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-4 mb-4">
+                            <div className="bg-slate-50 rounded-2xl p-3 border border-slate-100/50">
+                                <p className="text-[8px] font-black text-slate-400 uppercase mb-1">Quilometragem</p>
+                                <p className="text-sm font-black text-slate-700">{wo.km?.toLocaleString() || '---'} KM</p>
+                            </div>
+                            <div className="bg-slate-50 rounded-2xl p-3 border border-slate-100/50">
+                                <p className="text-[8px] font-black text-slate-400 uppercase mb-1">Valor Total</p>
+                                <p className="text-sm font-black text-emerald-600">R$ {wo.total_amount?.toLocaleString('pt-BR')}</p>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center justify-between pt-4 border-t border-slate-50 mt-4">
+                            <div className="flex items-center gap-2">
+                                <Calendar size={14} className="text-slate-300" />
+                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{format(new Date(wo.created_at), 'dd MMM yyyy', { locale: ptBR })}</span>
+                            </div>
+                            <div className="flex items-center gap-1.5">
+                                <User size={14} className="text-slate-300" />
+                                <span className="text-[10px] font-black text-slate-600 uppercase">{wo.mechanic_name || 'Mecânico'}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 )}
               </div>
-              <div className="p-4 border-t border-slate-100 shrink-0">
-                <button onClick={() => navigate(`/vehicles/${selectedVehicle?.id}`)} className="w-full py-2 bg-slate-900 text-white rounded-lg text-xs font-bold hover:bg-slate-800 flex items-center justify-center gap-2">
-                  Ver Detalhes Completos <ChevronRight size={14} />
+
+              <div className="p-6 border-t border-slate-100 shrink-0 bg-slate-50 flex gap-4">
+                <button 
+                    onClick={() => setIsHistoryDrawerOpen(false)} 
+                    className="flex-1 py-4 border-2 border-slate-200 rounded-2xl text-xs font-black uppercase tracking-widest text-slate-400 hover:bg-white hover:text-slate-600 transition-all cursor-pointer"
+                >
+                    Fechar
+                </button>
+                <button 
+                    onClick={() => navigate(`/vehicles/${selectedVehicle?.id}`)}
+                    className="flex-[2] py-4 bg-slate-900 text-white rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-slate-800 transition-all shadow-xl shadow-slate-900/20 active:scale-95 cursor-pointer flex items-center justify-center gap-2"
+                >
+                    Prontuário Completo <ChevronRight size={16} />
                 </button>
               </div>
             </motion.div>

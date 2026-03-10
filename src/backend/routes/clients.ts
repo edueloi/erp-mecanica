@@ -77,7 +77,19 @@ router.get("/:id", (req: AuthRequest, res) => {
     ORDER BY wo.created_at DESC
   `).all(req.params.id);
   
-  res.json({ ...client, vehicles, workOrders });
+  // Fetch items for each work order
+  const workOrdersWithItems = workOrders.map((wo: any) => {
+    const items = db.prepare(`
+      SELECT woi.*, 
+             u.name as mechanic_name
+      FROM work_order_items woi
+      LEFT JOIN users u ON woi.mechanic_id = u.id
+      WHERE woi.work_order_id = ?
+    `).all(wo.id);
+    return { ...wo, items };
+  });
+  
+  res.json({ ...client, vehicles, workOrders: workOrdersWithItems });
 });
 
 router.patch("/:id", (req: AuthRequest, res) => {

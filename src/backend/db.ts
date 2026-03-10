@@ -46,6 +46,13 @@ export function initDb() {
   // Work Order items long description
   try { db.exec('ALTER TABLE work_order_items ADD COLUMN long_description TEXT'); } catch (e) {}
 
+  // Work Order new fields
+  try { db.exec('ALTER TABLE work_orders ADD COLUMN start_date DATETIME'); } catch (e) {}
+  try { db.exec('ALTER TABLE work_orders ADD COLUMN finish_date DATETIME'); } catch (e) {}
+  try { db.exec('ALTER TABLE work_orders ADD COLUMN guarantee TEXT'); } catch (e) {}
+  try { db.exec('ALTER TABLE work_orders ADD COLUMN technical_report TEXT'); } catch (e) {}
+  try { db.exec('ALTER TABLE work_orders ADD COLUMN defect TEXT'); } catch (e) {}
+
   db.exec('CREATE TABLE IF NOT EXISTS tenant_audit_logs (id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, user_id TEXT, action_type TEXT NOT NULL, description TEXT, payment_date DATETIME, payment_method TEXT, old_status TEXT, new_status TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)');
   
   // Custom Permissions Profiles

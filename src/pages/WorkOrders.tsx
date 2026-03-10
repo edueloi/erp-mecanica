@@ -81,7 +81,10 @@ export default function WorkOrders() {
     complaint: '',
     priority: 'MEDIUM',
     responsible_id: '',
-    delivery_forecast: ''
+    delivery_forecast: '',
+    status: 'OPEN',
+    start_date: new Date().toISOString().split('T')[0],
+    defect: ''
   });
 
   const fetchData = async () => {
@@ -490,7 +493,23 @@ export default function WorkOrders() {
                   />
                 </div>
 
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Status</label>
+                    <select 
+                      className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-slate-900"
+                      value={newWO.status || 'OPEN'}
+                      onChange={e => setNewWO({...newWO, status: e.target.value})}
+                    >
+                      <option value="BUDGET">Orçamento</option>
+                      <option value="OPEN">Aberto</option>
+                      <option value="IN_PROGRESS">Em Andamento</option>
+                      <option value="SCHEDULED">Agendado</option>
+                      <option value="FINISHED">Finalizado</option>
+                      <option value="INVOICED">Faturado</option>
+                      <option value="CANCELLED">Cancelado</option>
+                    </select>
+                  </div>
                   <div>
                     <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Prioridade</label>
                     <select 
@@ -503,9 +522,13 @@ export default function WorkOrders() {
                       <option value="HIGH">Alta</option>
                     </select>
                   </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Responsável</label>
                     <select 
+                      required
                       className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-slate-900"
                       value={newWO.responsible_id}
                       onChange={e => setNewWO({...newWO, responsible_id: e.target.value})}
@@ -513,6 +536,28 @@ export default function WorkOrders() {
                       <option value="">Selecione...</option>
                       {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
                     </select>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Data Inicial</label>
+                    <input 
+                      type="date" 
+                      className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-slate-900"
+                      value={newWO.start_date || new Date().toISOString().split('T')[0]}
+                      onChange={e => setNewWO({...newWO, start_date: e.target.value})}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Defeito Identificado</label>
+                    <input 
+                      type="text"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-slate-900"
+                      placeholder="Defeito técnico..."
+                      value={newWO.defect || ''}
+                      onChange={e => setNewWO({...newWO, defect: e.target.value})}
+                    />
                   </div>
                   <div>
                     <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Prev. Entrega</label>

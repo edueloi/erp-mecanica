@@ -58,7 +58,10 @@ router.get("/stats", (req: AuthRequest, res) => {
 });
 
 router.post("/", (req: AuthRequest, res) => {
-  const { client_id, vehicle_id, complaint, symptoms, priority, responsible_id, delivery_forecast } = req.body;
+  const { 
+    client_id, vehicle_id, complaint, symptoms, priority, 
+    responsible_id, delivery_forecast, start_date, defect 
+  } = req.body;
   const id = uuidv4();
   
   // Generate a simple sequential number for the tenant
@@ -67,8 +70,11 @@ router.post("/", (req: AuthRequest, res) => {
 
   try {
     db.prepare(`
-      INSERT INTO work_orders (id, tenant_id, client_id, vehicle_id, number, status, complaint, symptoms, priority, responsible_id, delivery_forecast)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO work_orders (
+        id, tenant_id, client_id, vehicle_id, number, status, complaint, 
+        symptoms, priority, responsible_id, delivery_forecast, start_date, defect
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       id, 
       req.user!.tenant_id, 
@@ -80,7 +86,9 @@ router.post("/", (req: AuthRequest, res) => {
       JSON.stringify(symptoms || []), 
       priority || 'MEDIUM', 
       responsible_id, 
-      delivery_forecast
+      delivery_forecast,
+      start_date || new Date().toISOString(),
+      defect
     );
 
     const newWO = db.prepare("SELECT * FROM work_orders WHERE id = ?").get(id);
@@ -152,7 +160,8 @@ router.patch("/:id", (req: AuthRequest, res) => {
     status, priority, responsible_id, complaint, symptoms, diagnosis, 
     checklist, evaluation, approval_data, payment_data, delivery_data,
     items, discount, taxes, delivery_forecast, approval_required,
-    internal_notes, photos, history
+    internal_notes, photos, history,
+    start_date, finish_date, guarantee, technical_report, defect
   } = req.body;
   
   try {
@@ -191,6 +200,11 @@ router.patch("/:id", (req: AuthRequest, res) => {
       addField("taxes", taxes);
       addField("delivery_forecast", delivery_forecast);
       addField("approval_required", approval_required ? 1 : 0);
+      addField("start_date", start_date);
+      addField("finish_date", finish_date);
+      addField("guarantee", guarantee);
+      addField("technical_report", technical_report);
+      addField("defect", defect);
 
       if (fields.length > 1) {
         const query = `UPDATE work_orders SET ${fields.join(", ")} WHERE id = ? AND tenant_id = ?`;

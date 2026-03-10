@@ -26,7 +26,7 @@ router.get("/", (req: AuthRequest, res) => {
   res.json(vehicles);
 });
 
-// GET single vehicle
+// GET single vehicle with full history
 router.get("/:id", (req: AuthRequest, res) => {
   try {
     const vehicle = db.prepare(`
@@ -34,11 +34,40 @@ router.get("/:id", (req: AuthRequest, res) => {
       FROM vehicles v 
       JOIN clients c ON v.client_id = c.id 
       WHERE v.id = ? AND v.tenant_id = ?
-    `).get(req.params.id, req.user!.tenant_id);
+    `).get(req.params.id, req.user!.tenant_id) as any;
 
     if (!vehicle) {
       return res.status(404).json({ error: "Veículo não encontrado" });
     }
+
+    // Fetch work orders history for this vehicle
+    const workOrders = db.prepare(`
+      SELECT wo.*, u.name as mechanic_name
+      FROM work_orders wo
+      LEFT JOIN users u ON wo.mechanic_id = u.id
+      WHERE wo.vehicle_id = ? AND wo.tenant_id = ?
+      ORDER BY wo.created_at DESC
+    `).all(vehicle.id, req.user!.tenant_id);
+
+    // For each work order, fetch its items (services and parts)
+    const workOrdersWithItems = workOrders.map((wo: any) => {
+      const items = db.prepare(`
+        SELECT woi.*, 
+               COALESCE(p.name, s.name) as name,
+               CASE WHEN woi.part_id IS NOT NULL THEN 'PART' ELSE 'SERVICE' END as category
+        FROM work_order_items woi
+        LEFT JOIN parts p ON woi.part_id = p.id
+        LEFT JOIN services s ON woi.service_id = s.id
+        WHERE woi.work_order_id = ?
+      `).all(wo.id);
+
+      return {
+        ...wo,
+        items
+      };
+    });
+
+    vehicle.workOrders = workOrdersWithItems;
 
     res.json(vehicle);
   } catch (error: any) {

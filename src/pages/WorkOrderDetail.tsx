@@ -33,6 +33,8 @@ export default function WorkOrderDetail() {
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
   const [sendModalOpen, setSendModalOpen] = useState(false);
   const [statusChangeModalOpen, setStatusChangeModalOpen] = useState(false);
+  const [itemForm, setItemForm] = useState({ description: '', quantity: 1, unit_price: 0, mechanic_id: '', part_id: '', type: 'SERVICE' as 'SERVICE' | 'PART' });
+  const [showNewItemModal, setShowNewItemModal] = useState<{ active: boolean, type: 'SERVICE' | 'PART' }>({ active: false, type: 'SERVICE' });
 
   // Notification modal state
   const [notification, setNotification] = useState<{
@@ -129,6 +131,48 @@ export default function WorkOrderDetail() {
       showNotification('error', 'Erro', 'Não foi possível salvar a OS. Tente novamente.');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleQuickAdd = async (type: 'SERVICE' | 'PART') => {
+    if (!itemForm.description && !itemForm.part_id) return;
+    
+    const newItem = {
+      id: Math.random().toString(36).substr(2, 9),
+      type,
+      description: itemForm.description,
+      quantity: itemForm.quantity,
+      unit_price: itemForm.unit_price,
+      cost_price: 0,
+      mechanic_id: itemForm.mechanic_id || null,
+      part_id: itemForm.part_id || null,
+      status: 'PENDING'
+    };
+
+    setWo({ ...wo, items: [...(wo.items || []), newItem] });
+    setItemForm({ description: '', quantity: 1, unit_price: 0, mechanic_id: '', part_id: '', type: 'SERVICE' });
+  };
+
+  const registerNewItem = async () => {
+    try {
+      if (showNewItemModal.type === 'PART') {
+        const resp = await api.post('/parts', {
+          name: itemForm.description,
+          sale_price: itemForm.unit_price,
+          stock_quantity: 0
+        });
+        setParts([...parts, resp.data]);
+        setItemForm({ ...itemForm, part_id: resp.data.id });
+      } else {
+        await api.post('/services', {
+          name: itemForm.description,
+          default_price: itemForm.unit_price
+        });
+      }
+      setShowNewItemModal({ active: false, type: 'SERVICE' });
+      showNotification('success', 'Sucesso', 'Item registrado no catálogo!');
+    } catch (err) {
+      showNotification('error', 'Erro', 'Não foi possível registrar o item.');
     }
   };
 
@@ -280,15 +324,13 @@ export default function WorkOrderDetail() {
   };
 
   const statusMap: any = {
-    OPEN: { label: 'Aberta', color: 'bg-blue-50 text-blue-600', icon: Info },
-    DIAGNOSIS: { label: 'Diagnóstico', color: 'bg-purple-50 text-purple-600', icon: Search },
-    WAITING_APPROVAL: { label: 'Aguard. Aprovação', color: 'bg-orange-50 text-orange-600', icon: Clock },
-    APPROVED: { label: 'Aprovada', color: 'bg-emerald-50 text-emerald-600', icon: CheckCircle },
-    EXECUTING: { label: 'Em Execução', color: 'bg-indigo-50 text-indigo-600', icon: Wrench },
-    WAITING_PARTS: { label: 'Aguard. Peça', color: 'bg-yellow-50 text-yellow-600', icon: Package },
-    FINISHED: { label: 'Finalizada', color: 'bg-emerald-100 text-emerald-700', icon: CheckCircle2 },
-    DELIVERED: { label: 'Entregue', color: 'bg-slate-100 text-slate-700', icon: ShieldCheck },
-    CANCELLED: { label: 'Cancelada', color: 'bg-red-50 text-red-600', icon: XCircle },
+    BUDGET: { label: 'Orçamento', color: 'bg-amber-50 text-amber-600', icon: FileText },
+    OPEN: { label: 'Aberto', color: 'bg-blue-50 text-blue-600', icon: Info },
+    IN_PROGRESS: { label: 'Em Andamento', color: 'bg-indigo-50 text-indigo-600', icon: Wrench },
+    FINISHED: { label: 'Finalizado', color: 'bg-emerald-100 text-emerald-700', icon: CheckCircle2 },
+    CANCELLED: { label: 'Cancelado', color: 'bg-red-50 text-red-600', icon: XCircle },
+    SCHEDULED: { label: 'Agendado', color: 'bg-purple-50 text-purple-600', icon: Clock },
+    INVOICED: { label: 'Faturado', color: 'bg-slate-900 text-white', icon: ShieldCheck },
   };
 
   const tabs: { id: TabType; label: string; icon: any }[] = [
@@ -557,22 +599,61 @@ export default function WorkOrderDetail() {
                       <p className="text-sm font-semibold text-slate-900">{wo.client_name}</p>
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Veículo</label>
-                      <p className="text-sm font-semibold text-slate-900">{wo.brand} {wo.model}</p>
-                      <p className="text-xs text-slate-500">{wo.plate?.toUpperCase()} • {wo.km} KM</p>
+                      <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Técnico / Responsável</label>
+                      <select 
+                        className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm"
+                        value={wo.responsible_id || ''}
+                        onChange={e => setWo({...wo, responsible_id: e.target.value})}
+                      >
+                        <option value="">Selecione...</option>
+                        {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+                      </select>
                     </div>
                     <div>
-                      <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Data de Abertura</label>
-                      <p className="text-sm text-slate-900">{format(parseISO(wo.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}</p>
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Previsão</label>
+                      <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Data Inicial</label>
                       <input 
                         type="datetime-local"
                         className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm"
-                        value={wo.estimated_delivery || ''}
-                        onChange={e => setWo({...wo, estimated_delivery: e.target.value})}
+                        value={wo.start_date ? wo.start_date.substring(0, 16) : ''}
+                        onChange={e => setWo({...wo, start_date: e.target.value})}
                       />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Data Final (Entrega/Fim)</label>
+                      <input 
+                        type="datetime-local"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm"
+                        value={wo.finish_date ? wo.finish_date.substring(0, 16) : ''}
+                        onChange={e => setWo({...wo, finish_date: e.target.value})}
+                      />
+                    </div>
+                    <div className="col-span-2">
+                      <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Garantia / Termos</label>
+                      <textarea 
+                        rows={2}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm"
+                        placeholder="Ex: 90 dias para serviços..."
+                        value={wo.guarantee || ''}
+                        onChange={e => setWo({...wo, guarantee: e.target.value})}
+                      />
+                    </div>
+                    <div className="col-span-2">
+                      <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Status da OS</label>
+                      <div className="flex flex-wrap gap-2">
+                        {Object.entries(statusMap).map(([key, value]: any) => (
+                          <button
+                            key={key}
+                            onClick={() => setWo({...wo, status: key})}
+                            className={cn(
+                              "px-3 py-1.5 rounded-lg text-xs font-bold border transition-all flex items-center gap-2",
+                              wo.status === key ? "bg-slate-900 border-slate-900 text-white" : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
+                            )}
+                          >
+                            <value.icon size={14} />
+                            {value.label}
+                          </button>
+                        ))}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -596,9 +677,9 @@ export default function WorkOrderDetail() {
                   </div>
                   <div className="p-6 grid grid-cols-2 gap-6">
                     <div>
-                      <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Relato do Cliente</label>
+                      <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Reclamação (Relato do Cliente)</label>
                       <textarea 
-                        rows={4}
+                        rows={3}
                         className="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 text-sm outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all"
                         placeholder="O que o cliente relatou..."
                         value={wo.complaint || ''}
@@ -606,9 +687,19 @@ export default function WorkOrderDetail() {
                       />
                     </div>
                     <div>
+                      <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Defeito Identificado</label>
+                      <textarea 
+                        rows={3}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 text-sm outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all"
+                        placeholder="O defeito técnico encontrado..."
+                        value={wo.defect || ''}
+                        onChange={e => setWo({...wo, defect: e.target.value})}
+                      />
+                    </div>
+                    <div className="col-span-2">
                       <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Notas Internas</label>
                       <textarea 
-                        rows={4}
+                        rows={2}
                         className="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 text-sm outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all"
                         placeholder="Observações internas..."
                         value={wo.internal_notes || ''}
@@ -621,29 +712,41 @@ export default function WorkOrderDetail() {
                 <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
                   <div className="px-6 py-4 bg-slate-50 border-b border-slate-200">
                     <h2 className="text-sm font-bold text-slate-700 uppercase tracking-wider flex items-center gap-2">
-                      <Search size={16} /> Diagnóstico Técnico
+                      <Search size={16} /> Diagnóstico & Laudo
                     </h2>
                   </div>
-                  <div className="p-6 grid grid-cols-2 gap-6">
+                  <div className="p-6 space-y-6">
                     <div>
-                      <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Sintomas Observados</label>
+                      <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Laudo Técnico</label>
                       <textarea 
                         rows={4}
                         className="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 text-sm outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all"
-                        placeholder="Descreva os sintomas observados..."
-                        value={wo.symptoms?.observed || ''}
-                        onChange={e => setWo({...wo, symptoms: { ...wo.symptoms, observed: e.target.value }})}
+                        placeholder="Descrição técnica detalhada, causa e solução..."
+                        value={wo.technical_report || ''}
+                        onChange={e => setWo({...wo, technical_report: e.target.value})}
                       />
                     </div>
-                    <div>
-                      <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Causa Provável</label>
-                      <textarea 
-                        rows={4}
-                        className="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 text-sm outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all"
-                        placeholder="Qual a provável causa do problema..."
-                        value={wo.diagnosis || ''}
-                        onChange={e => setWo({...wo, diagnosis: e.target.value})}
-                      />
+                    <div className="grid grid-cols-2 gap-6">
+                      <div>
+                        <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Sintomas Observados</label>
+                        <textarea 
+                          rows={3}
+                          className="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 text-sm outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all"
+                          placeholder="Descreva os sintomas observados..."
+                          value={wo.symptoms?.observed || ''}
+                          onChange={e => setWo({...wo, symptoms: { ...wo.symptoms, observed: e.target.value }})}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Diagnóstico Anterior</label>
+                        <textarea 
+                          rows={3}
+                          className="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 text-sm outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white transition-all"
+                          placeholder="Qual a provável causa do problema..."
+                          value={wo.diagnosis || ''}
+                          onChange={e => setWo({...wo, diagnosis: e.target.value})}
+                        />
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -652,84 +755,90 @@ export default function WorkOrderDetail() {
 
             {/* Tab: SERVICES */}
             {activeTab === 'SERVICES' && (
-              <div className="max-w-6xl">
+              <div className="max-w-6xl space-y-6">
+                <div className="bg-white rounded-2xl border border-slate-200 p-6">
+                  <h3 className="text-sm font-bold text-slate-900 mb-4 uppercase tracking-wider">Adicionar Serviço</h3>
+                  <div className="grid grid-cols-12 gap-4 items-end">
+                    <div className="col-span-12 md:col-span-5">
+                      <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1.5">Digite o nome do serviço</label>
+                      <input 
+                        type="text"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm"
+                        placeholder="Ex: Mão de obra troca de óleo..."
+                        value={itemForm.type === 'SERVICE' ? itemForm.description : ''}
+                        onChange={e => setItemForm({ ...itemForm, type: 'SERVICE', description: e.target.value })}
+                      />
+                    </div>
+                    <div className="col-span-6 md:col-span-2">
+                      <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1.5">Preço</label>
+                      <input 
+                        type="number"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm"
+                        value={itemForm.type === 'SERVICE' ? itemForm.unit_price : 0}
+                        onChange={e => setItemForm({ ...itemForm, type: 'SERVICE', unit_price: parseFloat(e.target.value) })}
+                      />
+                    </div>
+                    <div className="col-span-6 md:col-span-2">
+                      <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1.5">Quantidade</label>
+                      <input 
+                        type="number"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm"
+                        value={itemForm.type === 'SERVICE' ? itemForm.quantity : 1}
+                        onChange={e => setItemForm({ ...itemForm, type: 'SERVICE', quantity: parseFloat(e.target.value) })}
+                      />
+                    </div>
+                    <div className="col-span-12 md:col-span-3 flex gap-2">
+                      <button 
+                        onClick={() => handleQuickAdd('SERVICE')}
+                        className="flex-1 h-10 bg-slate-900 text-white rounded-lg text-xs font-bold hover:bg-slate-800 transition-all flex items-center justify-center gap-2"
+                      >
+                        <Plus size={16} /> Adicionar
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
                 <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
-                  <div className="px-6 py-4 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+                  <div className="px-6 py-4 bg-slate-50 border-b border-slate-200">
                     <h2 className="text-sm font-bold text-slate-700 uppercase tracking-wider flex items-center gap-2">
-                      <Wrench size={16} /> Serviços
+                      <Wrench size={16} /> Serviços Adicionados
                     </h2>
-                    <button onClick={() => addItem('SERVICE')} className="h-9 px-4 bg-slate-900 text-white rounded-lg text-xs font-bold hover:bg-slate-800 transition-all flex items-center gap-2 shadow-sm">
-                      <Plus size={16} /> Adicionar Serviço
-                    </button>
                   </div>
                   <table className="w-full text-left border-collapse">
                     <thead>
                       <tr className="bg-slate-50/50 border-b border-slate-100">
-                        <th className="px-6 py-3 text-xs font-bold text-slate-400 uppercase">Serviço / Descrição Detalhada</th>
-                        <th className="px-6 py-3 text-xs font-bold text-slate-400 uppercase">Responsável</th>
-                        <th className="px-6 py-3 text-xs font-bold text-slate-400 uppercase text-right">Valor</th>
+                        <th className="px-6 py-3 text-xs font-bold text-slate-400 uppercase">Serviço</th>
+                        <th className="px-6 py-3 text-xs font-bold text-slate-400 uppercase text-center">Quantidade</th>
+                        <th className="px-6 py-3 text-xs font-bold text-slate-400 uppercase text-right">Preço</th>
+                        <th className="px-6 py-3 text-xs font-bold text-slate-400 uppercase text-right">Sub-total</th>
                         <th className="px-6 py-3 w-16"></th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-50">
-                      {wo.items.filter((i: any) => i.type === 'SERVICE').length === 0 ? (
-                        <tr>
-                          <td colSpan={4} className="px-6 py-12 text-center">
-                            <Wrench size={48} className="text-slate-200 mx-auto mb-4" />
-                            <p className="text-slate-400 font-medium">Nenhum serviço adicionado</p>
-                            <p className="text-xs text-slate-400 mt-1">Clique em "Adicionar Serviço" para começar</p>
+                      {wo.items.filter((i: any) => i.type === 'SERVICE').map((item: any) => (
+                        <tr key={item.id} className="group hover:bg-slate-50">
+                          <td className="px-6 py-4 text-sm font-bold text-slate-900 uppercase">{item.description}</td>
+                          <td className="px-6 py-4 text-center text-sm font-medium text-slate-600">{item.quantity}</td>
+                          <td className="px-6 py-4 text-right text-sm font-medium text-slate-600">
+                            R$ {item.unit_price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                          </td>
+                          <td className="px-6 py-4 text-right text-sm font-bold text-slate-900">
+                            R$ {(item.quantity * item.unit_price).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                          </td>
+                          <td className="px-6 py-4 text-right">
+                            <button onClick={() => removeItem(item.id)} className="p-2 text-slate-300 hover:text-red-500 transition-colors">
+                              <Trash2 size={16} />
+                            </button>
                           </td>
                         </tr>
-                      ) : (
-                        wo.items.filter((i: any) => i.type === 'SERVICE').map((item: any) => (
-                          <tr key={item.id} className="group hover:bg-slate-50">
-                            <td className="px-6 py-4">
-                              <div className="space-y-2">
-                                <input 
-                                  type="text" 
-                                  className="w-full bg-transparent border-none focus:ring-0 text-sm font-black p-0 uppercase italic text-slate-900"
-                                  value={item.description}
-                                  onChange={e => updateItem(item.id, 'description', e.target.value)}
-                                  placeholder="NOME DO SERVIÇO (EX: TROCA DE ÓLEO)"
-                                />
-                                <textarea 
-                                  rows={2}
-                                  className="w-full bg-slate-50/50 border border-slate-100 rounded-lg px-3 py-2 text-xs font-medium focus:ring-2 focus:ring-slate-900 focus:bg-white outline-none transition-all resize-none"
-                                  value={item.long_description || ''}
-                                  onChange={e => updateItem(item.id, 'long_description', e.target.value)}
-                                  placeholder="Descreva o que inclui este serviço... (Ex: Sangria do óleo, troca de filtros, higienização...)"
-                                />
-                              </div>
-                            </td>
-                            <td className="px-6 py-4 align-top pt-6">
-                              <select 
-                                className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-xs font-bold focus:ring-2 focus:ring-slate-900"
-                                value={item.mechanic_id || ''}
-                                onChange={e => updateItem(item.id, 'mechanic_id', e.target.value)}
-                              >
-                                <option value="">Responsável...</option>
-                                {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
-                              </select>
-                            </td>
-                            <td className="px-6 py-4 text-right align-top pt-6">
-                              <div className="flex items-center justify-end gap-2">
-                                <span className="text-xs font-bold text-slate-400">R$</span>
-                                <input 
-                                  type="number" 
-                                  className="w-32 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm font-black text-right focus:ring-2 focus:ring-slate-900 text-slate-900"
-                                  value={item.unit_price}
-                                  onChange={e => updateItem(item.id, 'unit_price', parseFloat(e.target.value))}
-                                />
-                              </div>
-                            </td>
-                            <td className="px-6 py-4 text-right align-top pt-6">
-                              <button onClick={() => removeItem(item.id)} className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg opacity-0 group-hover:opacity-100 transition-all">
-                                <Trash2 size={16} />
-                              </button>
-                            </td>
-                          </tr>
-                        ))
-                      )}
+                      ))}
+                      <tr className="bg-slate-50/30">
+                        <td colSpan={3} className="px-6 py-4 text-right text-sm font-bold text-slate-400">Total Serviços:</td>
+                        <td className="px-6 py-4 text-right text-lg font-black text-slate-900">
+                          R$ {wo.items.filter((i:any) => i.type === 'SERVICE').reduce((sum:number, i:any) => sum + (i.quantity * i.unit_price), 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        </td>
+                        <td></td>
+                      </tr>
                     </tbody>
                   </table>
                 </div>
@@ -738,102 +847,109 @@ export default function WorkOrderDetail() {
 
             {/* Tab: PARTS */}
             {activeTab === 'PARTS' && (
-              <div className="max-w-6xl">
-                <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
-                  <div className="px-6 py-4 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
-                    <h2 className="text-sm font-bold text-slate-700 uppercase tracking-wider flex items-center gap-2">
-                      <Package size={16} /> Peças
-                    </h2>
-                    <button onClick={() => addItem('PART')} className="h-9 px-4 bg-slate-900 text-white rounded-lg text-xs font-bold hover:bg-slate-800 transition-all flex items-center gap-2 shadow-sm">
-                      <Plus size={16} /> Adicionar Peça
+              <div className="max-w-6xl space-y-6">
+                <div className="bg-white rounded-2xl border border-slate-200 p-6">
+                  <h3 className="text-sm font-bold text-slate-900 mb-4 uppercase tracking-wider">Adicionar Produto / Peça</h3>
+                  <div className="grid grid-cols-12 gap-4 items-end">
+                    <div className="col-span-12 md:col-span-5">
+                      <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1.5">Digite o nome do produto</label>
+                      <select 
+                        className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm"
+                        value={itemForm.part_id || ''}
+                        onChange={e => {
+                          const p = parts.find(p => p.id === e.target.value);
+                          setItemForm({ 
+                            ...itemForm, 
+                            type: 'PART', 
+                            part_id: e.target.value, 
+                            description: p?.name || '', 
+                            unit_price: p?.sale_price || 0 
+                          });
+                        }}
+                      >
+                        <option value="">Selecione um produto...</option>
+                        {parts.map(p => <option key={p.id} value={p.id}>{p.name} (R$ {p.sale_price})</option>)}
+                      </select>
+                    </div>
+                    <div className="col-span-6 md:col-span-2">
+                      <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1.5">Preço</label>
+                      <input 
+                        type="number"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm font-bold"
+                        value={itemForm.type === 'PART' ? itemForm.unit_price : 0}
+                        onChange={e => setItemForm({ ...itemForm, type: 'PART', unit_price: parseFloat(e.target.value) })}
+                      />
+                    </div>
+                    <div className="col-span-6 md:col-span-2">
+                      <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1.5">Quantidade</label>
+                      <input 
+                        type="number"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm font-bold"
+                        value={itemForm.type === 'PART' ? itemForm.quantity : 1}
+                        onChange={e => setItemForm({ ...itemForm, type: 'PART', quantity: parseFloat(e.target.value) })}
+                      />
+                    </div>
+                    <div className="col-span-12 md:col-span-3 flex gap-2">
+                      <button 
+                        onClick={() => handleQuickAdd('PART')}
+                        className="flex-1 h-10 bg-slate-900 text-white rounded-lg text-xs font-bold hover:bg-slate-800 transition-all flex items-center justify-center gap-2"
+                      >
+                        <Plus size={16} /> Adicionar
+                      </button>
+                    </div>
+                  </div>
+                  <div className="mt-4 pt-4 border-t border-slate-100 flex justify-between items-center">
+                    <p className="text-[10px] text-slate-400 font-bold uppercase">Caso o produto não esteja na lista:</p>
+                    <button 
+                      onClick={() => setShowNewItemModal({ active: true, type: 'PART' })}
+                      className="text-[10px] font-black text-indigo-600 hover:text-indigo-700 flex items-center gap-1"
+                    >
+                      <Plus size={12} /> CADASTRAR NOVO PRODUTO NO ESTOQUE
                     </button>
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+                  <div className="px-6 py-4 bg-slate-50 border-b border-slate-200">
+                    <h2 className="text-sm font-bold text-slate-700 uppercase tracking-wider flex items-center gap-2">
+                      <Package size={16} /> Produtos / Peças Adicionadas
+                    </h2>
                   </div>
                   <table className="w-full text-left border-collapse">
                     <thead>
                       <tr className="bg-slate-50/50 border-b border-slate-100">
-                        <th className="px-6 py-3 text-xs font-bold text-slate-400 uppercase">Peça</th>
-                        <th className="px-6 py-3 text-xs font-bold text-slate-400 uppercase text-center">Qtd</th>
-                        <th className="px-6 py-3 text-xs font-bold text-slate-400 uppercase text-right">Preço Unit.</th>
-                        <th className="px-6 py-3 text-xs font-bold text-slate-400 uppercase text-right">Total</th>
+                        <th className="px-6 py-3 text-xs font-bold text-slate-400 uppercase">Produto</th>
+                        <th className="px-6 py-3 text-xs font-bold text-slate-400 uppercase text-center">Quantidade</th>
+                        <th className="px-6 py-3 text-xs font-bold text-slate-400 uppercase text-right">Preço unit.</th>
+                        <th className="px-6 py-3 text-xs font-bold text-slate-400 uppercase text-right">Sub-total</th>
                         <th className="px-6 py-3 w-16"></th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-50">
-                      {wo.items.filter((i: any) => i.type === 'PART').length === 0 ? (
-                        <tr>
-                          <td colSpan={5} className="px-6 py-12 text-center">
-                            <Package size={48} className="text-slate-200 mx-auto mb-4" />
-                            <p className="text-slate-400 font-medium">Nenhuma peça adicionada</p>
-                            <p className="text-xs text-slate-400 mt-1">Clique em "Adicionar Peça" para começar</p>
+                      {wo.items.filter((i: any) => i.type === 'PART').map((item: any) => (
+                        <tr key={item.id} className="group hover:bg-slate-50">
+                          <td className="px-6 py-4 text-sm font-bold text-slate-900 uppercase">{item.description}</td>
+                          <td className="px-6 py-4 text-center text-sm font-medium text-slate-600">{item.quantity}</td>
+                          <td className="px-6 py-4 text-right text-sm font-medium text-slate-600">
+                            R$ {item.unit_price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                          </td>
+                          <td className="px-6 py-4 text-right text-sm font-bold text-slate-900">
+                            R$ {(item.quantity * item.unit_price).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                          </td>
+                          <td className="px-6 py-4 text-right">
+                            <button onClick={() => removeItem(item.id)} className="p-2 text-slate-300 hover:text-red-500 transition-colors">
+                              <Trash2 size={16} />
+                            </button>
                           </td>
                         </tr>
-                      ) : (
-                        wo.items.filter((i: any) => i.type === 'PART').map((item: any) => {
-                          const linkedPart = item.part_id ? parts.find(p => p.id === item.part_id) : null;
-                          return (
-                          <tr key={item.id} className="group hover:bg-slate-50">
-                            <td className="px-6 py-4">
-                              <div className="space-y-2">
-                                <select
-                                  className="w-full bg-transparent border border-slate-200 rounded-lg px-3 py-2 text-sm font-medium focus:ring-2 focus:ring-slate-900"
-                                  value={item.part_id || ''}
-                                  onChange={e => selectPart(item.id, e.target.value)}
-                                >
-                                  <option value="">Selecione uma peça...</option>
-                                  {parts.map(part => (
-                                    <option key={part.id} value={part.id}>
-                                      {part.name} ({part.sku}) - Estoque: {part.stock_quantity}
-                                    </option>
-                                  ))}
-                                </select>
-                                {linkedPart && (
-                                  <div className="flex items-center gap-2 text-xs">
-                                    <span className={`px-2 py-1 rounded-lg font-medium ${
-                                      linkedPart.stock_quantity > 0 
-                                        ? 'bg-emerald-50 text-emerald-700' 
-                                        : 'bg-red-50 text-red-700'
-                                    }`}>
-                                      {linkedPart.stock_quantity > 0 
-                                        ? `${linkedPart.stock_quantity} em estoque`
-                                        : 'Sem estoque'
-                                      }
-                                    </span>
-                                    <span className="text-slate-500">SKU: {linkedPart.sku}</span>
-                                  </div>
-                                )}
-                              </div>
-                            </td>
-                            <td className="px-6 py-4 text-center">
-                              <input 
-                                type="number" 
-                                className="w-20 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm font-bold text-center focus:ring-2 focus:ring-slate-900"
-                                value={item.quantity}
-                                onChange={e => updateItem(item.id, 'quantity', parseFloat(e.target.value))}
-                              />
-                            </td>
-                            <td className="px-6 py-4 text-right">
-                              <div className="flex items-center justify-end gap-2">
-                                <span className="text-xs text-slate-400">R$</span>
-                                <input 
-                                  type="number" 
-                                  className="w-32 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm font-bold text-right focus:ring-2 focus:ring-slate-900"
-                                  value={item.unit_price}
-                                  onChange={e => updateItem(item.id, 'unit_price', parseFloat(e.target.value))}
-                                />
-                              </div>
-                            </td>
-                            <td className="px-6 py-4 text-right font-bold text-base text-emerald-600">
-                              R$ {(item.quantity * item.unit_price).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                            </td>
-                            <td className="px-6 py-4 text-right">
-                              <button onClick={() => removeItem(item.id)} className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg opacity-0 group-hover:opacity-100 transition-all">
-                                <Trash2 size={16} />
-                              </button>
-                            </td>
-                          </tr>
-                          );
-                        })
-                      )}
+                      ))}
+                      <tr className="bg-slate-50/30">
+                        <td colSpan={3} className="px-6 py-4 text-right text-sm font-bold text-slate-400">Total Produtos:</td>
+                        <td className="px-6 py-4 text-right text-lg font-black text-slate-900">
+                          R$ {wo.items.filter((i:any) => i.type === 'PART').reduce((sum:number, i:any) => sum + (i.quantity * i.unit_price), 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                        </td>
+                        <td></td>
+                      </tr>
                     </tbody>
                   </table>
                 </div>
@@ -1349,6 +1465,61 @@ export default function WorkOrderDetail() {
                     </button>
                   ))
                 )}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Modal: Cadastro Rápido de Item */}
+      <AnimatePresence>
+        {showNewItemModal.active && (
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden"
+            >
+              <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
+                <h3 className="font-bold text-slate-900">Cadastrar Novo {showNewItemModal.type === 'PART' ? 'Produto' : 'Serviço'}</h3>
+                <button onClick={() => setShowNewItemModal({ ...showNewItemModal, active: false })} className="text-slate-400 hover:text-slate-900">
+                  <X size={20} />
+                </button>
+              </div>
+              <div className="p-6 space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Nome / Descrição</label>
+                  <input 
+                    type="text"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm font-black uppercase italic"
+                    value={itemForm.description}
+                    onChange={e => setItemForm({ ...itemForm, description: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Valor de Venda Sugerido</label>
+                  <input 
+                    type="number"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm font-bold"
+                    value={itemForm.unit_price}
+                    onChange={e => setItemForm({ ...itemForm, unit_price: parseFloat(e.target.value) })}
+                  />
+                </div>
+              </div>
+              <div className="px-6 py-4 bg-slate-50 flex justify-end gap-2">
+                <button 
+                  onClick={() => setShowNewItemModal({ ...showNewItemModal, active: false })}
+                  className="px-4 py-2 text-slate-500 font-bold text-sm"
+                >
+                  Cancelar
+                </button>
+                <button 
+                  onClick={registerNewItem}
+                  className="px-6 py-2 bg-slate-900 text-white rounded-lg text-sm font-bold hover:bg-slate-800 transition-all"
+                >
+                  Confirmar Cadastro
+                </button>
               </div>
             </motion.div>
           </div>

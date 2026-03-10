@@ -5,7 +5,8 @@ import {
   History, Info, MessageSquare, Plus, DollarSign, 
   FileText, Paperclip, Clock, CheckCircle2, AlertCircle,
   MoreVertical, ExternalLink, Printer, Send, Trash2, Edit,
-  X, Calendar, User, Building2, MessageCircle, AlertTriangle
+  X, Calendar, User, Building2, MessageCircle, AlertTriangle,
+  Wrench, Package
 } from 'lucide-react';
 import api from '../services/api';
 import { motion, AnimatePresence } from 'motion/react';
@@ -527,25 +528,61 @@ export default function ClientDetail() {
             {activeTab === 'TIMELINE' && (
               <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-8">
                 <div className="relative space-y-8 before:absolute before:inset-0 before:ml-5 before:-translate-x-px before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-slate-200 before:to-transparent">
-                  {[
-                    { date: '2024-03-01 10:00', title: 'OS #2024-001 Finalizada', desc: 'Troca de óleo e filtros concluída.', icon: CheckCircle2, color: 'text-emerald-500 bg-emerald-50' },
-                    { date: '2024-02-28 14:30', title: 'Orçamento Aprovado', desc: 'Cliente aprovou via WhatsApp.', icon: MessageSquare, color: 'text-blue-500 bg-blue-50' },
-                    { date: '2024-02-28 09:00', title: 'Veículo Entrou na Oficina', desc: 'Toyota Corolla (ABC-1234) para revisão.', icon: Car, color: 'text-slate-500 bg-slate-50' },
-                    { date: '2023-12-15 16:00', title: 'Cliente Cadastrado', desc: 'Cadastro inicial realizado.', icon: User, color: 'text-slate-500 bg-slate-50' },
-                  ].map((item, i) => (
-                    <div key={i} className="relative flex items-start gap-6 group">
-                      <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center shrink-0 z-10 shadow-sm border border-white transition-transform group-hover:scale-110", item.color)}>
-                        <item.icon size={18} />
-                      </div>
-                      <div className="flex-1 pt-1">
-                        <div className="flex items-center justify-between mb-1">
-                          <h4 className="text-sm font-bold text-slate-900">{item.title}</h4>
-                          <span className="text-[10px] font-bold text-slate-400 uppercase">{item.date}</span>
+                  {client.workOrders && client.workOrders.length > 0 ? (
+                    client.workOrders.flatMap((wo: any) => 
+                      (wo.items || []).map((item: any) => ({
+                        ...item,
+                        woId: wo.id,
+                        woNumber: wo.number,
+                        date: wo.created_at,
+                        vehicleModel: wo.model,
+                        vehiclePlate: wo.plate
+                      }))
+                    )
+                    .sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                    .map((item: any, i: number) => (
+                      <div key={i} className="relative flex items-start gap-6 group">
+                        <div className={cn(
+                          "w-10 h-10 rounded-xl flex items-center justify-center shrink-0 z-10 shadow-sm border border-white transition-transform group-hover:scale-110",
+                          item.type === 'SERVICE' ? "bg-blue-50 text-blue-500" : "bg-purple-50 text-purple-500"
+                        )}>
+                          {item.type === 'SERVICE' ? <Wrench size={18} /> : <Package size={18} />}
                         </div>
-                        <p className="text-xs text-slate-500 leading-relaxed">{item.desc}</p>
+                        <div className="flex-1 pt-1">
+                          <div className="flex items-center justify-between mb-1">
+                            <div>
+                              <h4 className="text-sm font-bold text-slate-900">{item.description}</h4>
+                              <p className="text-[10px] text-slate-400 font-bold uppercase">
+                                {item.vehicleModel} • {item.vehiclePlate?.toUpperCase()}
+                              </p>
+                            </div>
+                            <span className="text-[10px] font-bold text-slate-400 uppercase">
+                              {format(new Date(item.date), "dd/MM/yyyy HH:mm", { locale: ptBR })}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <p className="text-xs text-slate-500 leading-relaxed max-w-xl">
+                              {item.long_description || (item.type === 'PART' ? `Peça/Produto: ${item.description}` : 'Nenhuma descrição detalhada informada.')}
+                            </p>
+                            <button 
+                              onClick={() => navigate(`/work-orders/${item.woId}`)}
+                              className="text-[10px] font-black text-slate-400 hover:text-slate-900 flex items-center gap-1 transition-colors bg-slate-50 px-2 py-1 rounded border border-slate-100"
+                            >
+                              OS #{item.woNumber} <ExternalLink size={10} />
+                            </button>
+                          </div>
+                        </div>
                       </div>
+                    ))
+                  ) : (
+                    <div className="text-center py-12">
+                      <div className="w-16 h-16 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-300 mx-auto mb-4">
+                        <History size={32} />
+                      </div>
+                      <h3 className="text-lg font-bold text-slate-900 mb-2">Sem Histórico</h3>
+                      <p className="text-sm text-slate-500 max-w-sm mx-auto">Este cliente ainda não possui serviços ou peças registradas em seu histórico.</p>
                     </div>
-                  ))}
+                  )}
                 </div>
               </div>
             )}
