@@ -943,15 +943,36 @@ export default function Settings() {
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              className="max-w-5xl mx-auto space-y-6"
+              className="max-w-6xl mx-auto space-y-8"
             >
-              <div className="flex items-center justify-between mb-6">
+              <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
                 <div>
-                  <h2 className="text-2xl font-bold text-slate-900 mb-2">👥 Equipe e Permissões</h2>
-                  <p className="text-sm text-slate-600">
-                    Gerencie os usuários e o que cada um pode acessar no sistema.
-                    Limite contratado: <span className="font-bold text-slate-900">{usersList.length} / {tenantSettings.user_limit || 5} usuários</span>
-                  </p>
+                  <h2 className="text-3xl font-black text-slate-900 mb-2 italic uppercase tracking-tight">
+                    👥 Equipe e Permissões
+                  </h2>
+                  <div className="flex items-center gap-3">
+                    <div className="flex -space-x-2">
+                      {usersList.slice(0, 5).map((u, i) => (
+                        <div key={i} className="w-8 h-8 rounded-full border-2 border-white bg-slate-100 overflow-hidden shadow-sm">
+                          {u.photo_url ? (
+                            <img src={u.photo_url} className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-[10px] font-bold text-slate-400">
+                              {u.name.charAt(0)}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                      {usersList.length > 5 && (
+                        <div className="w-8 h-8 rounded-full border-2 border-white bg-slate-800 flex items-center justify-center text-[10px] font-bold text-white shadow-sm">
+                          +{usersList.length - 5}
+                        </div>
+                      )}
+                    </div>
+                    <p className="text-sm font-medium text-slate-500">
+                      Gerencie sua equipe. <span className="font-bold text-slate-900">{usersList.length} de {tenantSettings.user_limit || 5}</span> licenças em uso.
+                    </p>
+                  </div>
                 </div>
                 <button
                   onClick={() => {
@@ -977,136 +998,175 @@ export default function Settings() {
                     setShowUserModal(true);
                   }}
                   disabled={usersList.length >= (tenantSettings.user_limit || 5)}
-                  className="flex items-center gap-2 px-4 py-2 bg-slate-800 text-white rounded-xl text-sm font-semibold hover:bg-slate-900 transition-all disabled:opacity-50"
+                  className="flex items-center justify-center gap-2 px-6 py-3.5 bg-slate-900 text-white rounded-2xl font-bold text-sm uppercase tracking-widest hover:bg-slate-800 transition-all shadow-xl shadow-slate-900/20 active:scale-95 disabled:opacity-50"
                 >
-                  <Plus className="w-4 h-4" />
-                  Novo Usuário
+                  <Plus className="w-5 h-5" />
+                  Novo Integrante
                 </button>
+              </div>
+
+              {/* Stats Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                {[
+                  { label: "Administradores", count: usersList.filter(u => u.role === 'ADMIN' || u.role === 'SUPER_ADMIN').length, color: "amber" },
+                  { label: "Mecânicos", count: usersList.filter(u => u.role === 'MECHANIC').length, color: "blue" },
+                  { label: "Atendentes", count: usersList.filter(u => u.role === 'ATTENDANT').length, color: "emerald" },
+                  { label: "Financeiro", count: usersList.filter(u => u.role === 'FINANCE').length, color: "purple" },
+                ].map((stat, i) => (
+                  <div key={i} className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex items-center justify-between">
+                    <span className="text-xs font-black text-slate-400 uppercase tracking-widest">{stat.label}</span>
+                    <span className={`text-lg font-black text-${stat.color}-600 bg-${stat.color}-50 px-3 py-1 rounded-xl`}>{stat.count}</span>
+                  </div>
+                ))}
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {usersList.length === 0 ? (
-                  <div className="col-span-full py-20 text-center bg-white rounded-3xl border border-slate-200 shadow-sm">
-                    <Users className="w-16 h-16 mx-auto mb-4 opacity-10 text-slate-400" />
-                    <p className="text-slate-500 font-bold uppercase tracking-widest text-xs">Nenhum membro na equipe ainda</p>
+                  <div className="col-span-full py-24 text-center bg-white rounded-[2.5rem] border border-dashed border-slate-300">
+                    <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-6">
+                      <Users className="w-10 h-10 text-slate-300" />
+                    </div>
+                    <h3 className="text-xl font-bold text-slate-900 mb-2">Sua oficina ainda está vazia</h3>
+                    <p className="text-slate-500 max-w-xs mx-auto">Comece adicionando seus colaboradores para gerenciar permissões e atividades.</p>
                   </div>
                 ) : (
                   usersList.map((user) => (
-                    <div key={user.id} className="bg-white rounded-[2rem] border border-slate-200 shadow-sm hover:shadow-xl hover:border-slate-300 transition-all duration-300 group flex flex-col p-6">
-                       <div className="flex items-start justify-between mb-6">
-                          <div className="relative group-hover:scale-105 transition-transform duration-500">
-                             <div className="w-16 h-16 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-center overflow-hidden shadow-inner">
-                                {user.photo_url ? (
-                                   <img src={user.photo_url} alt={user.name} className="w-full h-full object-cover" />
-                                ) : (
-                                   <div className="w-full h-full flex items-center justify-center bg-slate-50 text-slate-400 font-bold text-xl uppercase italic">
-                                      {user.name.charAt(0)}
-                                   </div>
-                                )}
+                    <motion.div 
+                      layout
+                      key={user.id} 
+                      className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm hover:shadow-2xl hover:-translate-y-1 transition-all duration-500 group overflow-hidden"
+                    >
+                       <div className="p-8">
+                          <div className="flex items-start justify-between mb-6">
+                             <div className="relative">
+                                <div className="w-20 h-20 rounded-[2rem] bg-slate-100 border-4 border-white shadow-lg overflow-hidden group-hover:scale-110 transition-transform duration-700">
+                                   {user.photo_url ? (
+                                      <img src={user.photo_url} alt={user.name} className="w-full h-full object-cover" />
+                                   ) : (
+                                      <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 text-slate-300 font-black text-2xl uppercase italic">
+                                         {user.name.charAt(0)}
+                                      </div>
+                                   )}
+                                </div>
+                                <div className={cn(
+                                  "absolute -bottom-1 -right-1 w-8 h-8 rounded-2xl border-4 border-white flex items-center justify-center shadow-xl transition-transform duration-500 group-hover:rotate-12",
+                                  user.role === 'ADMIN' ? 'bg-amber-500' : 
+                                  user.role === 'SUPER_ADMIN' ? 'bg-indigo-600' : 'bg-slate-800'
+                                )}>
+                                   <Shield className="text-white" size={12} />
+                                </div>
                              </div>
-                             <div className={`absolute -top-2 -right-2 w-6 h-6 rounded-full border-2 border-white flex items-center justify-center shadow-lg ${
-                               user.role === 'ADMIN' ? 'bg-amber-500' : 
-                               user.role === 'SUPER_ADMIN' ? 'bg-purple-500' : 'bg-slate-500'
-                             }`}>
-                                <Shield className="text-white" size={12} />
-                             </div>
-                          </div>
-                          <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-all translate-y-2 group-hover:translate-y-0 duration-300">
-                             <button 
-                                onClick={() => {
-                                   setEditingUser(user);
-                                   setUserForm({
-                                      name: user.name,
-                                      email: user.email,
-                                      password: "",
-                                      role: user.role,
-                                      permissions: typeof user.permissions === 'string' 
-                                        ? JSON.parse(user.permissions) 
-                                        : (user.permissions || {
-                                            dashboard: true,
-                                            clients: true,
-                                            vehicles: true,
-                                            workOrders: true,
-                                            appointments: true,
-                                            inventory: false,
-                                            finance: false,
-                                            whatsapp: false,
-                                            settings: false
-                                          }),
-                                      photo_url: user.photo_url || ""
-                                   });
-                                   setShowUserModal(true);
-                                }}
-                                className="w-9 h-9 rounded-xl bg-slate-100 text-slate-500 hover:bg-slate-900 hover:text-white flex items-center justify-center transition-all"
-                                title="Editar"
-                             >
-                                <Edit2 size={14} />
-                             </button>
-                             <button 
-                                onClick={async () => {
-                                   if (window.confirm(`Deseja realmente excluir o usuário ${user.name}?`)) {
-                                      try {
-                                         await api.delete(`/users/${user.id}`);
-                                         showToast("Usuário excluído com sucesso!");
-                                         loadUsers();
-                                      } catch (error: any) {
-                                         showToast(error.response?.data?.error || "Erro ao excluir usuário", "error");
+                             
+                             <div className="flex gap-2">
+                                <button 
+                                   onClick={() => {
+                                      setEditingUser(user);
+                                      setUserForm({
+                                         name: user.name,
+                                         email: user.email,
+                                         password: "",
+                                         role: user.role,
+                                         permissions: typeof user.permissions === 'string' 
+                                           ? JSON.parse(user.permissions) 
+                                           : (user.permissions || {
+                                               dashboard: true,
+                                               clients: true,
+                                               vehicles: true,
+                                               workOrders: true,
+                                               appointments: true,
+                                               inventory: false,
+                                               finance: false,
+                                               whatsapp: false,
+                                               settings: false
+                                             }),
+                                         photo_url: user.photo_url || ""
+                                      });
+                                      setShowUserModal(true);
+                                   }}
+                                   className="w-10 h-10 rounded-2xl bg-slate-50 text-slate-400 hover:bg-slate-900 hover:text-white flex items-center justify-center transition-all duration-300"
+                                >
+                                   <Edit2 size={16} />
+                                </button>
+                                <button 
+                                   onClick={async () => {
+                                      if (window.confirm(`Deseja realmente excluir o usuário ${user.name}?`)) {
+                                         try {
+                                            await api.delete(`/users/${user.id}`);
+                                            showToast("Usuário removido com sucesso!");
+                                            loadUsers();
+                                         } catch (error: any) {
+                                            showToast(error.response?.data?.error || "Erro ao excluir", "error");
+                                         }
                                       }
-                                   }
-                                }}
-                                className="w-9 h-9 rounded-xl bg-red-50 text-red-500 hover:bg-red-500 hover:text-white flex items-center justify-center transition-all"
-                                title="Excluir"
-                             >
-                                <Trash2 size={14} />
-                             </button>
+                                   }}
+                                   className="w-10 h-10 rounded-2xl bg-red-50 text-red-400 hover:bg-red-500 hover:text-white flex items-center justify-center transition-all duration-300"
+                                >
+                                   <Trash2 size={16} />
+                                </button>
+                             </div>
                           </div>
-                       </div>
 
-                       <div className="flex-1">
-                          <h4 className="font-black text-slate-900 leading-tight uppercase italic mb-1 line-clamp-1">{user.name}</h4>
-                          <p className="text-xs text-slate-500 font-medium mb-4 truncate">{user.email}</p>
+                          <div className="space-y-1 mb-6">
+                             <h4 className="font-black text-slate-900 text-lg leading-tight uppercase italic truncate">{user.name}</h4>
+                             <p className="text-xs text-slate-400 font-bold tracking-tight truncate">{user.email}</p>
+                          </div>
                           
-                          <div className="flex flex-wrap gap-2">
-                             <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border shadow-sm ${
-                               user.role === 'ADMIN' ? 'bg-amber-50 text-amber-600 border-amber-100/50' :
-                               user.role === 'SUPER_ADMIN' ? 'bg-purple-50 text-purple-600 border-purple-100/50' :
-                               'bg-slate-50 text-slate-600 border-slate-100/50'
-                             }`}>
-                                {user.role === 'ADMIN' ? 'Admin' : 
+                          <div className="flex flex-wrap gap-2 mb-8">
+                             <span className={cn(
+                               "px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-[0.15em] border shadow-sm transition-colors",
+                               user.role === 'ADMIN' ? 'bg-amber-50 text-amber-600 border-amber-100' :
+                               user.role === 'SUPER_ADMIN' ? 'bg-indigo-50 text-indigo-600 border-indigo-100' :
+                               'bg-slate-50 text-slate-600 border-slate-100'
+                             )}>
+                                {user.role === 'ADMIN' ? 'Administrador' : 
                                  user.role === 'MECHANIC' ? 'Mecânico' :
-                                 user.role === 'ATTENDANT' ? 'Atendente' : 
+                                 user.role === 'ATTENDANT' ? 'Atendimento' : 
                                  user.role === 'FINANCE' ? 'Financeiro' : user.role}
                              </span>
                           </div>
-                       </div>
 
-                       <div className="mt-6 pt-4 border-t border-slate-50 flex items-center justify-between">
-                          <div className="flex flex-col">
-                             <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Desde</span>
-                             <span className="text-[10px] font-bold text-slate-600">{new Date(user.created_at).toLocaleDateString()}</span>
-                          </div>
-                          <div className="h-8 w-8 rounded-lg bg-slate-50 flex items-center justify-center text-slate-300">
-                             <ChevronRight size={16} />
+                          <div className="flex items-center justify-between pt-6 border-t border-slate-50">
+                             <div className="flex flex-col">
+                                <span className="text-[9px] font-black text-slate-300 uppercase tracking-widest">Membro desde</span>
+                                <span className="text-xs font-bold text-slate-600 tracking-tight">{new Date(user.created_at).toLocaleDateString('pt-BR', { month: 'short', year: 'numeric', day: '2-digit' })}</span>
+                             </div>
+                             <div className="flex -space-x-1">
+                                {[1,2,3].map(i => (
+                                  <div key={i} className="w-1.5 h-1.5 rounded-full bg-slate-200" />
+                                ))}
+                             </div>
                           </div>
                        </div>
-                    </div>
+                    </motion.div>
                   ))
                 )}
               </div>
 
-              {/* User Modal */}
+              {/* User Modal - Sophisticated Design */}
               {showUserModal && (
-                <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
+                <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 sm:p-6">
+                  <motion.div 
+                    initial={{ opacity: 0 }} 
+                    animate={{ opacity: 1 }} 
+                    onClick={() => setShowUserModal(false)}
+                    className="absolute inset-0 bg-slate-900/80 backdrop-blur-md" 
+                  />
                   <motion.div
-                    initial={{ scale: 0.95, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col"
+                    initial={{ scale: 0.9, opacity: 0, y: 20 }}
+                    animate={{ scale: 1, opacity: 1, y: 0 }}
+                    className="bg-white rounded-[3rem] shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col relative z-10 border border-white/20"
                   >
-                    <div className="px-6 py-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
-                      <h3 className="text-xl font-bold text-slate-800">
-                        {editingUser ? "Editar Usuário" : "Novo Usuário"}
-                      </h3>
-                      <button onClick={() => setShowUserModal(false)} className="text-slate-400 hover:text-slate-600 transition-colors">
+                    <div className="px-10 py-8 bg-gradient-to-r from-slate-900 to-slate-800 flex justify-between items-center shrink-0">
+                      <div>
+                        <h3 className="text-2xl font-black text-white italic uppercase tracking-tight">
+                          {editingUser ? "✨ Ajustar Integrante" : "🚀 Novo Integrante"}
+                        </h3>
+                        <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mt-1">Configurações de acesso e perfil</p>
+                      </div>
+                      <button 
+                        onClick={() => setShowUserModal(false)} 
+                        className="w-12 h-12 rounded-2xl bg-white/10 text-white hover:bg-white/20 transition-all flex items-center justify-center active:scale-90"
+                      >
                         <X className="w-6 h-6" />
                       </button>
                     </div>
@@ -1118,40 +1178,41 @@ export default function Settings() {
                         try {
                           if (editingUser) {
                             await api.patch(`/users/${editingUser.id}`, userForm);
-                            showToast("Usuário atualizado com sucesso!");
+                            showToast("Integrante atualizado!");
                           } else {
                             await api.post("/users", userForm);
-                            showToast("Usuário criado com sucesso!");
+                            showToast("🚀 Novo integrante a bordo!");
                           }
                           setShowUserModal(false);
                           loadUsers();
                         } catch (error: any) {
-                          showToast(error.response?.data?.error || "Erro ao salvar usuário", "error");
+                          showToast(error.response?.data?.error || "Erro ao salvar", "error");
                         } finally {
                           setSaving(false);
                         }
                       }}
-                      className="p-6 overflow-y-auto space-y-6"
+                      className="flex-1 overflow-y-auto custom-scrollbar p-10 space-y-10"
                     >
-                      {/* Foto do Usuário */}
-                      <div className="flex flex-col items-center mb-6">
-                        <div className="relative group cursor-pointer" onClick={() => (document.getElementById('user_photo_input') as HTMLInputElement)?.click()}>
-                          <div className="w-24 h-24 rounded-3xl bg-slate-100 border-4 border-white shadow-xl flex items-center justify-center overflow-hidden">
+                      {/* Photo Upload Section */}
+                      <div className="flex flex-col items-center">
+                        <div 
+                          className="relative group cursor-pointer" 
+                          onClick={() => (document.getElementById('user_photo_input') as HTMLInputElement)?.click()}
+                        >
+                          <div className="w-32 h-32 rounded-[2.5rem] bg-slate-50 border-4 border-slate-100 shadow-xl flex items-center justify-center overflow-hidden transition-transform duration-500 group-hover:scale-105">
                             {userForm.photo_url ? (
                               <img src={userForm.photo_url} className="w-full h-full object-cover" />
                             ) : (
-                              <Users className="text-slate-300" size={40} />
+                              <User className="text-slate-200" size={50} />
                             )}
-                            <div className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                            <div className="absolute inset-0 bg-slate-900/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2">
                               <Upload className="text-white" size={24} />
+                              <span className="text-[10px] text-white font-black uppercase tracking-widest">Mudar Foto</span>
                             </div>
                           </div>
-                          <button 
-                            type="button"
-                            className="absolute -bottom-2 -right-2 w-8 h-8 rounded-xl bg-white shadow-lg text-slate-500 border border-slate-100 flex items-center justify-center"
-                          >
-                            <Edit2 size={14} />
-                          </button>
+                          <div className="absolute -bottom-2 -right-2 w-10 h-10 rounded-2xl bg-slate-900 text-white shadow-xl flex items-center justify-center border-4 border-white">
+                            <Plus size={18} />
+                          </div>
                         </div>
                         <input 
                           id="user_photo_input"
@@ -1169,69 +1230,81 @@ export default function Settings() {
                             }
                           }}
                         />
-                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-2">Foto de Perfil</p>
                       </div>
 
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="col-span-2">
-                          <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Nome Completo</label>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Nome Completo</label>
                           <input 
                             required
                             type="text"
                             value={userForm.name}
                             onChange={(e) => setUserForm({...userForm, name: e.target.value})}
-                            className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-400 outline-none"
-                            placeholder="Ex: João Silva"
+                            className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-4 focus:ring-slate-900/5 focus:bg-white focus:border-slate-900 outline-none transition-all font-bold text-slate-900"
+                            placeholder="Ex: Pedro Alvares"
                           />
                         </div>
-                        <div>
-                          <label className="block text-xs font-bold text-slate-500 uppercase mb-2">E-mail (Login)</label>
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">E-mail de Acesso</label>
                           <input 
                             required
                             type="email"
                             value={userForm.email}
                             onChange={(e) => setUserForm({...userForm, email: e.target.value})}
-                            className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-400 outline-none"
-                            placeholder="joao@email.com"
+                            className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-4 focus:ring-slate-900/5 focus:bg-white focus:border-slate-900 outline-none transition-all font-bold text-slate-900"
+                            placeholder="pedro@oficina.com"
                           />
                         </div>
-                        <div>
-                          <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Cargo / Nível</label>
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Cargo / Função</label>
                           <select 
                             value={userForm.role}
                             onChange={(e) => setUserForm({...userForm, role: e.target.value})}
-                            className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-400 outline-none"
+                            className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-4 focus:ring-slate-900/5 focus:bg-white focus:border-slate-900 outline-none transition-all font-bold text-slate-900 appearance-none cursor-pointer"
                           >
-                            <option value="ADMIN">Administrador</option>
-                            <option value="MECHANIC">Mecânico</option>
-                            <option value="ATTENDANT">Atendente / Recepção</option>
-                            <option value="FINANCE">Financeiro</option>
+                            <option value="ADMIN">Administrador Geral</option>
+                            <option value="MECHANIC">Mecânico / Técnico</option>
+                            <option value="ATTENDANT">Atendimento / Recepcionista</option>
+                            <option value="FINANCE">Gestor Financeiro</option>
                           </select>
                         </div>
-                        <div className="col-span-2">
-                          <label className="block text-xs font-bold text-slate-500 uppercase mb-2">
-                            {editingUser ? "Nova Senha (deixe em branco para não alterar)" : "Senha Inicial"}
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">
+                            {editingUser ? "Nova Senha (opcional)" : "Senha de Acesso"}
                           </label>
                           <input 
                             required={!editingUser}
                             type="password"
                             value={userForm.password}
                             onChange={(e) => setUserForm({...userForm, password: e.target.value})}
-                            className="w-full px-4 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-slate-400 outline-none"
-                            placeholder="******"
+                            className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-4 focus:ring-slate-900/5 focus:bg-white focus:border-slate-900 outline-none transition-all font-bold text-slate-900"
+                            placeholder="••••••"
                           />
                         </div>
                       </div>
 
-                      <div className="border-t border-slate-200 pt-6">
-                        <h4 className="font-bold text-slate-800 mb-4">Permissões de Acesso</h4>
-                        <div className="grid grid-cols-2 gap-y-3">
+                      <div className="pt-6">
+                        <div className="flex items-center gap-4 mb-8">
+                          <div className="h-px flex-1 bg-slate-100" />
+                          <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">Módulos Habilitados</h4>
+                          <div className="h-px flex-1 bg-slate-100" />
+                        </div>
+                        
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                           {Object.keys(userForm.permissions).map((module) => (
-                            <label key={module} className="flex items-center gap-3 cursor-pointer group">
+                            <label 
+                              key={module} 
+                              className={cn(
+                                "flex items-center gap-4 p-4 rounded-2xl border-2 cursor-pointer transition-all duration-300",
+                                (userForm.permissions as any)[module] 
+                                  ? "bg-slate-900 border-slate-900 text-white shadow-lg shadow-slate-900/10" 
+                                  : "bg-white border-slate-100 text-slate-400 hover:border-slate-200"
+                              )}
+                            >
                               <div className="relative inline-flex items-center">
                                 <input 
                                   type="checkbox"
-                                  className="sr-only peer"
+                                  className="sr-only"
                                   checked={(userForm.permissions as any)[module]}
                                   onChange={(e) => {
                                     setUserForm({
@@ -1243,35 +1316,43 @@ export default function Settings() {
                                     });
                                   }}
                                 />
-                                <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-slate-800"></div>
+                                <div className={cn(
+                                  "w-5 h-5 rounded-lg border-2 flex items-center justify-center transition-all",
+                                  (userForm.permissions as any)[module] ? "bg-white border-white" : "bg-transparent border-slate-200"
+                                )}>
+                                  {(userForm.permissions as any)[module] && <Check className="text-slate-900" size={12} strokeWidth={4} />}
+                                </div>
                               </div>
-                              <span className="text-sm font-medium text-slate-700 capitalize">
-                                {module === 'workOrders' ? 'Ordens de Serviço' :
-                                 module === 'appointments' ? 'Agendamentos' :
-                                 module === 'inventory' ? 'Estoque / Peças' :
+                              <span className="text-[11px] font-black uppercase tracking-widest truncate">
+                                {module === 'dashboard' ? 'Início' :
+                                 module === 'workOrders' ? 'Ordens' :
+                                 module === 'appointments' ? 'Agenda' :
+                                 module === 'inventory' ? 'Estoque' :
                                  module === 'finance' ? 'Financeiro' :
-                                 module === 'settings' ? 'Configurações' :
-                                 module}
+                                 module === 'settings' ? 'Ajustes' :
+                                 module === 'clients' ? 'Clientes' :
+                                 module === 'vehicles' ? 'Veículos' :
+                                 module === 'whatsapp' ? 'WhatsApp' : module}
                               </span>
                             </label>
                           ))}
                         </div>
                       </div>
 
-                      <div className="flex justify-end gap-3 mt-8">
+                      <div className="pt-10 flex flex-col sm:flex-row gap-4">
                         <button 
                           type="button" 
                           onClick={() => setShowUserModal(false)}
-                          className="px-6 py-2.5 border border-slate-200 text-slate-600 rounded-xl font-semibold hover:bg-slate-50 transition-colors"
+                          className="flex-1 px-8 py-5 border-2 border-slate-100 text-slate-400 rounded-3xl font-black text-xs uppercase tracking-widest hover:bg-slate-50 hover:border-slate-200 transition-all active:scale-95"
                         >
                           Cancelar
                         </button>
                         <button 
                           type="submit"
                           disabled={saving}
-                          className="px-8 py-2.5 bg-slate-800 text-white rounded-xl font-bold hover:bg-slate-900 transition-colors disabled:opacity-50"
+                          className="flex-[2] px-8 py-5 bg-slate-900 text-white rounded-3xl font-black text-xs uppercase tracking-[0.2em] hover:bg-slate-800 transition-all shadow-2xl shadow-slate-900/20 active:scale-95 disabled:opacity-50"
                         >
-                          {saving ? "Salvando..." : editingUser ? "Salvar Alterações" : "Criar Usuário"}
+                          {saving ? "Processando..." : editingUser ? "Confirmar Alterações" : "Ativar Novo Membro"}
                         </button>
                       </div>
                     </form>
