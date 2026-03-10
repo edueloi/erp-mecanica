@@ -35,6 +35,7 @@ import VehicleEntryDetail from './pages/VehicleEntryDetail';
 import EntryPublicForm from './pages/EntryPublicForm';
 import SuperAdmin from './pages/SuperAdmin';
 import WarrantyTermsPage from './pages/WarrantyTerms';
+import LegalPage from './pages/LegalPage';
 import LandingPage from './pages/LandingPage';
 import SplashScreen from './components/SplashScreen';
 
@@ -92,6 +93,10 @@ const router = createBrowserRouter(
       <Route path="/entry-upload/:token" element={<EntryPublicForm />} />
 
       <Route path="/superadmin/:tab?" element={<SuperAdminRoute><SuperAdmin /></SuperAdminRoute>} />
+
+      <Route path="/termos" element={<LegalPage title="Termos de Uso" lastUpdate="2026-03-10" type="terms" />} />
+      <Route path="/privacidade" element={<LegalPage title="Política de Privacidade" lastUpdate="2026-03-10" type="privacy" />} />
+      <Route path="/lgpd" element={<LegalPage title="Conformidade LGPD" lastUpdate="2026-03-10" type="lgpd" />} />
 
       <Route path="*" element={<Navigate to="/" />} />
     </>

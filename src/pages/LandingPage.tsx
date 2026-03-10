@@ -368,8 +368,8 @@ const LandingPage = () => {
           <div>
             <h4 className="text-[10px] font-black uppercase text-slate-900 tracking-widest mb-6 font-primary">Empresa</h4>
             <ul className="space-y-4">
-              <li><a href="#funcionalidades" className="text-xs font-bold text-slate-500 hover:text-blue-600 transition-colors">Funcionalidades</a></li>
-              <li><a href="#precos" className="text-xs font-bold text-slate-500 hover:text-blue-600 transition-colors">Planos e Preços</a></li>
+              <li><a href="#features" className="text-xs font-bold text-slate-500 hover:text-blue-600 transition-colors">Funcionalidades</a></li>
+              <li><a href="#pricing" className="text-xs font-bold text-slate-500 hover:text-blue-600 transition-colors">Planos e Preços</a></li>
               <li><a href="https://wa.me/5515998118548" target="_blank" rel="noopener noreferrer" className="text-xs font-bold text-slate-500 hover:text-blue-600 transition-colors">Suporte & Contato</a></li>
             </ul>
           </div>
