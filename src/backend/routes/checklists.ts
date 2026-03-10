@@ -163,12 +163,20 @@ const DEFAULT_CHECKLIST_ITEMS = [
 // GET all checklists for a vehicle
 router.get("/vehicle/:vehicleId", (req: AuthRequest, res) => {
   try {
+    // Check if vehicle_checklists table exists
+    const tableCheck = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='vehicle_checklists'").get();
+    if (!tableCheck) {
+      return res.json([]);
+    }
+
     const checklists = db.prepare(`
-      SELECT cl.*, u.name as inspector_name,
-        COUNT(ci.id) as total_items,
-        SUM(CASE WHEN ci.status = 'OK' THEN 1 ELSE 0 END) as ok_count,
-        SUM(CASE WHEN ci.status = 'ATTENTION' THEN 1 ELSE 0 END) as attention_count,
-        SUM(CASE WHEN ci.status = 'CRITICAL' THEN 1 ELSE 0 END) as critical_count
+      SELECT cl.id, cl.tenant_id, cl.vehicle_id, cl.work_order_id, cl.km, 
+             cl.inspector_name, cl.general_notes, cl.status, cl.created_at, cl.updated_at,
+             u.name as inspector_name_display,
+             COUNT(ci.id) as total_items,
+             SUM(CASE WHEN ci.status = 'OK' THEN 1 ELSE 0 END) as ok_count,
+             SUM(CASE WHEN ci.status = 'ATTENTION' THEN 1 ELSE 0 END) as attention_count,
+             SUM(CASE WHEN ci.status = 'CRITICAL' THEN 1 ELSE 0 END) as critical_count
       FROM vehicle_checklists cl
       LEFT JOIN users u ON cl.inspector_name = u.id
       LEFT JOIN vehicle_checklist_items ci ON ci.checklist_id = cl.id
@@ -176,8 +184,16 @@ router.get("/vehicle/:vehicleId", (req: AuthRequest, res) => {
       GROUP BY cl.id
       ORDER BY cl.created_at DESC
     `).all(req.params.vehicleId, req.user!.tenant_id);
-    res.json(checklists);
+
+    // Map inspector_name_display to inspector_name if needed by frontend
+    const mapped = checklists.map((cl: any) => ({
+      ...cl,
+      inspector_name: cl.inspector_name_display || cl.inspector_name // Fallback if join failed
+    }));
+
+    res.json(mapped);
   } catch (error: any) {
+    console.error(`Error fetching checklists for vehicle ${req.params.vehicleId}:`, error);
     res.status(500).json({ error: error.message });
   }
 });

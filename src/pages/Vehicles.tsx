@@ -391,30 +391,30 @@ export default function Vehicles() {
                   </span>
                 </td>
                 <td className="px-6 py-2 text-right">
-                  <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
+                  <div className="flex items-center justify-end gap-1.5" onClick={e => e.stopPropagation()}>
                     <button 
                       onClick={() => navigate(`/vehicles/${vehicle.id}`)}
-                      className="p-1.5 text-slate-400 hover:text-slate-900 hover:bg-slate-200 rounded transition-all" 
+                      className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-slate-900 hover:bg-slate-200 rounded-lg transition-all" 
                       title="Ver Detalhes"
                     >
-                      <ExternalLink size={14} />
+                      <Info size={16} />
                     </button>
                     <button 
                       onClick={() => { setSelectedVehicle(vehicle); setIsEditDrawerOpen(true); }}
-                      className="p-1.5 text-slate-400 hover:text-slate-900 hover:bg-slate-200 rounded transition-all" 
+                      className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all" 
                       title="Editar"
                     >
-                      <Edit size={14} />
+                      <Edit size={16} />
                     </button>
-                    <button className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded transition-all" title="Nova OS">
-                      <Plus size={14} />
+                    <button className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all" title="Nova OS">
+                      <Plus size={16} />
                     </button>
                     <button 
                       onClick={() => openHistory(vehicle)}
-                      className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-all" 
+                      className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all" 
                       title="Histórico"
                     >
-                      <History size={14} />
+                      <History size={16} />
                     </button>
                   </div>
                 </td>
@@ -424,7 +424,7 @@ export default function Vehicles() {
         </table>
       </div>
 
-      {/* New Vehicle Modal - Compact */}
+      {/* New Vehicle Modal - Premium */}
       <AnimatePresence>
         {isNewModalOpen && (
           <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
@@ -432,163 +432,161 @@ export default function Vehicles() {
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white w-full max-w-md rounded-xl shadow-2xl flex flex-col max-h-[90vh]"
+              className="bg-white w-full max-w-md rounded-2xl shadow-2xl flex flex-col max-h-[90vh]"
             >
-              <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between bg-slate-50 shrink-0">
-                <h2 className="text-sm font-bold text-slate-900">Novo Veículo</h2>
-                <button onClick={() => setIsNewModalOpen(false)} className="text-slate-400 hover:text-slate-900">
-                  <X size={18} />
+              <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-white shrink-0">
+                <div>
+                  <h2 className="text-base font-bold text-slate-900">Novo Veículo</h2>
+                  <p className="text-[10px] text-slate-500 font-medium">Preencha os dados técnicos</p>
+                </div>
+                <button onClick={() => setIsNewModalOpen(false)} className="text-slate-400 hover:text-slate-900 p-1 hover:bg-slate-100 rounded-lg transition-colors">
+                  <X size={20} />
                 </button>
               </div>
-              <form onSubmit={handleCreate} className="overflow-y-auto p-4 space-y-4">
-                <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 space-y-3">
-                  <div className="flex items-center justify-between mb-1">
-                    <h3 className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Busca Rápida FIPE</h3>
-                    {isFipeLoading && <div className="w-3 h-3 border-2 border-slate-900 border-t-transparent rounded-full animate-spin" />}
+              <form onSubmit={handleCreate} className="overflow-y-auto p-6 space-y-6">
+                <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Busca Rápida FIPE</h3>
+                    {isFipeLoading && <div className="w-4 h-4 border-2 border-slate-900 border-t-transparent rounded-full animate-spin" />}
                   </div>
                   
-                  <div className="grid grid-cols-3 gap-2">
-                    <button 
-                      type="button"
-                      onClick={() => setVehicleType('carros')}
-                      className={cn(
-                        "py-1.5 rounded text-[10px] font-bold border transition-all",
-                        vehicleType === 'carros' ? "bg-slate-900 text-white border-slate-900" : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
-                      )}
-                    >Carros</button>
-                    <button 
-                      type="button"
-                      onClick={() => setVehicleType('motos')}
-                      className={cn(
-                        "py-1.5 rounded text-[10px] font-bold border transition-all",
-                        vehicleType === 'motos' ? "bg-slate-900 text-white border-slate-900" : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
-                      )}
-                    >Motos</button>
-                    <button 
-                      type="button"
-                      onClick={() => setVehicleType('caminhoes')}
-                      className={cn(
-                        "py-1.5 rounded text-[10px] font-bold border transition-all",
-                        vehicleType === 'caminhoes' ? "bg-slate-900 text-white border-slate-900" : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
-                      )}
-                    >Caminhões</button>
+                  <div className="flex bg-white p-1 rounded-xl border border-slate-200 mb-4">
+                    {(['carros', 'motos', 'caminhoes'] as const).map(type => (
+                      <button 
+                        key={type}
+                        type="button"
+                        onClick={() => setVehicleType(type)}
+                        className={cn(
+                          "flex-1 py-1.5 rounded-lg text-[10px] font-bold transition-all uppercase tracking-tight",
+                          vehicleType === type ? "bg-slate-900 text-white shadow-sm" : "text-slate-500 hover:bg-slate-50"
+                        )}
+                      >
+                        {type === 'carros' ? 'Carros' : type === 'motos' ? 'Motos' : 'Caminhões'}
+                      </button>
+                    ))}
                   </div>
 
-                  <div className="space-y-2">
-                    <select 
-                      className="w-full bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-xs outline-none focus:ring-1 focus:ring-slate-900"
-                      value={selectedFipeBrand}
-                      onChange={e => handleFipeBrandChange(e.target.value)}
-                    >
-                      <option value="">Selecione a Marca...</option>
-                      {fipeBrands.map(b => <option key={b.codigo} value={b.codigo}>{b.nome}</option>)}
-                    </select>
+                  <div className="space-y-3">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-slate-400 px-1 uppercase">Marca</label>
+                      <select 
+                        className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-slate-900/5 focus:border-slate-900 shadow-sm transition-all"
+                        value={selectedFipeBrand}
+                        onChange={e => handleFipeBrandChange(e.target.value)}
+                      >
+                        <option value="">Selecione...</option>
+                        {fipeBrands.map(b => <option key={b.codigo} value={b.codigo}>{b.nome}</option>)}
+                      </select>
+                    </div>
 
-                    <select 
-                      disabled={!selectedFipeBrand}
-                      className="w-full bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-xs outline-none focus:ring-1 focus:ring-slate-900 disabled:opacity-50"
-                      value={selectedFipeModel}
-                      onChange={e => handleFipeModelChange(e.target.value)}
-                    >
-                      <option value="">Selecione o Modelo...</option>
-                      {fipeModels.map(m => <option key={m.codigo} value={m.codigo}>{m.nome}</option>)}
-                    </select>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-slate-400 px-1 uppercase">Modelo</label>
+                      <select 
+                        disabled={!selectedFipeBrand}
+                        className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-slate-900/5 focus:border-slate-900 shadow-sm transition-all disabled:opacity-50"
+                        value={selectedFipeModel}
+                        onChange={e => handleFipeModelChange(e.target.value)}
+                      >
+                        <option value="">Selecione...</option>
+                        {fipeModels.map(m => <option key={m.codigo} value={m.codigo}>{m.nome}</option>)}
+                      </select>
+                    </div>
 
-                    <select 
-                      disabled={!selectedFipeModel}
-                      className="w-full bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-xs outline-none focus:ring-1 focus:ring-slate-900 disabled:opacity-50"
-                      value={selectedFipeYear}
-                      onChange={e => handleFipeYearChange(e.target.value)}
-                    >
-                      <option value="">Selecione o Ano/Versão...</option>
-                      {fipeYears.map(y => <option key={y.codigo} value={y.codigo}>{y.nome}</option>)}
-                    </select>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-slate-400 px-1 uppercase">Ano / Versão</label>
+                      <select 
+                        disabled={!selectedFipeModel}
+                        className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-slate-900/5 focus:border-slate-900 shadow-sm transition-all disabled:opacity-50"
+                        value={selectedFipeYear}
+                        onChange={e => handleFipeYearChange(e.target.value)}
+                      >
+                        <option value="">Selecione...</option>
+                        {fipeYears.map(y => <option key={y.codigo} value={y.codigo}>{y.nome}</option>)}
+                      </select>
+                    </div>
                   </div>
                 </div>
 
-                <div className="h-px bg-slate-100 my-2" />
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1.5 px-1 tracking-widest">Proprietário</label>
+                    <select 
+                      required
+                      className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-medium outline-none focus:ring-2 focus:ring-slate-900/5 focus:border-slate-900 shadow-sm transition-all"
+                      value={newVehicle.client_id}
+                      onChange={e => setNewVehicle({...newVehicle, client_id: e.target.value})}
+                    >
+                      <option value="">Selecione um cliente...</option>
+                      {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    </select>
+                  </div>
 
-                <div>
-                  <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Proprietário</label>
-                  <select 
-                    required
-                    className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-slate-900"
-                    value={newVehicle.client_id}
-                    onChange={e => setNewVehicle({...newVehicle, client_id: e.target.value})}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1.5 px-1 tracking-widest">Placa</label>
+                      <input 
+                        type="text" required 
+                        className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-bold font-mono outline-none focus:ring-2 focus:ring-slate-900/5 focus:border-slate-900 shadow-sm transition-all uppercase placeholder:font-sans placeholder:font-normal"
+                        placeholder="AAA-0000"
+                        value={newVehicle.plate}
+                        onChange={e => setNewVehicle({...newVehicle, plate: e.target.value})}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1.5 px-1 tracking-widest">Cor</label>
+                      <input 
+                        type="text"
+                        className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-medium outline-none focus:ring-2 focus:ring-slate-900/5 focus:border-slate-900 shadow-sm transition-all"
+                        placeholder="Ex: Prata"
+                        value={newVehicle.color}
+                        onChange={e => setNewVehicle({...newVehicle, color: e.target.value})}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1.5 px-1 tracking-widest">KM Atual</label>
+                      <input 
+                        type="number" 
+                        className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-medium outline-none focus:ring-2 focus:ring-slate-900/5 focus:border-slate-900 shadow-sm transition-all"
+                        placeholder="0"
+                        value={newVehicle.km}
+                        onChange={e => setNewVehicle({...newVehicle, km: e.target.value})}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1.5 px-1 tracking-widest">Combustível</label>
+                      <select 
+                        className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-medium outline-none focus:ring-2 focus:ring-slate-900/5 focus:border-slate-900 shadow-sm transition-all"
+                        value={newVehicle.fuel_type}
+                        onChange={e => setNewVehicle({...newVehicle, fuel_type: e.target.value})}
+                      >
+                        <option value="FLEX">Flex</option>
+                        <option value="GASOLINE">Gasolina</option>
+                        <option value="ETHANOL">Etanol</option>
+                        <option value="DIESEL">Diesel</option>
+                        <option value="ELECTRIC">Elétrico</option>
+                        <option value="HYBRID">Híbrido</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-4 flex gap-3">
+                  <button 
+                    type="button" 
+                    onClick={() => setIsNewModalOpen(false)} 
+                    className="flex-1 py-3 border border-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-50 transition-colors"
                   >
-                    <option value="">Selecione um cliente</option>
-                    {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                  </select>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Placa</label>
-                    <input 
-                      type="text" required 
-                      className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-slate-900 font-mono uppercase"
-                      value={newVehicle.plate}
-                      onChange={e => setNewVehicle({...newVehicle, plate: e.target.value})}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Marca</label>
-                    <input 
-                      type="text" required 
-                      className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-slate-900"
-                      value={newVehicle.brand}
-                      onChange={e => setNewVehicle({...newVehicle, brand: e.target.value})}
-                    />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Modelo</label>
-                    <input 
-                      type="text" required 
-                      className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-slate-900"
-                      value={newVehicle.model}
-                      onChange={e => setNewVehicle({...newVehicle, model: e.target.value})}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Ano</label>
-                    <input 
-                      type="number" required
-                      className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-slate-900"
-                      value={newVehicle.year}
-                      onChange={e => setNewVehicle({...newVehicle, year: e.target.value})}
-                    />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">KM Atual</label>
-                    <input 
-                      type="number" 
-                      className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-slate-900"
-                      value={newVehicle.km}
-                      onChange={e => setNewVehicle({...newVehicle, km: e.target.value})}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Combustível</label>
-                    <select 
-                      className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-slate-900"
-                      value={newVehicle.fuel_type}
-                      onChange={e => setNewVehicle({...newVehicle, fuel_type: e.target.value})}
-                    >
-                      <option value="FLEX">Flex</option>
-                      <option value="GASOLINE">Gasolina</option>
-                      <option value="ETHANOL">Etanol</option>
-                      <option value="DIESEL">Diesel</option>
-                      <option value="ELECTRIC">Elétrico</option>
-                      <option value="HYBRID">Híbrido</option>
-                    </select>
-                  </div>
-                </div>
-                <div className="p-4 border-t border-slate-100 flex gap-2 shrink-0">
-                  <button type="button" onClick={() => setIsNewModalOpen(false)} className="flex-1 py-2 border border-slate-200 rounded-lg text-xs font-bold text-slate-600 hover:bg-slate-50">Cancelar</button>
-                  <button type="submit" className="flex-1 py-2 bg-slate-900 text-white rounded-lg text-xs font-bold hover:bg-slate-800">Salvar Veículo</button>
+                    Descartar
+                  </button>
+                  <button 
+                    type="submit" 
+                    className="flex-1 py-3 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-slate-800 shadow-lg shadow-slate-900/20 transition-all active:scale-95"
+                  >
+                    Cadastrar Veículo
+                  </button>
                 </div>
               </form>
             </motion.div>
@@ -596,7 +594,7 @@ export default function Vehicles() {
         )}
       </AnimatePresence>
 
-      {/* Edit Drawer - Premium */}
+      {/* Edit Drawer - Optimized & Compact */}
       <AnimatePresence>
         {isEditDrawerOpen && (
           <div className="fixed inset-0 z-[100] flex justify-end">
@@ -611,88 +609,109 @@ export default function Vehicles() {
               initial={{ x: '100%' }}
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
-              transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className="bg-white w-full max-w-[40%] h-full shadow-2xl flex flex-col relative z-10"
+              transition={{ type: "spring", damping: 30, stiffness: 300 }}
+              className="bg-white w-full max-w-md h-full shadow-2xl flex flex-col relative z-10"
             >
-              <div className="px-6 py-6 border-b border-slate-100 flex items-center justify-between bg-slate-900 shrink-0">
-                <div className="flex items-center gap-3 text-white">
-                  <div className="w-10 h-10 rounded-xl bg-emerald-500/20 flex items-center justify-center">
-                    <Edit size={20} className="text-emerald-400" />
+              <div className="px-6 py-6 border-b border-slate-100 flex items-center justify-between shrink-0">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-slate-900 text-white flex items-center justify-center shadow-lg shadow-slate-900/20">
+                    <Edit size={20} />
                   </div>
                   <div>
-                    <h2 className="text-lg font-black italic uppercase tracking-tight">Editar Veículo</h2>
-                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Atualizar informações da frota</p>
+                    <h2 className="text-lg font-bold text-slate-900">Editar Veículo</h2>
+                    <p className="text-[10px] text-slate-500 font-medium uppercase tracking-widest">{selectedVehicle?.plate}</p>
                   </div>
                 </div>
                 <button 
                   onClick={() => setIsEditDrawerOpen(false)} 
-                  className="w-10 h-10 rounded-xl bg-white/10 text-white hover:bg-white/20 transition-all flex items-center justify-center active:scale-90 cursor-pointer"
+                  className="w-10 h-10 rounded-xl bg-slate-50 text-slate-400 hover:text-slate-900 hover:bg-slate-100 transition-all flex items-center justify-center active:scale-90"
                 >
                   <X size={20} />
                 </button>
               </div>
 
-              <div className="p-8 overflow-y-auto space-y-8 flex-1 custom-scrollbar">
-                <div className="grid grid-cols-2 gap-6">
-                  <div className="col-span-2">
-                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-2 tracking-widest">Proprietário Atual</label>
+              <div className="p-8 overflow-y-auto space-y-8 flex-1">
+                <section className="space-y-4">
+                  <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mb-4">Informações de Posse</h3>
+                  
+                  <div className="space-y-1">
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase px-1">Proprietário</label>
                     <select 
                       defaultValue={selectedVehicle?.client_id}
-                      className="w-full h-14 bg-slate-50 border border-slate-200 rounded-2xl px-5 text-sm font-bold text-slate-700 focus:ring-4 focus:ring-slate-900/5 focus:border-slate-900 outline-none transition-all appearance-none cursor-pointer"
+                      className="w-full h-12 bg-slate-50 border border-slate-200 rounded-xl px-4 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-slate-900/5 focus:border-slate-900 transition-all appearance-none"
                     >
                       {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                     </select>
                   </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <label className="block text-[10px] font-bold text-slate-500 uppercase px-1">Placa</label>
+                      <input 
+                        type="text" 
+                        defaultValue={selectedVehicle?.plate} 
+                        className="w-full h-12 bg-slate-50 border border-slate-200 rounded-xl px-4 text-sm font-bold text-slate-900 font-mono uppercase outline-none focus:ring-2 focus:ring-slate-900/5 focus:border-slate-900" 
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="block text-[10px] font-bold text-slate-500 uppercase px-1">Status</label>
+                      <select 
+                        defaultValue={selectedVehicle?.status || 'ACTIVE'}
+                        className="w-full h-12 bg-slate-50 border border-slate-200 rounded-xl px-4 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-slate-900/5 focus:border-slate-900 transition-all"
+                      >
+                        <option value="ACTIVE">Ativo</option>
+                        <option value="INACTIVE">Inativo</option>
+                      </select>
+                    </div>
+                  </div>
+                </section>
+
+                <section className="space-y-4 pt-4 border-t border-slate-100">
+                  <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mb-4">Dados Técnicos</h3>
                   
-                  <div>
-                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-2 tracking-widest">Placa</label>
-                    <input 
-                      type="text" 
-                      defaultValue={selectedVehicle?.plate} 
-                      className="w-full h-14 bg-slate-50 border border-slate-200 rounded-2xl px-5 text-sm font-bold text-slate-700 focus:ring-4 focus:ring-slate-900/5 focus:border-slate-900 outline-none transition-all font-mono uppercase" 
-                    />
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <label className="block text-[10px] font-bold text-slate-500 uppercase px-1">Marca</label>
+                      <input type="text" defaultValue={selectedVehicle?.brand} className="w-full h-11 bg-slate-50 border border-slate-200 rounded-xl px-4 text-sm font-medium" />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="block text-[10px] font-bold text-slate-500 uppercase px-1">Modelo</label>
+                      <input type="text" defaultValue={selectedVehicle?.model} className="w-full h-11 bg-slate-50 border border-slate-200 rounded-xl px-4 text-sm font-medium" />
+                    </div>
                   </div>
 
-                  <div>
-                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-2 tracking-widest">Status do Veículo</label>
-                    <select 
-                      defaultValue={selectedVehicle?.status}
-                      className="w-full h-14 bg-slate-50 border border-slate-200 rounded-2xl px-5 text-sm font-bold text-slate-700 focus:ring-4 focus:ring-slate-900/5 focus:border-slate-900 outline-none transition-all appearance-none cursor-pointer"
-                    >
-                      <option value="ACTIVE">Ativo na Oficina</option>
-                      <option value="INACTIVE">Inativo / Vendido</option>
-                    </select>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <label className="block text-[10px] font-bold text-slate-500 uppercase px-1">Ano</label>
+                      <input type="number" defaultValue={selectedVehicle?.year} className="w-full h-11 bg-slate-50 border border-slate-200 rounded-xl px-4 text-sm font-medium" />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="block text-[10px] font-bold text-slate-500 uppercase px-1">Cor</label>
+                      <input type="text" defaultValue={selectedVehicle?.color} className="w-full h-11 bg-slate-50 border border-slate-200 rounded-xl px-4 text-sm font-medium" />
+                    </div>
                   </div>
 
-                  <div className="col-span-2 h-px bg-slate-100 my-2" />
-
-                  <div>
-                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-2 tracking-widest">Marca</label>
-                    <input type="text" defaultValue={selectedVehicle?.brand} className="w-full h-12 bg-slate-50 border border-slate-200 rounded-xl px-4 text-sm font-bold" />
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <label className="block text-[10px] font-bold text-slate-500 uppercase px-1">KM Atual</label>
+                      <input type="number" defaultValue={selectedVehicle?.km} className="w-full h-11 bg-slate-50 border border-slate-200 rounded-xl px-4 text-sm font-medium" />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="block text-[10px] font-bold text-slate-500 uppercase px-1">Chassi (VIN)</label>
+                      <input type="text" defaultValue={selectedVehicle?.vin} className="w-full h-11 bg-slate-50 border border-slate-200 rounded-xl px-4 text-xs font-mono" />
+                    </div>
                   </div>
-                  <div>
-                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-2 tracking-widest">Modelo</label>
-                    <input type="text" defaultValue={selectedVehicle?.model} className="w-full h-12 bg-slate-50 border border-slate-200 rounded-xl px-4 text-sm font-bold" />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-2 tracking-widest">Ano</label>
-                    <input type="number" defaultValue={selectedVehicle?.year} className="w-full h-12 bg-slate-50 border border-slate-200 rounded-xl px-4 text-sm font-bold" />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-black text-slate-400 uppercase mb-2 tracking-widest">KM Atual</label>
-                    <input type="number" defaultValue={selectedVehicle?.km} className="w-full h-12 bg-slate-50 border border-slate-200 rounded-xl px-4 text-sm font-bold" />
-                  </div>
-                </div>
+                </section>
               </div>
 
-              <div className="p-6 border-t border-slate-100 shrink-0 bg-slate-50 flex gap-4">
+              <div className="p-6 border-t border-slate-100 flex gap-3 bg-white shrink-0">
                 <button 
                   onClick={() => setIsEditDrawerOpen(false)} 
-                  className="flex-1 py-4 border-2 border-slate-200 rounded-2xl text-xs font-black uppercase tracking-widest text-slate-400 hover:bg-white hover:text-slate-600 transition-all cursor-pointer"
+                  className="flex-1 py-3.5 border border-slate-200 rounded-xl text-xs font-bold text-slate-500 hover:bg-slate-50 transition-colors"
                 >
-                  Descartar
+                  Cancelar
                 </button>
-                <button className="flex-[2] py-4 bg-slate-900 text-white rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-slate-800 transition-all shadow-xl shadow-slate-900/20 active:scale-95 cursor-pointer">
+                <button className="flex-[2] py-3.5 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-slate-800 shadow-xl shadow-slate-900/20 transition-all active:scale-95">
                   Salvar Alterações
                 </button>
               </div>

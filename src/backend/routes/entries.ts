@@ -167,6 +167,12 @@ router.post("/", (req: AuthRequest, res) => {
 // GET entries by vehicle id
 router.get("/vehicle/:vehicleId", (req: AuthRequest, res) => {
   try {
+    // Check if vehicle_entries table exists
+    const tableCheck = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='vehicle_entries'").get();
+    if (!tableCheck) {
+      return res.json([]);
+    }
+
     const entries = db.prepare(`
       SELECT * FROM vehicle_entries 
       WHERE vehicle_id = ? AND tenant_id = ? 
@@ -174,6 +180,7 @@ router.get("/vehicle/:vehicleId", (req: AuthRequest, res) => {
     `).all(req.params.vehicleId, req.user!.tenant_id);
     res.json(entries);
   } catch (error: any) {
+    console.error(`Error fetching entries for vehicle ${req.params.vehicleId}:`, error);
     res.status(500).json({ error: error.message });
   }
 });

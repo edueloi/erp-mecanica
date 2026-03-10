@@ -33,18 +33,31 @@ export default function VehicleDetail() {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [vRes, cRes, eRes] = await Promise.all([
-        api.get(`/vehicles/${id}`),
-        api.get(`/checklists/vehicle/${id}`),
-        api.get(`/entries/vehicle/${id}`)
-      ]);
+      // Fetch main vehicle data first
+      const vRes = await api.get(`/vehicles/${id}`);
       setVehicle(vRes.data);
-      setChecklists(Array.isArray(cRes.data) ? cRes.data : []);
-      setEntries(Array.isArray(eRes.data) ? eRes.data : []);
-    } catch (err) {
-      console.error('Error fetching vehicle data:', err);
-      setChecklists([]);
-      setEntries([]);
+
+      // Then fetch secondary data independently
+      api.get(`/checklists/vehicle/${id}`)
+        .then(res => setChecklists(Array.isArray(res.data) ? res.data : []))
+        .catch(err => {
+          console.error('Error fetching checklists:', err);
+          setChecklists([]);
+        });
+
+      api.get(`/entries/vehicle/${id}`)
+        .then(res => setEntries(Array.isArray(res.data) ? res.data : []))
+        .catch(err => {
+          console.error('Error fetching entries:', err);
+          setEntries([]);
+        });
+
+    } catch (err: any) {
+      console.error('Error fetching core vehicle data:', err);
+      if (err.response?.status === 500) {
+        alert("O servidor encontrou um erro ao processar o histórico deste veículo. " + 
+              (err.response.data?.details || "Tente novamente mais tarde."));
+      }
       if (!vehicle) navigate('/vehicles');
     } finally {
       setLoading(false);

@@ -1,5 +1,6 @@
 import express from "express";
 import { v4 as uuidv4 } from "uuid";
+import fs from 'fs';
 import db from "../db";
 import { authenticateToken, AuthRequest } from "../middleware/auth";
 
@@ -40,38 +41,72 @@ router.get("/:id", (req: AuthRequest, res) => {
       return res.status(404).json({ error: "Veículo não encontrado" });
     }
 
+    // Dynamic column detection for work_orders
+    const woColumns = db.prepare("PRAGMA table_info('work_orders')").all() as any[];
+    const validWoCols = woColumns.map(c => c.name.toLowerCase());
+    
+    // Choose the best column for mechanic/responsible join
+    let mechanicJoin = '';
+    let responsibleSelect = '';
+    if (validWoCols.includes('responsible_id')) {
+      mechanicJoin = 'LEFT JOIN users u ON wo.responsible_id = u.id';
+      responsibleSelect = ', u.name as responsible_name';
+    } else if (validWoCols.includes('mechanic_id')) {
+      mechanicJoin = 'LEFT JOIN users u ON wo.mechanic_id = u.id';
+      responsibleSelect = ', u.name as responsible_name';
+    }
+
+    // Check if tenant_id exists in work_orders
+    const woHasTenant = validWoCols.includes('tenant_id');
+
     // Fetch work orders history for this vehicle
     const workOrders = db.prepare(`
-      SELECT wo.*, u.name as mechanic_name
+      SELECT wo.* ${responsibleSelect}
       FROM work_orders wo
-      LEFT JOIN users u ON wo.mechanic_id = u.id
-      WHERE wo.vehicle_id = ? AND wo.tenant_id = ?
+      ${mechanicJoin}
+      WHERE wo.vehicle_id = ? ${woHasTenant ? 'AND wo.tenant_id = ?' : ''}
       ORDER BY wo.created_at DESC
-    `).all(vehicle.id, req.user!.tenant_id);
+    `).all(vehicle.id, ...(woHasTenant ? [req.user!.tenant_id] : []));
 
-    // For each work order, fetch its items (services and parts)
+    // Dynamic column detection for work_order_items
+    const woiColumns = db.prepare("PRAGMA table_info('work_order_items')").all() as any[];
+    const validWoiCols = woiColumns.map(c => c.name.toLowerCase());
+
+    // For each work order, fetch its items
     const workOrdersWithItems = workOrders.map((wo: any) => {
-      const items = db.prepare(`
-        SELECT woi.*, 
-               COALESCE(p.name, s.name) as name,
-               CASE WHEN woi.part_id IS NOT NULL THEN 'PART' ELSE 'SERVICE' END as category
-        FROM work_order_items woi
-        LEFT JOIN parts p ON woi.part_id = p.id
-        LEFT JOIN services s ON woi.service_id = s.id
-        WHERE woi.work_order_id = ?
-      `).all(wo.id);
+      const woiFields = ['woi.*'];
+      if (validWoiCols.includes('type')) {
+        woiFields.push("CASE WHEN woi.type = 'PART' THEN 'PART' ELSE 'SERVICE' END as item_category");
+      } else if (validWoiCols.includes('category')) {
+        woiFields.push("woi.category as item_category");
+      }
 
-      return {
-        ...wo,
-        items
-      };
+      try {
+        const items = db.prepare(`
+          SELECT ${woiFields.join(', ')}
+          FROM work_order_items woi
+          WHERE woi.work_order_id = ?
+        `).all(wo.id);
+
+        return {
+          ...wo,
+          items
+        };
+      } catch (e) {
+        console.error(`Error fetching items for WO ${wo.id}:`, e);
+        return { ...wo, items: [] };
+      }
     });
 
     vehicle.workOrders = workOrdersWithItems;
 
     res.json(vehicle);
   } catch (error: any) {
-    res.status(500).json({ error: error.message });
+    console.error(`Error fetching vehicle ${req.params.id}:`, error);
+    res.status(500).json({ 
+      error: error.message, 
+      details: "Ocorreu um erro no servidor ao carregar o histórico do veículo. Verifique se o banco de dados está atualizado."
+    });
   }
 });
 
