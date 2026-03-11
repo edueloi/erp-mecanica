@@ -12,9 +12,9 @@ router.get("/", (req: AuthRequest, res) => {
   let query = `
     SELECT 
       c.*,
-      (SELECT COUNT(*) FROM vehicles v WHERE v.client_id = c.id) as vehicles_count,
-      (SELECT COUNT(*) FROM work_orders wo WHERE wo.client_id = c.id) as os_count,
-      (SELECT COUNT(*) FROM accounts_receivable ar WHERE ar.client_id = c.id AND ar.status = 'PENDING') as pendencies_count
+      (SELECT COUNT(*) FROM vehicles v WHERE v.client_id = c.id AND v.tenant_id = c.tenant_id) as vehicles_count,
+      (SELECT COUNT(*) FROM work_orders wo WHERE wo.client_id = c.id AND wo.tenant_id = c.tenant_id) as os_count,
+      (SELECT COUNT(*) FROM accounts_receivable ar WHERE ar.client_id = c.id AND ar.tenant_id = c.tenant_id AND ar.status = 'PENDING') as pendencies_count
     FROM clients c 
     WHERE c.tenant_id = ?
   `;
