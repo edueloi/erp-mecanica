@@ -436,4 +436,239 @@ export const knowledgeBase: KnowledgeItem[] = [
     actionLabel: "Falar com Humano",
     actionMsg: "Olá, o robô do site não conseguiu me entender direito. Quero tirar uma dúvida.",
   },
+
+  // ==========================================
+  // 24. PLANOS — BIBLIOTECA DEVASTADORA
+  // ==========================================
+
+  // --- O que cada plano oferece (detalhado) ---
+  {
+    id: 'start_full_detail',
+    keywords: ['tudo do start', 'detalhe start', 'funcoes start', 'recursos start', 'o que inclui start', 'start completo', 'modulos start', 'limite start', 'start serve para mim'],
+    response: "O **Plano Start — R$ 197/mês** é o ponto de entrada perfeito. Veja tudo que está incluído:\n\n📋 **Gestão de OS**\n• Criação ilimitada de Ordens de Serviço\n• Status Kanban (Aberta, Em andamento, Finalizada)\n• PDF da OS com logo da oficina\n• Orçamentos para clientes\n• Histórico de OS por cliente e veículo\n\n👤 **Clientes e Veículos**\n• Cadastro ilimitado de clientes (PF e PJ)\n• Cadastro ilimitado de veículos\n• Histórico completo por cliente\n• Busca por placa\n\n💰 **Financeiro**\n• Registro de pagamentos\n• Contas a Receber básico\n• Fluxo de Caixa simples\n• Dashboard de faturamento\n\n📦 **Estoque**\n• Cadastro de peças\n• Baixa automática na OS\n\n👥 **Usuários**\n• Até 3 usuários simultâneos\n\nIdeal para oficinas que estão saindo do caderno e da planilha. 14 dias grátis — sem cartão!",
+    hasAction: true,
+    actionLabel: "Testar Start Grátis",
+    actionType: 'link',
+    url: '/register',
+  },
+  {
+    id: 'pro_full_detail',
+    keywords: ['tudo do pro', 'detalhe pro', 'funcoes pro', 'recursos pro', 'o que inclui pro', 'pro completo', 'modulos pro', 'limite pro', 'pro serve para mim', 'pro vale'],
+    response: "O **Plano Pro — R$ 297/mês** é o mais vendido e por bom motivo. Inclui TUDO do Start mais:\n\n📱 **WhatsApp Integrado**\n• Envio de orçamentos para aprovação\n• Aviso automático de carro pronto\n• Lembretes de revisão agendados\n• Confirmação de agendamentos\n\n📸 **Checklist Digital HD**\n• Fotos de entrada do veículo\n• Assinatura digital pelo cliente\n• Laudo com validade jurídica\n\n📈 **Relatórios Avançados**\n• DRE completo\n• Lucratividade por serviço e peça\n• Performance por mecânico\n• Ranking de clientes\n\n🔧 **Comissões Automáticas**\n• % por mecânico por serviço/peça\n• Relatório de acerto mensal\n\n📅 **Agenda Inteligente**\n• Controle de box/elevador\n• Alocação de mecânicos\n\n📦 **Estoque Avançado**\n• Alertas de estoque mínimo\n• Curva ABC\n• Pedidos de compra\n\n👥 **Usuários**\n• Até 10 usuários com permissões por cargo\n\n**Este é o plano que muda o jogo da sua oficina!**",
+    hasAction: true,
+    actionLabel: "Testar Pro Grátis",
+    actionType: 'link',
+    url: '/register',
+  },
+  {
+    id: 'elite_full_detail',
+    keywords: ['tudo do elite', 'detalhe elite', 'funcoes elite', 'recursos elite', 'o que inclui elite', 'elite completo', 'modulos elite', 'limite elite', 'elite serve para mim', 'elite vale'],
+    response: "O **Plano Elite — R$ 497/mês** é para quem quer dominar o mercado. Inclui TUDO do Pro mais:\n\n🏢 **Multi-Unidades**\n• Gestão de múltiplas filiais em um painel\n• Faturamento consolidado de todas as unidades\n• Comparativo de performance entre filiais\n• Estoque centralizado\n\n👑 **Suporte VIP**\n• Canal prioritário com tempo de resposta reduzido\n• Gerente de conta dedicado\n• Onboarding personalizado para toda sua equipe\n\n🔗 **API e Integrações**\n• Acesso completo à API do MecaERP\n• Webhooks para sistemas externos\n• Integração com sistemas de contabilidade\n• Exportações customizadas\n\n📊 **Relatórios Corporativos**\n• BI avançado com gráficos executivos\n• Relatórios comparativos multi-unidade\n• Exportação para Power BI / Google Analytics\n\n👥 **Usuários**\n• Usuários ilimitados\n• Permissões granulares por cargo\n\nO **Elite** é para redes automotivas, grandes centros e franqueadores.",
+    hasAction: true,
+    actionLabel: "Falar sobre o Plano Elite",
+    actionMsg: "Olá! Tenho interesse no Plano Elite do MecaERP. Quero saber mais.",
+  },
+
+  // --- Perguntas de qual plano escolher ---
+  {
+    id: 'which_plan_small_shop',
+    keywords: ['plano para oficina pequena', 'oficina pequena', 'comeando agora', 'so eu trabalho', 'trabalho sozinho', 'um mecanico', 'pequena oficina', 'inicio do negocio', 'abri agora'],
+    response: "Para uma oficina pequena ou quem está começando, o **Plano Start (R$ 197/mês)** é o ideal! 🏁\n\nEle já te dá:\n• OS ilimitadas e profissionais\n• Controle de clientes e veículos\n• Financeiro básico para saber seu lucro\n• Dashboard de vendas\n\nAssim que crescer e quiser automatização (WhatsApp, Checklist HD, Comissões), você migra pro **Pro** com um clique — sem perder nenhum dado!\n\nComece com o teste grátis de 14 dias hoje mesmo.",
+    hasAction: true,
+    actionLabel: "Começar com o Start Grátis",
+    actionType: 'link',
+    url: '/register',
+  },
+  {
+    id: 'which_plan_medium_shop',
+    keywords: ['plano para oficina media', 'oficina media', 'tenho funcionarios', 'equipe mecanicos', 'varios mecanicos', ' 2 mecanicos', '3 mecanicos', 'crescendo', 'quero crescer', 'expandindo'],
+    response: "Para uma oficina em crescimento com equipe, o **Plano Pro (R$ 297/mês)** é a escolha certa! 🚀\n\nAlém de organizar tudo, o Pro vai:\n• Enviar orçamentos pelo **WhatsApp** — o cliente aprova no celular\n• **Fotografar o carro na entrada** — sem mais briga sobre riscos\n• Calcular **comissões automáticas** — sem briga no acerto\n• Programar **lembretes de revisão** — cliente volta sem você ligar\n\nO Pro transforma sua oficina em uma **máquina de fidelização**. Teste 14 dias grátis!",
+    hasAction: true,
+    actionLabel: "Testar Pro Grátis Agora",
+    actionType: 'link',
+    url: '/register',
+  },
+  {
+    id: 'which_plan_large_shop',
+    keywords: ['plano para grande oficina', 'grande oficina', 'centro automotivo', 'mais de uma unidade', 'varias filiais', 'rede de oficinas', 'franquia mecanica', 'muitos funcionarios', 'grande empresa'],
+    response: "Para grandes centros automotivos ou redes com múltiplas unidades, o **Plano Elite (R$ 497/mês)** foi feito para você! 🏆\n\nSe você tem:\n• 2 ou mais filiais/oficinas\n• Equipe grande com diferentes cargos\n• Necessidade de relatórios corporativos\n• Integração com outros sistemas\n\nO Elite consolida tudo em um único painel de controle. Fale com nossa equipe para uma demonstração personalizada da sua realidade!",
+    hasAction: true,
+    actionLabel: "Agendar Demo do Elite",
+    actionMsg: "Olá! Tenho uma rede/grande centro automotivo e quero conhecer o Plano Elite. Podem me ajudar?",
+  },
+  {
+    id: 'plan_whats_difference_cost',
+    keywords: ['diferenca de preco', 'por que pro e mais caro', 'por que vale mais', 'custo beneficio planos', 'compensar pagar mais', 'vale a diferenca', 'diferenca de 100 reais', 'diferenca 200 reais'],
+    response: "A diferença de preço entre os planos é justificada pelos **recursos que multiplicam seu faturamento**:\n\n• **Start → Pro (+R$100/mês):** Você ganha WhatsApp automático + Checklist HD. Só o WhatsApp recupera orçamentos que seriam perdidos. **1 OS a mais por semana** já paga os R$100 extras com sobra.\n\n• **Pro → Elite (+R$200/mês):** Você ganha gestão multi-filiais + API + suporte VIP. Para quem tem 2+ unidades, economiza horas de gestão manual por mês.\n\nA pergunta não é 'quanto custa a mais' — é 'quanto vou ganhar a mais com esses recursos'?",
+  },
+  {
+    id: 'plan_annual',
+    keywords: ['plano anual', 'pagar anual', 'desconto anual', 'assinar por ano', 'cobranca anual', 'fidelidade anual', 'pagamento anual'],
+    response: "Temos planos com **pagamento anual** que oferecem desconto equivalente a **2 meses grátis**! 🎁\n\nAo invés de pagar mês a mês, você faz um único pagamento anual e economiza:\n• Start Anual: economize R$ 394\n• Pro Anual: economize R$ 594\n• Elite Anual: economize R$ 994\n\nFale com nossa equipe para ativar o plano anual e garantir o desconto!",
+    hasAction: true,
+    actionLabel: "Quero o Plano Anual com Desconto",
+    actionMsg: "Olá! Tenho interesse no plano anual do MecaERP para aproveitar o desconto. Podem me ajudar?",
+  },
+  {
+    id: 'plan_cancel',
+    keywords: ['cancelar plano', 'desistir', 'sair do sistema', 'cancelamento', 'posso cancelar', 'como cancelo', 'sem fidelidade', 'contrato minimo', 'preso', 'fidelidade'],
+    response: "**Não há fidelidade nem contrato mínimo** no MecaERP! 🤝\n\nVocê pode cancelar quando quiser, sem multa e sem burocracia. Basta acessar Configurações → Plano → Cancelar Assinatura.\n\nMas aviso: 97% dos nossos clientes que testam ficam — porque os resultados falam por si. Use os 14 dias grátis sem compromisso e veja com seus próprios olhos!",
+    hasAction: true,
+    actionLabel: "Testar Sem Compromisso",
+    actionType: 'link',
+    url: '/register',
+  },
+  {
+    id: 'plan_change',
+    keywords: ['trocar plano', 'mudar de plano', 'downgrade', 'baixar plano', 'mudar do pro para start', 'reduzir plano', 'upgrade downgrade', 'flexibilidade plano'],
+    response: "Você pode **trocar de plano a qualquer momento** — para cima ou para baixo! 🔄\n\n• **Upgrade:** Ativação imediata, sem burocracia. Seus dados e histórico são preservados 100%.\n• **Downgrade:** Entra em vigor no próximo ciclo de cobrança. Você continua usando os recursos do plano atual até o fim do período.\n\nTudo feito diretamente no Painel → Configurações → Meu Plano. Simples assim!",
+  },
+  {
+    id: 'plan_users_limit',
+    keywords: ['limite de usuarios', 'quantos usuarios', 'usuarios por plano', 'funcionarios no sistema', 'acesso para equipe', 'quantos acessos'],
+    response: "O limite de usuários por plano:\n\n• **Start:** Até **3 usuários** simultâneos\n• **Pro:** Até **10 usuários** com permissões por cargo\n• **Elite:** **Usuários ilimitados**\n\nCada usuário pode ter perfil de Admin, Gerente, Mecânico ou Recepcionista — com acesso restrito apenas ao que precisa. Segurança total para seu negócio!",
+  },
+  {
+    id: 'plan_os_limit',
+    keywords: ['limite de os', 'quantas os posso fazer', 'os ilimitada', 'limite de ordens', 'posso criar muitas os'],
+    response: "**Nenhum plano tem limite de OS!** 🎉\n\nVocê pode criar quantas Ordens de Serviço precisar — 10, 100, 1.000 por mês. Não há cobrança extra por volume de OS, por número de clientes ou por quantidade de veículos cadastrados.\n\nO preço é fixo e previsível. Você cresce sem surpresas na fatura!",
+  },
+  {
+    id: 'plan_storage',
+    keywords: ['espaco de armazenamento', 'limite de fotos', 'armazenamento', 'guardar fotos', 'espaco em disco', 'limite de dados'],
+    response: "Não se preocupe com armazenamento! ☁️\n\n• **Start e Pro:** Armazenamento generoso para documentos, OS e relatórios\n• **Pro e Elite:** Inclui armazenamento de fotos do **Checklist HD** (ilimitadas no Elite)\n\nTodos os dados ficam na nuvem AWS — sem limite que atrapalhe seu dia a dia. E backups automáticos de hora em hora garantem que nada se perde!",
+  },
+
+  // --- Para que serve o sistema? ---
+  {
+    id: 'system_purpose',
+    keywords: ['para que serve', 'qual o objetivo', 'qual o intuito', 'finalidade do sistema', 'o que resolve', 'qual o proposito', 'por que usar', 'utilidade do sistema', 'motivo usar'],
+    response: "O MecaERP existe para resolver os **3 maiores problemas das oficinas mecânicas**:\n\n**1. Desorganização** → Transforma caderno e planilha em um painel digital profissional com tudo em um lugar\n\n**2. Perda de dinheiro** → Rastreia cada OS, cada peça, cada pagamento — você para de perder receita sem saber por quê\n\n**3. Falta de tempo** → Automatiza WhatsApp, lembretes, comissões e checklist — você foca no que importa: a mecânica\n\nResultado: oficinas que usam o MecaERP faturam em média **30% mais** em 3 meses. Quer fazer parte desse grupo?",
+    hasAction: true,
+    actionLabel: "Quero Fazer Parte",
+    actionType: 'link',
+    url: '/register',
+  },
+  {
+    id: 'system_who_for',
+    keywords: ['para quem e', 'quem usa', 'meu tipo de negocio', 'funciona para mim', 'serve para todo tipo de oficina', 'auto eletrica', 'funilaria', 'estetica automotiva', 'alinhamento', 'borracharia'],
+    response: "O MecaERP atende **qualquer tipo de negócio automotivo**! 🚗🔧\n\n✅ Oficinas mecânicas gerais\n✅ Auto elétricas\n✅ Funilaria e pintura\n✅ Estética automotiva\n✅ Centros de alinhamento/balanceamento\n✅ Borracharias\n✅ Troca de óleo e revisões rápidas\n✅ Centros automotivos multisserviços\n✅ Frotas e empresas com veículos\n\nO sistema se adapta ao seu fluxo de trabalho — não o contrário!",
+  },
+  {
+    id: 'system_vs_paper',
+    keywords: ['e melhor que caderno', 'substituir caderno', 'abandonar planilha', 'parar de usar papel', 'papel vs sistema', 'planilha vs sistema', 'excel vs sistema', 'digital vs papel'],
+    response: "A comparação é direta:\n\n| | Caderno/Planilha | MecaERP |\n|---|---|---|\n| Perder OS | Frequente | Impossível |\n| Saber o lucro real | Nunca | Tempo real |\n| Enviar orçamento | Lento (papel/WhatsApp manual) | 1 clique |\n| Controlar estoque | Trabalhoso | Automático |\n| Calcular comissões | Briga mensal | Relatório pronto |\n| Lembretes de revisão | Você precisa lembrar | Sistema faz |\n| Acessar de qualquer lugar | Não | Celular e PC |\n\nA pergunta é: quanto dinheiro você está perdendo por mês usando métodos antigos?",
+    hasAction: true,
+    actionLabel: "Modernizar Minha Oficina",
+    actionType: 'link',
+    url: '/register',
+  },
+  {
+    id: 'system_results',
+    keywords: ['resultado real', 'prova', 'funciona mesmo', 'cliente que usou', 'depoimento', 'case de sucesso', 'historia de cliente', 'resultado cliente', 'quanto aumentou', 'comprovado'],
+    response: "Resultados reais dos nossos clientes:\n\n📈 **+30% no faturamento** nos primeiros 3 meses (média)\n⏰ **Economia de 12h semanais** em burocracia\n💰 **Redução de 40% na inadimplência** (contas controladas)\n🔁 **+25% de retorno de clientes** (lembretes automáticos)\n✅ **100% dos orçamentos rastreados** (zero OS perdida)\n\nUma oficina que faturava R$ 15k/mês passou para R$ 22k em 4 meses — só organizando e usando o WhatsApp automático para recuperar orçamentos. Quer ser o próximo case?",
+    hasAction: true,
+    actionLabel: "Quero Esses Resultados",
+    actionType: 'link',
+    url: '/register',
+  },
+  {
+    id: 'system_learning_curve',
+    keywords: ['difícil de aprender', 'complicado usar', 'curva de aprendizado', 'quanto tempo aprender', 'minha equipe aprende', 'e simples usar', 'facil de usar', 'intuitivo'],
+    response: "O MecaERP foi desenhado para ser **extremamente fácil de usar**! 😊\n\n• Interface moderna e intuitiva (como usar um aplicativo do celular)\n• Sua equipe aprende o básico em **1 dia**\n• Tutoriais em vídeo curtos para cada função\n• Suporte humano via WhatsApp para tirar dúvidas\n• Onboarding guiado passo a passo na ativação\n\nNão exige conhecimento técnico. Se você usa WhatsApp, você consegue usar o MecaERP!",
+  },
+  {
+    id: 'system_internet',
+    keywords: ['precisa internet', 'funciona offline', 'sem wifi', 'internet fraca', 'funciona no 4g', 'conexao necessaria'],
+    response: "O MecaERP roda na nuvem, então precisa de **conexão com internet**. ☁️\n\nMas não precisa de fibra de alta velocidade — uma conexão **4G do celular** já é suficiente para todas as funções. O sistema é otimizado para funcionar bem mesmo em conexões mais lentas.\n\nE seus dados estão seguros na nuvem AWS, com backup automático a cada hora. Mesmo que a internet cair, quando voltar está tudo lá!",
+  },
+  {
+    id: 'system_contract',
+    keywords: ['tem contrato', 'assinar contrato', 'contrato longo', 'fidelidade minima', 'preso por contrato', 'sem contrato', 'mes a mes'],
+    response: "**Zero contratos e zero fidelidade!** 🤝\n\nO MecaERP funciona em assinatura **mês a mês**. Você:\n• Paga apenas o mês vigente\n• Cancela quando quiser, sem multa\n• Faz upgrade ou downgrade a qualquer tempo\n• Não precisa assinar nada além da ativação da conta\n\nNossa filosofia é simples: se você não estiver tendo resultados, não deveria pagar. É por isso que confiamos tanto no nosso produto!",
+  },
+  {
+    id: 'plan_what_is_included',
+    keywords: ['o que esta incluido', 'o que vem no plano', 'tem suporte incluido', 'treinamento incluido', 'implantacao incluida', 'onboarding incluido', 'incluido no preco'],
+    response: "Em **todos os planos** estão incluídos:\n\n✅ Suporte via chat e e-mail\n✅ Tutoriais em vídeo\n✅ Atualizações automáticas do sistema\n✅ Backup automático na nuvem\n✅ Certificado SSL (conexão segura)\n✅ Onboarding guiado na ativação\n\nNo **Pro e Elite** adicionalmente:\n✅ Suporte via WhatsApp\n✅ Consultoria de implantação\n✅ Treinamento da equipe\n\nNo **Elite** adicionalmente:\n✅ Gerente de conta dedicado\n✅ Suporte prioritário VIP\n✅ Onboarding presencial (mediante agenda)",
+  },
+  {
+    id: 'plan_payment_how',
+    keywords: ['como pagar', 'forma de pagar assinatura', 'pagar com cartao', 'pagar com pix plano', 'cobrado em cartao', 'debit cartao assinatura', 'fatura assinatura', 'cobrança mensal'],
+    response: "Você pode assinar o MecaERP pagando por:\n\n• 💳 **Cartão de crédito** (parcelado em até 12x — plano anual)\n• 💳 **Débito automático** no cartão (mensal)\n• 📱 **PIX** (plano anual à vista)\n• 🏦 **Boleto bancário** (mensal ou anual)\n\nA cobrança é automática todo mês (ou anualmente se optar pelo plano anual). Você recebe um e-mail de confirmação a cada renovação.",
+  },
+  {
+    id: 'plan_first_charge',
+    keywords: ['quando começa cobrar', 'primeira cobrança', 'quando vou ser cobrado', 'cobrado imediatamente', 'começa a pagar quando', 'trial quando cobra'],
+    response: "Durante os **14 dias de teste grátis**, não há nenhuma cobrança! ✅\n\nSó após o período de teste, se você optar por continuar:\n1. Você escolhe o plano desejado\n2. Informa a forma de pagamento\n3. A primeira cobrança ocorre neste momento\n\n**Não há cobrança automática ao fim do trial** — você precisa confirmar ativamente que quer continuar. Sem surpresas na fatura!",
+  },
+  {
+    id: 'plan_compare_table',
+    keywords: ['tabela comparativa', 'tabela de planos', 'ver todos planos', 'comparar todos', 'quadro comparativo', 'resumo planos', 'resumo dos planos', 'todos os planos'],
+    response: "Comparativo completo dos planos:\n\n| Recurso | Start | Pro | Elite |\n|---|:---:|:---:|:---:|\n| Preço/mês | R$ 197 | R$ 297 | R$ 497 |\n| OS Ilimitadas | ✅ | ✅ | ✅ |\n| Clientes/Veículos | ✅ | ✅ | ✅ |\n| Dashboard | ✅ | ✅ | ✅ |\n| Financeiro Básico | ✅ | ✅ | ✅ |\n| WhatsApp Automático | ❌ | ✅ | ✅ |\n| Checklist HD / Fotos | ❌ | ✅ | ✅ |\n| Comissões Automáticas | ❌ | ✅ | ✅ |\n| Agenda Avançada | ❌ | ✅ | ✅ |\n| Multi-Filiais | ❌ | ❌ | ✅ |\n| API / Integrações | ❌ | ❌ | ✅ |\n| Suporte VIP | ❌ | ❌ | ✅ |\n| Usuários | 3 | 10 | Ilimitado |\n\nQual deles faz mais sentido para a sua realidade?",
+    showTopics: true,
+  },
+
+  // --- Perguntas de custo benefício e ROI ---
+  {
+    id: 'plan_roi_start',
+    keywords: ['roi start', 'retorno start', 'start compensa', 'compensar start', 'lucro com start', 'start vale a pena'],
+    response: "O **Plano Start (R$ 197/mês)** tem ROI quase imediato:\n\n📊 **Em 1 semana do sistema:**\n• Você para de perder OS não registradas\n• Sabe exatamente o que cada cliente deve\n• Tem um PDF profissional para enviar ao cliente\n\n💡 **Cálculo simples:**\nSe você perdia apenas 1 OS de R$ 200 por mês por falta de controle → O sistema paga a própria mensalidade.\n\nNa prática, nossos clientes Start encontram em média **3-5 OS 'esquecidas'** nas primeiras 2 semanas. São R$ 600-1.500 de receita recuperada só na primeira quinzena!",
+    hasAction: true,
+    actionLabel: "Recuperar Minha Receita Perdida",
+    actionType: 'link',
+    url: '/register',
+  },
+  {
+    id: 'plan_roi_pro',
+    keywords: ['roi pro', 'retorno pro', 'pro compensa', 'compensar pro', 'lucro com pro', 'pro vale a pena', 'vale pagar 297'],
+    response: "O **Plano Pro (R$ 297/mês)** tem o ROI mais fácil de visualizar:\n\n📱 **WhatsApp Automático recupera orçamentos:**\nSe você envia 20 orçamentos/mês e converte 60%, são 12 OS. Com WhatsApp automático, estudos mostram aumento de 25-30% na conversão → 15-16 OS. São 3 OS extras de R$ 300 cada = **R$ 900 extras/mês**.\n\n📸 **Checklist HD evita prejuízos:**\nUm único desentendimento sobre dano de carro pode custar R$ 1.000-5.000. O Checklist te protege legalmente indefinidamente.\n\n🔧 **Comissões automáticas:**\nEconomia de 4-8h mensais que você ou sua gerente gastam calculando. Em tempo de gestão, isso vale muito.\n\n**Resumo:** R$ 297 investidos → R$ 900+ em OS recuperadas + proteção jurídica + horas economizadas.",
+    hasAction: true,
+    actionLabel: "Quero Esses R$ 900 Extras",
+    actionType: 'link',
+    url: '/register',
+  },
+  {
+    id: 'plan_roi_elite',
+    keywords: ['roi elite', 'retorno elite', 'elite compensa', 'compensar elite', 'lucro com elite', 'elite vale a pena', 'vale pagar 497'],
+    response: "O **Plano Elite (R$ 497/mês)** é um investimento para quem já fatura mais de R$ 30k/mês ou tem múltiplas unidades:\n\n🏢 **Multi-filiais:**\nA visibilidade consolidada de 2+ oficinas economiza dias de trabalho manual. Detectar que uma filial tem custo alto em peças ou baixa produtividade pode economizar R$ 3-5k/mês.\n\n📊 **Relatórios corporativos:**\nIdentificar que seu ticket médio por serviço está abaixo do mercado e ajustar a precificação pode aumentar o faturamento em 15-20% sem atender mais clientes.\n\n🔗 **API e integrações:**\nAutomação com sistema de contabilidade elimina horas de retrabalho. Em equipes maiores, são 8-15h/mês economizadas.\n\n**Conclusão:** Para redes e grandes centros, R$ 497/mês é o custo de 1 hora de gestão ineficiente por dia. O sistema paga muito mais do que custa.",
+    hasAction: true,
+    actionLabel: "Demonstração do Elite",
+    actionMsg: "Olá! Quero entender o ROI do Plano Elite para minha rede/grande oficina.",
+  },
+  {
+    id: 'plan_too_small',
+    keywords: ['sou pequeno demais', 'sistema para mim', 'oficina familiar', 'so eu e meu filho', 'mecanico autonomo', 'freelancer', 'trabalho em casa', 'pequeno demais para sistema'],
+    response: "Você **nunca é pequeno demais** para o MecaERP! 💪\n\nMesmo trabalhando sozinho ou com família, você vai se beneficiar de:\n\n• **PDF profissional** da OS — impressiona o cliente e justifica preços premium\n• **Histórico de veículos** — saben exatamente o que foi feito em cada carro\n• **Controle financeiro** — saber o que entrou, saiu e o que lucrou\n• **WhatsApp automático** (Pro) — você atende mais com menos esforço\n\nNosso cliente mais pequeno é um mecânico autônomo que opera da própria garagem. O sistema ajudou ele a **triplicar o ticket médio** porque os clientes passaram a enxergá-lo como profissional.",
+    hasAction: true,
+    actionLabel: "Começar Minha Evolução",
+    actionType: 'link',
+    url: '/register',
+  },
+  {
+    id: 'plan_not_sure',
+    keywords: ['nao sei qual escolher', 'tenho duvida qual plano', 'me indica um plano', 'qual voce recomenda', 'qual devo pegar', 'me ajuda escolher'],
+    response: "Deixa eu te ajudar a escolher! Responda mentalmente:\n\n**1. Você já tem equipe de mecânicos?**\n→ Sim → Pro (comissões automáticas vale muito)\n→ Não/Trabalho sozinho → Start\n\n**2. Você manda orçamentos por WhatsApp manualmente hoje?**\n→ Sim → Pro (automatiza e aumenta conversão)\n→ Não envio → Start\n\n**3. Você tem mais de 1 oficina?**\n→ Sim → Elite\n→ Não → Start ou Pro\n\n**Minha recomendação geral:** Começa com o **Pro**. A maioria das oficinas que testa o Pro nunca volta para o Start depois de ver o WhatsApp automático funcionando. E você tem 14 dias grátis para confirmar!",
+    hasAction: true,
+    actionLabel: "Testar o Pro Grátis",
+    actionType: 'link',
+    url: '/register',
+  },
+
+  // --- Perguntas sobre o sistema em geral ---
+  {
+    id: 'system_complete_overview',
+    keywords: ['me explica tudo', 'tudo sobre o sistema', 'visao geral completa', 'explicar tudo', 'como funciona tudo', 'o sistema completo', 'todos os modulos'],
+    response: "O MecaERP tem **9 módulos integrados** que trabalham juntos:\n\n🔑 **1. Ordens de Serviço** — Crie, acompanhe e finalize OS com PDF profissional\n👤 **2. Clientes & CRM** — Histórico completo, tags, importação em massa\n🚗 **3. Veículos** — Busca por placa, histórico eterno, controle de KM\n💰 **4. Financeiro** — DRE, Fluxo de Caixa, Contas a Pagar/Receber\n📦 **5. Estoque** — Peças, fornecedores, alertas de mínimo, Curva ABC\n📱 **6. WhatsApp Automático** — Orçamentos, avisos, lembretes de revisão\n📸 **7. Checklist HD** — Fotos de entrada + assinatura digital do cliente\n📅 **8. Agenda** — Horários, boxes, mecânicos por atendimento\n📊 **9. Dashboard & Relatórios** — BI, KPIs, performance por mecânico\n\nTodos os módulos se integram — uma OS atualiza o estoque, o financeiro e o histórico do cliente simultaneamente!",
+  },
+  {
+    id: 'system_why_choose',
+    keywords: ['por que escolher mecaerp', 'por que voces', 'motivo escolher', 'diferenciais reais', 'o que voces fazem diferente', 'vantagem real', 'ponto forte'],
+    response: "**5 razões reais para escolher o MecaERP:**\n\n🇧🇷 **1. Feito para o Brasil** — Não é tradução de sistema estrangeiro. Foi criado entendendo as necessidades reais da mecânica brasileira.\n\n📱 **2. WhatsApp como você conhece** — Integração nativa com WhatsApp (não API cara), funcionando desde o dia 1.\n\n⚡ **3. O mais fácil do mercado** — Interface que qualquer mecânico aprende em 1 dia, sem cursos caros.\n\n🔒 **4. Seus dados são seus** — Nunca vendemos ou compartilhamos dados dos clientes das oficinas.\n\n🤝 **5. Suporte real em português** — Pessoas que conhecem mecânica e sabem do que estão falando, não robôs ou call centers no exterior.",
+  },
+  {
+    id: 'system_updates',
+    keywords: ['atualização do sistema', 'versao nova', 'melhorias', 'novidades', 'o sistema melhora', 'voces atualizam', 'frequencia atualizacao'],
+    response: "O MecaERP é **atualizado continuamente**! 🔄\n\n• Lançamos melhorias toda semana\n• Atualizações são automáticas (você não faz nada)\n• Novos recursos sugeridos pelos clientes são priorizados\n• Nenhuma atualização causa instabilidade no sistema\n\nVocê recebe um e-mail com as novidades de cada atualização importante. Quanto mais você usa e sugere, melhor o sistema fica para todos!",
+  },
 ];
