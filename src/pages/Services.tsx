@@ -129,16 +129,26 @@ export default function Services() {
     }
   }, [isDetailDrawerOpen, selectedService, activeDetailTab]);
 
+  const [modalParts, setModalParts] = useState<{part_id: string, part_name: string, sale_price: number, quantity: number}[]>([]);
+
   const handleCreateService = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       if (editingId) {
         await api.put(`/services/${editingId}`, formData);
       } else {
-        await api.post('/services', formData);
+        const res = await api.post('/services', formData);
+        const newId = res.data.id;
+        
+        if (modalParts.length > 0) {
+          for (const p of modalParts) {
+            await api.post(`/services/${newId}/parts`, { part_id: p.part_id, quantity: p.quantity });
+          }
+        }
       }
       setIsNewModalOpen(false);
       setEditingId(null);
+      setModalParts([]);
       setFormData({
         name: '', code: '', category: 'OUTROS', description: '',
         estimated_time: '01:00', default_price: 0, estimated_cost: 0,
@@ -147,9 +157,7 @@ export default function Services() {
       });
       fetchServices();
       if (isDetailDrawerOpen) {
-         fetchServices(); // update data in background
-         // If a selected service exists, it won't magically update without finding it again, 
-         // but that's fine for now or we could setIsDetailDrawerOpen(false) to refresh simple.
+         fetchServices();
       }
     } catch (err) {
       console.error('Error creating/updating service:', err);
@@ -174,6 +182,7 @@ export default function Services() {
       requires_diagnosis: service.requires_diagnosis ?? false,
       compatible_vehicles: service.compatible_vehicles || ''
     });
+    fetchServiceParts(service.id);
     setIsNewModalOpen(true);
   };
 
@@ -585,6 +594,93 @@ export default function Services() {
                         <option value="COMPOSITE">Serviço Composto (Pacote)</option>
                       </select>
                     </div>
+                  </div>
+                </div>
+
+                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 mt-4 space-y-4">
+                  <h3 className="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2">
+                    <Package size={12} /> Produtos / Peças da Composição
+                  </h3>
+                  <div className="flex gap-2 items-end">
+                    <div className="flex-1">
+                      <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1.5">Produto</label>
+                      <select 
+                        className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-slate-900/10"
+                        value={selectedPart?.id || ''}
+                        onChange={e => {
+                          const p = availableParts.find(x => x.id === e.target.value);
+                          setSelectedPart(p || null);
+                        }}
+                      >
+                        <option value="">Selecione...</option>
+                        {availableParts.map(p => (
+                          <option key={p.id} value={p.id}>{p.name} (R$ {p.sale_price})</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="w-20">
+                      <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1.5">Qtd</label>
+                      <input 
+                        type="number" min="1"
+                        className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-slate-900/10 text-center font-bold"
+                        value={partQuantity}
+                        onChange={e => setPartQuantity(parseInt(e.target.value) || 1)}
+                      />
+                    </div>
+                    <button 
+                      type="button"
+                      onClick={() => {
+                        if (!selectedPart) return;
+                        if (editingId) {
+                          api.post(`/services/${editingId}/parts`, { part_id: selectedPart.id, quantity: partQuantity })
+                             .then(() => fetchServiceParts(editingId))
+                             .catch(err => alert(err.response?.data?.error || 'Erro ao vincular'));
+                        } else {
+                          if (!modalParts.find(mp => mp.part_id === selectedPart.id)) {
+                            setModalParts(prev => [...prev, { 
+                              part_id: selectedPart.id, 
+                              part_name: selectedPart.name, 
+                              sale_price: selectedPart.sale_price, 
+                              quantity: partQuantity 
+                            }]);
+                          }
+                        }
+                        setSelectedPart(null);
+                        setPartQuantity(1);
+                      }}
+                      className="h-[38px] px-4 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-slate-800 transition-all flex items-center gap-2"
+                    >
+                      <Plus size={14} /> Add
+                    </button>
+                  </div>
+                  
+                  <div className="space-y-2 mt-2">
+                    {(editingId ? serviceParts : modalParts).length === 0 && (
+                       <p className="text-[10px] text-slate-400 italic text-center py-2 relative pb-2 -mt-2">Sem produtos vinculados.</p>
+                    )}
+                    {(editingId ? serviceParts : modalParts).map((p: any, idx: number) => (
+                      <div key={editingId ? p.part_id : idx} className="flex items-center justify-between text-xs bg-white border border-slate-100 p-2.5 rounded-lg shadow-sm">
+                        <span className="font-bold text-slate-700 uppercase">{p.part_name}</span>
+                        <div className="flex items-center gap-3">
+                          <span className="text-slate-400 font-bold bg-slate-50 px-2 py-0.5 rounded">{p.quantity}x</span>
+                          <button 
+                            type="button"
+                            onClick={() => {
+                              if (editingId) {
+                                api.delete(`/services/${editingId}/parts/${p.part_id}`)
+                                   .then(() => fetchServiceParts(editingId))
+                                   .catch(err => alert('Erro'));
+                              } else {
+                                setModalParts(prev => prev.filter((_, i) => i !== idx));
+                              }
+                            }}
+                            className="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded transition-all"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
 
