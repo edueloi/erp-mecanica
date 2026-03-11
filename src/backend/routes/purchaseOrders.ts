@@ -7,6 +7,79 @@ const router = express.Router();
 
 router.use(authenticateToken);
 
+const syncPurchaseOrderToFinance = (poId: string, tenantId: string, userId: string) => {
+  try {
+    const po = db.prepare(`
+      SELECT po.*, s.name as supplier_name 
+      FROM purchase_orders po
+      JOIN suppliers s ON po.supplier_id = s.id
+      WHERE po.id = ? AND po.tenant_id = ?
+    `).get(poId, tenantId) as any;
+
+    if (!po) return;
+
+    if (po.status === 'DRAFT' || po.status === 'CANCELLED') {
+      return;
+    }
+
+    // Check if already exists in accounts_payable
+    const existing = db.prepare(`
+      SELECT id FROM accounts_payable WHERE purchase_order_id = ? AND tenant_id = ?
+    `).get(poId, tenantId) as any;
+
+    if (existing) {
+      db.prepare(`
+        UPDATE accounts_payable 
+        SET original_amount = ?, balance = original_amount - amount_paid, 
+            description = ?, updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+      `).run(po.total || 0, `Pedido Compra ${po.number} - ${po.supplier_name}`, existing.id);
+
+      // Sync to Cashflow (Pending)
+      db.prepare(`
+        UPDATE cashflow_transactions 
+        SET amount = ?, description = ?, date = ?, updated_at = CURRENT_TIMESTAMP
+        WHERE source_type = 'accounts_payable' AND source_id = ? AND status = 'pending'
+      `).run(
+        po.total || 0,
+        `Pedido Compra ${po.number} - ${po.supplier_name}`,
+        po.expected_delivery || new Date().toISOString().split('T')[0],
+        existing.id
+      );
+    } else {
+      const apId = uuidv4();
+      db.prepare(`
+        INSERT INTO accounts_payable (
+          id, tenant_id, supplier_id, purchase_order_id, description, 
+          original_amount, balance, due_date, status, created_by
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(
+        apId, tenantId, po.supplier_id, poId, 
+        `Pedido Compra ${po.number} - ${po.supplier_name}`,
+        po.total || 0, po.total || 0,
+        po.expected_delivery || new Date().toISOString().split('T')[0],
+        'OPEN', userId
+      );
+
+      // Create Pending Cashflow Transaction
+      db.prepare(`
+        INSERT INTO cashflow_transactions (
+          id, tenant_id, date, type, amount, category, description,
+          status, source_type, source_id, created_by
+        ) VALUES (?, ?, ?, 'out', ?, 'Compras de Peças', ?, 'pending', 'accounts_payable', ?, ?)
+      `).run(
+        uuidv4(), tenantId,
+        po.expected_delivery || new Date().toISOString().split('T')[0],
+        po.total || 0,
+        `Pedido Compra ${po.number} - ${po.supplier_name}`,
+        apId, userId
+      );
+    }
+  } catch (err) {
+    console.error('Error syncing PO to Finance:', err);
+  }
+};
+
 // Get all purchase orders
 router.get("/", (req: AuthRequest, res) => {
   const { status, supplier_id } = req.query;
@@ -110,6 +183,9 @@ router.post("/", (req: AuthRequest, res) => {
     });
 
     transaction();
+    
+    // Sync to Finance
+    syncPurchaseOrderToFinance(id, req.user!.tenant_id, req.user!.id);
 
     const newOrder = db.prepare("SELECT * FROM purchase_orders WHERE id = ?").get(id);
     res.status(201).json(newOrder);
@@ -167,46 +243,14 @@ router.patch("/:id/status", (req: AuthRequest, res) => {
             `).run(uuidv4(), order.supplier_id, item.part_id, item.unit_cost);
           }
         }
-
-        // Register pending cashflow if total > 0
-        if (order.total > 0) {
-          // Check if already exists
-          const existingCf = db.prepare(`
-            SELECT id FROM cashflow_transactions 
-            WHERE source_id = ? AND source_type = 'purchase_order'
-          `).get(req.params.id);
-
-          if (!existingCf) {
-            // Find or create default account
-            let cashAccount = db.prepare(`
-              SELECT id FROM cash_accounts WHERE tenant_id = ? AND active = 1 LIMIT 1
-            `).get(req.user!.tenant_id) as any;
-
-            if (!cashAccount) {
-              const newAccountId = uuidv4();
-              db.prepare(`
-                INSERT INTO cash_accounts (id, tenant_id, name, type, active, initial_balance)
-                VALUES (?, ?, 'Caixa Principal', 'cash', 1, 0)
-              `).run(newAccountId, req.user!.tenant_id);
-              cashAccount = { id: newAccountId };
-            }
-
-            db.prepare(`
-              INSERT INTO cashflow_transactions (
-                id, tenant_id, date, type, amount, category, description,
-                account_id, payment_method, status, source_type, source_id, created_by
-              ) VALUES (?, ?, CURRENT_TIMESTAMP, 'out', ?, 'Compras de Peças', ?, ?, 'Outros', 'pending', 'purchase_order', ?, ?)
-            `).run(
-              uuidv4(), req.user!.tenant_id, order.total,
-              `Compra de peças (Previsto) - Pedido ${order.number} - ${order.supplier_name}`,
-              cashAccount.id, req.params.id, req.user!.id
-            );
-          }
-        }
       }
     });
 
     transaction();
+    
+    // Sync to Finance
+    syncPurchaseOrderToFinance(req.params.id, req.user!.tenant_id, req.user!.id);
+    
     console.log(`✅ PO ${req.params.id} status updated to ${status} for tenant ${req.user!.tenant_id}`);
     res.json({ message: "Status updated successfully" });
   } catch (error: any) {
@@ -329,73 +373,13 @@ router.post("/:id/receive", (req: AuthRequest, res) => {
         SET status = ?, updated_at = CURRENT_TIMESTAMP 
         WHERE id = ? AND tenant_id = ?
       `).run(newStatus, req.params.id, req.user!.tenant_id);
-
-      // Register cashflow OUT transaction for the purchase
-      if (totalReceivedCost > 0) {
-        console.log(`💰 Registering cashflow: ${totalReceivedCost} for PO ${order.number}`);
-        // Find or create default account
-        let cashAccount = db.prepare(`
-          SELECT id FROM cash_accounts 
-          WHERE tenant_id = ? AND active = 1 
-          ORDER BY 
-            CASE type WHEN 'cash' THEN 1 WHEN 'bank' THEN 2 ELSE 3 END
-          LIMIT 1
-        `).get(req.user!.tenant_id) as any;
-
-        if (!cashAccount) {
-          const newAccountId = uuidv4();
-          db.prepare(`
-            INSERT INTO cash_accounts (id, tenant_id, name, type, active, initial_balance)
-            VALUES (?, ?, 'Caixa Principal', 'cash', 1, 0)
-          `).run(newAccountId, req.user!.tenant_id);
-          cashAccount = { id: newAccountId };
-          console.log(`🆕 Created default cash account: ${newAccountId}`);
-        }
-
-        const accountId = cashAccount.id;
-        
-        // Remove or update pending transaction if exists for this PO
-        // If it's the first receipt, we might want to convert the pending one or just add new confirmed ones.
-        
-        // Handle pending transactions to avoid double accounting
-        // Subtract the received cost from the pending transaction if it exists
-        const pendingCf = db.prepare(`
-          SELECT id, amount FROM cashflow_transactions 
-          WHERE source_id = ? AND source_type = 'purchase_order' AND status = 'pending'
-          LIMIT 1
-        `).get(req.params.id) as any;
-
-        if (pendingCf) {
-          const newPendingAmount = Math.max(0, pendingCf.amount - totalReceivedCost);
-          if (newPendingAmount === 0 || newStatus === 'RECEIVED') {
-            db.prepare(`DELETE FROM cashflow_transactions WHERE id = ?`).run(pendingCf.id);
-            console.log(`🗑️ Removed completed pending transaction ${pendingCf.id}`);
-          } else {
-            db.prepare(`UPDATE cashflow_transactions SET amount = ? WHERE id = ?`).run(newPendingAmount, pendingCf.id);
-            console.log(`📉 Updated pending transaction ${pendingCf.id} to ${newPendingAmount}`);
-          }
-        }
-
-        // Add the confirmed transaction for what was actually received
-        db.prepare(`
-          INSERT INTO cashflow_transactions (
-            id, tenant_id, date, type, amount, category, description,
-            account_id, payment_method, status, source_type, source_id, created_by
-          ) VALUES (?, ?, ?, 'out', ?, 'Compras de Peças', ?, ?, 'Outros', 'confirmed', 'purchase_order', ?, ?)
-        `).run(
-          uuidv4(),
-          req.user!.tenant_id,
-          new Date().toISOString(),
-          totalReceivedCost,
-          `Recebimento de peças - Pedido ${order.number} - ${order.supplier_name}`,
-          accountId,
-          req.params.id,
-          req.user!.id
-        );
-      }
     });
 
     transaction();
+    
+    // Sync to Finance - This ensures it's in Accounts Payable, not immediate Cash Flow
+    syncPurchaseOrderToFinance(req.params.id, req.user!.tenant_id, req.user!.id);
+    
     console.log(`✅ PO ${req.params.id} receiving processed successfully.`);
     res.json({ message: "Recebimento registrado com sucesso" });
   } catch (error: any) {

@@ -16,6 +16,7 @@ import {
   Wrench,
   Truck,
   CreditCard,
+  DollarSign,
   BarChart3,
   MessageSquare,
   ChevronDown,
@@ -81,6 +82,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       title: 'Financeiro',
       items: [
         { icon: CreditCard, label: 'Contas a Receber', path: '/finance/receivables' },
+        { icon: DollarSign, label: 'Contas a Pagar', path: '/finance/payables' },
         { icon: BarChart3, label: 'Fluxo de Caixa', path: '/finance/cashflow' },
       ]
     },

@@ -7,6 +7,83 @@ const router = express.Router();
 
 router.use(authenticateToken);
 
+const syncWorkOrderToFinance = (woId: string, tenantId: string, userId: string) => {
+  try {
+    const wo = db.prepare(`
+      SELECT wo.*, c.name as client_name 
+      FROM work_orders wo
+      JOIN clients c ON wo.client_id = c.id
+      WHERE wo.id = ? AND wo.tenant_id = ?
+    `).get(woId, tenantId) as any;
+
+    if (!wo) return;
+
+    if (wo.status === 'DRAFT' || wo.status === 'CANCELLED' || wo.status === 'WAITING_APPROVAL') {
+      // If was previously synced, maybe we should delete it or keep it as draft?
+      // For now, only sync when active.
+      return;
+    }
+
+    // Check if already exists
+    const existing = db.prepare(`
+      SELECT id FROM accounts_receivable WHERE work_order_id = ? AND tenant_id = ?
+    `).get(woId, tenantId) as any;
+
+    if (existing) {
+      // Update amount and description if needed
+      db.prepare(`
+        UPDATE accounts_receivable 
+        SET original_amount = ?, balance = original_amount - amount_paid, 
+            description = ?, updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+      `).run(wo.total_amount || 0, `OS ${wo.number} - ${wo.client_name}`, existing.id);
+
+      // Sync to Cashflow (Pending)
+      db.prepare(`
+        UPDATE cashflow_transactions
+        SET amount = ?, description = ?, date = ?, updated_at = CURRENT_TIMESTAMP
+        WHERE source_type = 'accounts_receivable' AND source_id = ? AND status = 'pending'
+      `).run(
+        wo.total_amount || 0, 
+        `OS ${wo.number} - ${wo.client_name}`,
+        wo.delivery_forecast || new Date().toISOString().split('T')[0],
+        existing.id
+      );
+    } else {
+      // Create new
+      const arId = uuidv4();
+      db.prepare(`
+        INSERT INTO accounts_receivable (
+          id, tenant_id, client_id, work_order_id, description, 
+          original_amount, balance, due_date, status, created_by
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(
+        arId, tenantId, wo.client_id, woId, 
+        `OS ${wo.number} - ${wo.client_name}`,
+        wo.total_amount || 0, wo.total_amount || 0,
+        wo.delivery_forecast || new Date().toISOString().split('T')[0],
+        'OPEN', userId
+      );
+
+      // Create Pending Cashflow Transaction
+      db.prepare(`
+        INSERT INTO cashflow_transactions (
+          id, tenant_id, date, type, amount, category, description,
+          status, source_type, source_id, created_by
+        ) VALUES (?, ?, ?, 'in', ?, 'Serviços', ?, 'pending', 'accounts_receivable', ?, ?)
+      `).run(
+        uuidv4(), tenantId, 
+        wo.delivery_forecast || new Date().toISOString().split('T')[0],
+        wo.total_amount || 0,
+        `OS ${wo.number} - ${wo.client_name}`,
+        arId, userId
+      );
+    }
+  } catch (err) {
+    console.error('Error syncing OS to Finance:', err);
+  }
+};
+
 router.get("/", (req: AuthRequest, res) => {
   const { status, q } = req.query;
   let query = `
@@ -196,6 +273,9 @@ router.post("/", (req: AuthRequest, res) => {
 
     transaction();
     console.log('Transaction committed successfully');
+
+    // Sync to Finance
+    syncWorkOrderToFinance(id, req.user!.tenant_id, req.user!.id);
 
     // Log in vehicle history
     try {
@@ -403,6 +483,9 @@ router.patch("/:id", (req: AuthRequest, res) => {
     });
 
     transaction();
+    
+    // Sync to Finance
+    syncWorkOrderToFinance(req.params.id, req.user!.tenant_id, req.user!.id);
     
     // Log in history if status changed to FINISHED
     if (status === 'FINISHED') {

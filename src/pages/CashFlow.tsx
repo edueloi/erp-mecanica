@@ -352,15 +352,22 @@ export default function CashFlow() {
     });
   };
 
-  const formatCurrency = (value: number) => {
+  const formatCurrency = (value: any) => {
+    const val = typeof value === 'string' ? parseFloat(value) : Number(value);
     return new Intl.NumberFormat("pt-BR", {
       style: "currency",
       currency: "BRL",
-    }).format(value);
+    }).format(isNaN(val) ? 0 : val);
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("pt-BR");
+    if (!dateString) return "-";
+    try {
+      const date = new Date(dateString);
+      return isNaN(date.getTime()) ? "-" : date.toLocaleDateString("pt-BR");
+    } catch {
+      return "-";
+    }
   };
 
   const getTypeColor = (type: string) => {
@@ -654,7 +661,7 @@ export default function CashFlow() {
 
       {/* Transactions Table */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-lg overflow-hidden">
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto overflow-y-auto max-h-[600px] scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent">
           <table className="w-full">
             <thead className="bg-slate-50 border-b border-slate-200">
               <tr>

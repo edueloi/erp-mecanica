@@ -15,6 +15,7 @@ import partsRoutes from "./src/backend/routes/parts";
 import supplierRoutes from "./src/backend/routes/suppliers";
 import purchaseOrderRoutes from "./src/backend/routes/purchaseOrders";
 import accountsReceivableRoutes from "./src/backend/routes/accountsReceivable";
+import accountsPayableRoutes from "./src/backend/routes/accountsPayable";
 import settingsRoutes from "./src/backend/routes/settings";
 import cashflowRoutes from "./src/backend/routes/cashflow";
 import whatsappRoutes from "./src/backend/routes/whatsapp";
@@ -65,6 +66,7 @@ async function startServer() {
   app.use("/api/suppliers", supplierRoutes);
   app.use("/api/purchase-orders", purchaseOrderRoutes);
   app.use("/api/accounts-receivable", accountsReceivableRoutes);
+  app.use("/api/accounts-payable", accountsPayableRoutes);
   app.use("/api/settings", settingsRoutes);
   app.use("/api/cashflow", cashflowRoutes);
   app.use("/api/whatsapp", whatsappRoutes);

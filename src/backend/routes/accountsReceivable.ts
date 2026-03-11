@@ -250,6 +250,16 @@ router.post("/", (req: AuthRequest, res) => {
       req.user!.id
     );
 
+    db.prepare(`
+      INSERT INTO cashflow_transactions (
+        id, tenant_id, date, type, amount, category, description,
+        status, source_type, source_id, created_by
+      ) VALUES (?, ?, ?, 'in', ?, 'Serviços', ?, 'pending', 'accounts_receivable', ?, ?)
+    `).run(
+      uuidv4(), req.user!.tenant_id, due_date, original_amount,
+      description, id, req.user!.id
+    );
+
     const newAccount = db
       .prepare("SELECT * FROM accounts_receivable WHERE id = ?")
       .get(id);
@@ -310,6 +320,16 @@ router.post("/from-work-order", (req: AuthRequest, res) => {
           dueDateStr,
           payment_method,
           req.user!.id
+        );
+
+        db.prepare(`
+          INSERT INTO cashflow_transactions (
+            id, tenant_id, date, type, amount, category, description,
+            status, source_type, source_id, created_by
+          ) VALUES (?, ?, ?, 'in', ?, 'Serviços', ?, 'pending', 'accounts_receivable', ?, ?)
+        `).run(
+          uuidv4(), req.user!.tenant_id, dueDateStr, installmentAmount,
+          desc, id, req.user!.id
         );
 
         accounts.push(
@@ -397,6 +417,26 @@ router.post("/:id/payment", (req: AuthRequest, res) => {
         req.params.id
       );
 
+      // Register in cashflow
+      // 1. Create a confirmed entry for the actual payment
+      db.prepare(`
+        INSERT INTO cashflow_transactions (
+          id, tenant_id, date, type, amount, category, description,
+          payment_method, status, source_type, source_id, created_by
+        ) VALUES (?, ?, ?, 'in', ?, 'Serviços', ?, ?, 'confirmed', 'accounts_receivable_payment', ?, ?)
+      `).run(
+        uuidv4(), req.user!.tenant_id, payment_date, amount,
+        `Receb: ${account.description}`,
+        payment_method, req.params.id, req.user!.id
+      );
+
+      // 2. Update/Delete pending entry
+      if (newBalance === 0) {
+        db.prepare("DELETE FROM cashflow_transactions WHERE source_type = 'accounts_receivable' AND source_id = ? AND status = 'pending'").run(req.params.id);
+      } else {
+        db.prepare("UPDATE cashflow_transactions SET amount = ? WHERE source_type = 'accounts_receivable' AND source_id = ? AND status = 'pending'").run(newBalance, req.params.id);
+      }
+
       return { account, payment: { id: paymentId, amount, payment_date } };
     });
 
@@ -464,6 +504,13 @@ router.patch("/:id", (req: AuthRequest, res) => {
       req.params.id
     );
 
+    // Sync to Cashflow (Pending)
+    db.prepare(`
+      UPDATE cashflow_transactions 
+      SET amount = ?, description = ?, date = ?, updated_at = CURRENT_TIMESTAMP
+      WHERE source_type = 'accounts_receivable' AND source_id = ? AND status = 'pending'
+    `).run(newBalance, description, due_date, req.params.id);
+
     res.json({ message: "Account updated successfully" });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -490,6 +537,7 @@ router.delete("/:id", (req: AuthRequest, res) => {
       });
     }
 
+    db.prepare("DELETE FROM cashflow_transactions WHERE source_type = 'accounts_receivable' AND source_id = ? AND status = 'pending'").run(req.params.id);
     db.prepare("DELETE FROM accounts_receivable WHERE id = ?").run(
       req.params.id
     );

@@ -170,6 +170,167 @@ export function initDb() {
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   )`);
 
+  // Financial Tables
+  db.exec(`CREATE TABLE IF NOT EXISTS cash_accounts (
+    id TEXT PRIMARY KEY,
+    tenant_id TEXT NOT NULL,
+    name TEXT NOT NULL,
+    type TEXT DEFAULT 'cash',
+    active INTEGER DEFAULT 1,
+    initial_balance REAL DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
+
+  db.exec(`CREATE TABLE IF NOT EXISTS cashflow_transactions (
+    id TEXT PRIMARY KEY,
+    tenant_id TEXT NOT NULL,
+    date TEXT NOT NULL,
+    type TEXT CHECK(type IN ('in', 'out')) NOT NULL,
+    amount REAL NOT NULL,
+    category TEXT,
+    description TEXT,
+    account_id TEXT,
+    related_account_id TEXT,
+    payment_method TEXT,
+    status TEXT DEFAULT 'confirmed',
+    source_type TEXT DEFAULT 'manual',
+    source_id TEXT,
+    attachment_url TEXT,
+    created_by TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
+
+  db.exec(`CREATE TABLE IF NOT EXISTS accounts_receivable (
+    id TEXT PRIMARY KEY,
+    tenant_id TEXT NOT NULL,
+    client_id TEXT NOT NULL,
+    work_order_id TEXT,
+    installment_number INTEGER DEFAULT 1,
+    total_installments INTEGER DEFAULT 1,
+    description TEXT,
+    original_amount REAL DEFAULT 0,
+    amount_paid REAL DEFAULT 0,
+    balance REAL DEFAULT 0,
+    due_date TEXT NOT NULL,
+    paid_at TEXT,
+    status TEXT DEFAULT 'OPEN',
+    payment_method TEXT,
+    document_number TEXT,
+    notes TEXT,
+    created_by TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
+
+  db.exec(`CREATE TABLE IF NOT EXISTS receivable_payments (
+    id TEXT PRIMARY KEY,
+    tenant_id TEXT NOT NULL,
+    account_id TEXT NOT NULL,
+    amount REAL NOT NULL,
+    payment_date TEXT NOT NULL,
+    payment_method TEXT,
+    document_number TEXT,
+    notes TEXT,
+    created_by TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
+
+  db.exec(`CREATE TABLE IF NOT EXISTS accounts_payable (
+    id TEXT PRIMARY KEY,
+    tenant_id TEXT NOT NULL,
+    supplier_id TEXT NOT NULL,
+    purchase_order_id TEXT,
+    installment_number INTEGER DEFAULT 1,
+    total_installments INTEGER DEFAULT 1,
+    description TEXT,
+    original_amount REAL DEFAULT 0,
+    amount_paid REAL DEFAULT 0,
+    balance REAL DEFAULT 0,
+    due_date TEXT NOT NULL,
+    paid_at TEXT,
+    status TEXT DEFAULT 'OPEN',
+    payment_method TEXT,
+    document_number TEXT,
+    notes TEXT,
+    created_by TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
+
+  db.exec(`CREATE TABLE IF NOT EXISTS payable_payments (
+    id TEXT PRIMARY KEY,
+    tenant_id TEXT NOT NULL,
+    account_id TEXT NOT NULL,
+    amount REAL NOT NULL,
+    payment_date TEXT NOT NULL,
+    payment_method TEXT,
+    document_number TEXT,
+    notes TEXT,
+    created_by TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
+
+  db.exec(`CREATE TABLE IF NOT EXISTS cash_closes (
+    id TEXT PRIMARY KEY,
+    tenant_id TEXT NOT NULL,
+    account_id TEXT NOT NULL,
+    date TEXT NOT NULL,
+    opening_balance REAL DEFAULT 0,
+    expected_balance REAL DEFAULT 0,
+    counted_balance REAL DEFAULT 0,
+    difference REAL DEFAULT 0,
+    notes TEXT,
+    created_by TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
+
+  // Purchase and Stock
+  db.exec(`CREATE TABLE IF NOT EXISTS purchase_orders (
+    id TEXT PRIMARY KEY,
+    tenant_id TEXT NOT NULL,
+    supplier_id TEXT NOT NULL,
+    number TEXT NOT NULL,
+    order_date TEXT DEFAULT CURRENT_TIMESTAMP,
+    expected_delivery TEXT,
+    status TEXT DEFAULT 'DRAFT',
+    freight REAL DEFAULT 0,
+    discount REAL DEFAULT 0,
+    total REAL DEFAULT 0,
+    notes TEXT,
+    created_by TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
+
+  db.exec(`CREATE TABLE IF NOT EXISTS purchase_order_items (
+    id TEXT PRIMARY KEY,
+    purchase_order_id TEXT NOT NULL,
+    part_id TEXT NOT NULL,
+    quantity REAL NOT NULL,
+    unit_cost REAL NOT NULL,
+    subtotal REAL NOT NULL,
+    received_quantity REAL DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
+
+  db.exec(`CREATE TABLE IF NOT EXISTS stock_movements (
+    id TEXT PRIMARY KEY,
+    tenant_id TEXT NOT NULL,
+    part_id TEXT NOT NULL,
+    type TEXT CHECK(type IN ('ENTRY', 'EXIT', 'ADJUSTMENT', 'OS_USED', 'PURCHASE_ORDER')) NOT NULL,
+    quantity REAL NOT NULL,
+    unit_cost REAL,
+    unit_price REAL,
+    reference_id TEXT,
+    reference_type TEXT,
+    invoice_number TEXT,
+    reason TEXT,
+    user_id TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
+
   try {
     const superAdminEmail = 'admin@mecaerp.com.br';
     const existingAdmin = db.prepare('SELECT id FROM users WHERE email = ?').get(superAdminEmail);

@@ -25,6 +25,7 @@ import Services from './pages/Services';
 import Parts from './pages/Parts';
 import Suppliers from './pages/Suppliers';
 import AccountsReceivable from './pages/AccountsReceivable';
+import AccountsPayable from './pages/AccountsPayable';
 import CashFlow from './pages/CashFlow';
 import WhatsApp from './pages/WhatsApp';
 import CommunicationHistory from './pages/CommunicationHistory';
@@ -80,6 +81,7 @@ const router = createBrowserRouter(
       <Route path="/parts" element={<PrivateRoute><Layout><Parts /></Layout></PrivateRoute>} />
       <Route path="/suppliers" element={<PrivateRoute><Layout><Suppliers /></Layout></PrivateRoute>} />
       <Route path="/finance/receivables" element={<PrivateRoute><Layout><AccountsReceivable /></Layout></PrivateRoute>} />
+      <Route path="/finance/payables" element={<PrivateRoute><Layout><AccountsPayable /></Layout></PrivateRoute>} />
       <Route path="/finance/cashflow" element={<PrivateRoute><Layout><CashFlow /></Layout></PrivateRoute>} />
       <Route path="/communication/whatsapp" element={<PrivateRoute><Layout><WhatsApp /></Layout></PrivateRoute>} />
       <Route path="/communication/history" element={<PrivateRoute><Layout><CommunicationHistory /></Layout></PrivateRoute>} />

@@ -436,7 +436,7 @@ export default function Suppliers() {
         invoice_number: `REC-${Date.now()}`
       });
       
-      showNotification('success', 'Pedido Recebido!', '📦 Estoque atualizado · 💰 Saída registrada no Fluxo de Caixa · 🔗 Fornecedor vinculado às peças');
+      showNotification('success', 'Pedido Recebido!', '📦 Estoque atualizado · 📝 Registrado em Contas a Pagar · 🔗 Fornecedor vinculado às peças');
       // Refresh PO detail to show received status
       const updated = await api.get(`/purchase-orders/${poId}`);
       setSelectedPO(updated.data);
@@ -1558,8 +1558,8 @@ export default function Suppliers() {
                        <div>
                          <p className="text-emerald-800 font-bold text-sm">Pedido recebido com sucesso</p>
                          <p className="text-emerald-700 text-xs mt-0.5">
-                           ✅ Estoque atualizado &nbsp;·&nbsp; ✅ Fluxo de caixa registrado (saída) &nbsp;·&nbsp; ✅ Fornecedor vinculado às peças
-                         </p>
+                            ✅ Estoque atualizado &nbsp;·&nbsp; ✅ Registrado em Contas a Pagar &nbsp;·&nbsp; ✅ Fornecedor vinculado às peças
+                          </p>
                        </div>
                      </div>
                    )}
@@ -1631,7 +1631,7 @@ export default function Suppliers() {
                          <p className="text-[10px] text-slate-500 font-semibold uppercase tracking-wide mb-1">O que acontece ao confirmar:</p>
                          <div className="space-y-1">
                            <p className="text-[10px] text-slate-600">📦 Adiciona as quantidades ao estoque de cada peça</p>
-                           <p className="text-[10px] text-slate-600">💰 Registra saída automática no Fluxo de Caixa</p>
+                            <p className="text-[10px] text-slate-600">💰 Registra a pendência em Contas a Pagar</p>
                            <p className="text-[10px] text-slate-600">🔗 Vincula o fornecedor e o preço de custo a cada peça</p>
                          </div>
                        </div>
