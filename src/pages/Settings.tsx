@@ -305,14 +305,14 @@ export default function Settings() {
   ];
 
   return (
-    <div className="flex flex-col h-full -m-6">
+    <div className="flex flex-col h-full">
       {/* Toast Notification */}
       {toast && (
         <motion.div
           initial={{ opacity: 0, y: -50 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -50 }}
-          className="fixed top-4 right-4 z-50 flex items-center gap-3 px-6 py-4 rounded-xl shadow-2xl"
+          className="fixed top-4 right-4 z-50 flex items-center gap-3 px-4 py-2.5 rounded-xl shadow-2xl"
           style={{
             backgroundColor: toast.type === 'success' ? '#10b981' : '#ef4444',
             color: 'white',
@@ -328,19 +328,11 @@ export default function Settings() {
       )}
 
       {/* Header */}
-      <div className="bg-gradient-to-r from-slate-800 to-slate-700 px-6 py-6 border-b border-slate-200">
-        <div>
-          <h1 className="text-2xl font-bold text-white mb-1">⚙️ Configurações</h1>
-          <p className="text-slate-300 text-sm">
-            Gerencie seu perfil e as configurações da sua oficina
-          </p>
-        </div>
-      </div>
 
       <div className="flex flex-1 overflow-hidden bg-white">
         {/* Sidebar Navigation */}
-        <div className="w-full lg:w-80 shrink-0 flex flex-col gap-6">
-          <div className="space-y-8 h-fit lg:sticky lg:top-24">
+        <div className="w-full lg:w-72 shrink-0 flex flex-col border-r border-slate-100">
+          <div className="space-y-6 h-fit lg:sticky lg:top-0 p-6">
             <div>
               <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] mb-4 ml-2 block">Geral</span>
               <nav className="flex flex-col gap-2">
@@ -352,8 +344,8 @@ export default function Settings() {
                       key={tabItem.id}
                       onClick={() => { setActiveTab(tabItem.id as Tab); navigate(`/settings/${tabItem.id}`); }}
                       className={cn(
-                        "w-full flex items-center gap-3 px-6 py-4 rounded-[1.5rem] text-sm font-bold transition-all duration-300 cursor-pointer group",
-                        isActive ? "bg-slate-900 text-white shadow-xl shadow-slate-900/20 translate-x-3" : "text-slate-500 hover:bg-white hover:text-slate-900 hover:shadow-sm"
+                        "w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all duration-300 cursor-pointer group",
+                        isActive ? "bg-slate-900 text-white shadow-lg shadow-slate-900/10" : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
                       )}
                     >
                       <Icon className={cn("w-5 h-5 transition-transform group-hover:scale-110", isActive ? "text-white" : "text-slate-400")} />
@@ -375,8 +367,8 @@ export default function Settings() {
                       key={tabItem.id}
                       onClick={() => { setActiveTab(tabItem.id as Tab); navigate(`/settings/${tabItem.id}`); }}
                       className={cn(
-                        "w-full flex items-center gap-3 px-6 py-4 rounded-[1.5rem] text-sm font-bold transition-all duration-300 cursor-pointer group",
-                        isActive ? "bg-slate-900 text-white shadow-xl shadow-slate-900/20 translate-x-3" : "text-slate-500 hover:bg-white hover:text-slate-900 hover:shadow-sm"
+                        "w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all duration-300 cursor-pointer group",
+                        isActive ? "bg-slate-900 text-white shadow-lg shadow-slate-900/10" : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
                       )}
                     >
                       <Icon className={cn("w-5 h-5 transition-transform group-hover:scale-110", isActive ? "text-white" : "text-slate-400")} />
@@ -398,8 +390,8 @@ export default function Settings() {
                       key={tabItem.id}
                       onClick={() => { setActiveTab(tabItem.id as Tab); navigate(`/settings/${tabItem.id}`); }}
                       className={cn(
-                        "w-full flex items-center gap-3 px-6 py-4 rounded-[1.5rem] text-sm font-bold transition-all duration-300 cursor-pointer group",
-                        isActive ? "bg-slate-900 text-white shadow-xl shadow-slate-900/20 translate-x-3" : "text-slate-500 hover:bg-white hover:text-slate-900 hover:shadow-sm"
+                        "w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all duration-300 cursor-pointer group",
+                        isActive ? "bg-slate-900 text-white shadow-lg shadow-slate-900/10" : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
                       )}
                     >
                       <Icon className={cn("w-5 h-5 transition-transform group-hover:scale-110", isActive ? "text-white" : "text-slate-400")} />
@@ -413,7 +405,7 @@ export default function Settings() {
         </div>
 
         {/* Content Area */}
-        <div className="flex-1 overflow-y-auto p-2 sm:p-10 lg:p-14 bg-[#F8FAFC]">
+        <div className="flex-1 overflow-y-auto p-4 lg:p-6 bg-[#F8FAFC]">
           <AnimatePresence mode="wait">
             {/* 0) MEU PERFIL */}
             {activeTab === "user" && (
@@ -426,17 +418,17 @@ export default function Settings() {
               >
               <div className="flex items-center justify-between">
                 <div>
-                  <h2 className="text-3xl font-black text-slate-900 mb-2 italic uppercase tracking-tight">👤 Perfil Pessoal</h2>
+                  <h2 className="text-xl font-bold text-slate-900 mb-2 italic uppercase tracking-tight">👤 Perfil Pessoal</h2>
                   <p className="text-sm font-medium text-slate-500">
                     Gerencie suas credenciais e detalhes de acesso ao sistema
                   </p>
                 </div>
               </div>
 
-              <div className="bg-white rounded-[3rem] border border-slate-200 p-12 shadow-sm">
+              <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
                 <div className="flex flex-col items-center mb-12">
                   <div className="relative group cursor-pointer" onClick={() => (document.getElementById('profile_photo_input') as HTMLInputElement)?.click()}>
-                    <div className="w-40 h-40 rounded-[3rem] bg-slate-50 border-8 border-white shadow-2xl flex items-center justify-center overflow-hidden transition-all duration-500 group-hover:scale-105 group-hover:rotate-2">
+                    <div className="w-32 h-32 rounded-2xl bg-slate-50 border-8 border-white shadow-2xl flex items-center justify-center overflow-hidden transition-all duration-500 group-hover:scale-105 group-hover:rotate-2">
                       {profileForm.photo_url ? (
                         <img src={profileForm.photo_url} className="w-full h-full object-cover" />
                       ) : (
@@ -471,44 +463,44 @@ export default function Settings() {
                   <div className="mt-2 px-4 py-1.5 bg-slate-100 rounded-full text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">{currentUser?.role}</div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-8">
-                  <div className="col-span-2 md:col-span-1 space-y-2">
+                <div className="flex flex-col gap-6">
+                  <div>
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Nome Completo</label>
                     <input 
                       type="text"
                       value={profileForm.name}
                       onChange={(e) => setProfileForm({...profileForm, name: e.target.value})}
-                      className="w-full px-8 py-5 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-4 focus:ring-slate-900/5 focus:bg-white focus:border-slate-900 outline-none transition-all font-bold text-slate-900 text-lg"
+                      className="w-full px-4 py-2.5 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-4 focus:ring-slate-900/5 focus:bg-white focus:border-slate-900 outline-none transition-all font-bold text-slate-900 text-sm"
                       placeholder="Seu nome"
                     />
                   </div>
-                  <div className="col-span-2 md:col-span-1 space-y-2">
+                  <div>
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">E-mail (Login)</label>
                     <input 
                       type="email"
                       value={profileForm.email}
                       disabled
-                      className="w-full px-5 py-3 bg-slate-100 border border-slate-100 rounded-xl text-slate-400 font-bold cursor-not-allowed"
+                      className="w-full px-4 py-2.5 bg-slate-100 border border-slate-100 rounded-xl text-slate-400 font-bold cursor-not-allowed"
                       placeholder="seu@email.com"
                     />
                   </div>
-                  <div className="col-span-2 md:col-span-1 space-y-2">
+                  <div>
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">WhatsApp / Contato</label>
                     <input 
                       type="text"
                       value={profileForm.phone}
                       onChange={(e) => setProfileForm({...profileForm, phone: e.target.value})}
-                      className="w-full px-5 py-3 bg-slate-50 border border-slate-100 rounded-xl focus:ring-4 focus:ring-slate-900/5 focus:bg-white focus:border-slate-900 outline-none transition-all font-bold text-slate-900"
+                      className="w-full px-4 py-2.5 bg-slate-50 border border-slate-100 rounded-xl focus:ring-4 focus:ring-slate-900/5 focus:bg-white focus:border-slate-900 outline-none transition-all font-bold text-slate-900"
                       placeholder="(00) 00000-0000"
                     />
                   </div>
-                  <div className="col-span-2 md:col-span-1 space-y-2">
+                  <div>
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Sua Função</label>
                     <input 
                       type="text"
                       value={profileForm.profession}
                       onChange={(e) => setProfileForm({...profileForm, profession: e.target.value})}
-                      className="w-full px-5 py-3 bg-slate-50 border border-slate-100 rounded-xl focus:ring-4 focus:ring-slate-900/5 focus:bg-white focus:border-slate-900 outline-none transition-all font-bold text-slate-900"
+                      className="w-full px-4 py-2.5 bg-slate-50 border border-slate-100 rounded-xl focus:ring-4 focus:ring-slate-900/5 focus:bg-white focus:border-slate-900 outline-none transition-all font-bold text-slate-900"
                       placeholder="Ex: Mecânico Chefe"
                     />
                   </div>
@@ -539,7 +531,7 @@ export default function Settings() {
             >
               <div className="flex items-center justify-between mb-8">
                 <div>
-                  <h2 className="text-2xl font-black text-slate-900 mb-1 italic uppercase tracking-tight">🏢 Minha Oficina</h2>
+                  <h2 className="text-xl font-bold text-slate-900 mb-1 italic uppercase tracking-tight">🏢 Minha Oficina</h2>
                   <p className="text-sm font-medium text-slate-500">
                     Sua identidade profissional em todos os documentos e comunicações
                   </p>
@@ -552,13 +544,13 @@ export default function Settings() {
 
               <div className="flex flex-col gap-8">
                 {/* Identidade Visual Card */}
-                <div className="bg-white rounded-[2.5rem] border border-slate-200 p-10 shadow-sm relative overflow-hidden group">
+                <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm relative overflow-hidden group">
                   <div className="absolute top-0 right-0 w-64 h-64 bg-slate-50 rounded-bl-[10rem] -mr-32 -mt-32 transition-all group-hover:bg-slate-100/50" />
                   
-                  <div className="relative flex flex-col md:flex-row items-center gap-12">
+                  <div className="relative flex flex-col md:flex-row items-center gap-6">
                     {/* Logo Upload */}
                     <div className="relative group/logo cursor-pointer shrink-0" onClick={() => (document.getElementById('workshop_logo_hero') as HTMLInputElement)?.click()}>
-                      <div className="w-40 h-40 rounded-[2.5rem] bg-white border-4 border-slate-50 shadow-2xl flex items-center justify-center overflow-hidden transition-all duration-500 group-hover/logo:scale-105 group-hover/logo:rotate-1">
+                      <div className="w-32 h-32 rounded-2xl bg-white border-4 border-slate-50 shadow-2xl flex items-center justify-center overflow-hidden transition-all duration-500 group-hover/logo:scale-105 group-hover/logo:rotate-1">
                         {tenantForm.logo_url ? (
                           <img 
                             src={tenantForm.logo_url} 
@@ -578,11 +570,11 @@ export default function Settings() {
                     {/* Brand Identity Info */}
                     <div className="flex-1 space-y-8 w-full">
                       <div>
-                        <h3 className="text-lg font-black text-slate-900 uppercase italic tracking-tight mb-1">Identidade da Marca</h3>
+                        <h3 className="text-sm font-black text-slate-900 uppercase italic tracking-tight mb-1">Identidade da Marca</h3>
                         <p className="text-xs text-slate-500 font-medium">Sua cor e logo em orçamentos e comunicações</p>
                       </div>
 
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                      <div className="flex flex-col gap-5">
                         <div className="space-y-3">
                           <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-2">Cor de Destaque</label>
                           <div className="flex gap-3 p-2 bg-slate-50 rounded-2xl border border-slate-100 items-center">
@@ -605,7 +597,7 @@ export default function Settings() {
                           </div>
                         </div>
 
-                        <div className="px-6 py-5 bg-slate-900 rounded-[2rem] text-white shadow-xl flex flex-col justify-center">
+                        <div className="px-6 py-5 bg-slate-900 rounded-xl text-white shadow-xl flex flex-col justify-center">
                           <div className="flex items-center gap-2 mb-2">
                             <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
                             <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Dica Premium</span>
@@ -620,25 +612,25 @@ export default function Settings() {
                 {/* Form Section */}
                 <div className="space-y-8">
                   {/* Basic Info */}
-                  <div className="bg-white rounded-[2.5rem] border border-slate-200 p-10 shadow-sm">
+                  <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
                     <div className="flex items-center gap-4 mb-10">
                        <div className="w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-400">
                           <FileText size={20} />
                        </div>
                        <div>
-                          <h3 className="text-lg font-black text-slate-900 uppercase italic tracking-tight">Cadastro e Contato</h3>
+                          <h3 className="text-sm font-black text-slate-900 uppercase italic tracking-tight">Cadastro e Contato</h3>
                           <p className="text-xs text-slate-500 font-medium">Informações oficiais para orçamentos e faturas</p>
                        </div>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                      <div className="col-span-1 md:col-span-2 space-y-2">
+                    <div className="flex flex-col gap-5">
+                      <div>
                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-2">Razão Social</label>
                         <input
                           type="text"
                           value={tenantForm.company_name || ""}
                           onChange={(e) => setTenantForm({ ...tenantForm, company_name: e.target.value })}
-                          className="w-full px-5 py-3 bg-slate-50 border border-slate-100 rounded-xl focus:ring-4 focus:ring-slate-900/5 focus:bg-white focus:border-slate-900 outline-none transition-all font-bold text-slate-800"
+                          className="w-full px-4 py-2.5 bg-slate-50 border border-slate-100 rounded-xl focus:ring-4 focus:ring-slate-900/5 focus:bg-white focus:border-slate-900 outline-none transition-all font-bold text-slate-800"
                         />
                       </div>
                       <div className="space-y-2">
@@ -647,7 +639,7 @@ export default function Settings() {
                           type="text"
                           value={tenantForm.trade_name || ""}
                           onChange={(e) => setTenantForm({ ...tenantForm, trade_name: e.target.value })}
-                          className="w-full px-5 py-3 bg-slate-50 border border-slate-100 rounded-xl focus:ring-4 focus:ring-slate-900/5 focus:bg-white focus:border-slate-900 outline-none transition-all font-bold text-slate-800"
+                          className="w-full px-4 py-2.5 bg-slate-50 border border-slate-100 rounded-xl focus:ring-4 focus:ring-slate-900/5 focus:bg-white focus:border-slate-900 outline-none transition-all font-bold text-slate-800"
                         />
                       </div>
                       <div className="space-y-2">
@@ -656,7 +648,7 @@ export default function Settings() {
                           type="text"
                           value={tenantForm.short_name || ""}
                           onChange={(e) => setTenantForm({ ...tenantForm, short_name: e.target.value })}
-                          className="w-full px-5 py-3 bg-slate-50 border border-slate-100 rounded-xl focus:ring-4 focus:ring-slate-900/5 focus:bg-white focus:border-slate-900 outline-none transition-all font-bold text-slate-800"
+                          className="w-full px-4 py-2.5 bg-slate-50 border border-slate-100 rounded-xl focus:ring-4 focus:ring-slate-900/5 focus:bg-white focus:border-slate-900 outline-none transition-all font-bold text-slate-800"
                         />
                       </div>
                       <div className="space-y-2">
@@ -665,7 +657,7 @@ export default function Settings() {
                           type="text"
                           value={tenantForm.cnpj || ""}
                           onChange={(e) => setTenantForm({ ...tenantForm, cnpj: e.target.value })}
-                          className="w-full px-5 py-3 bg-slate-50 border border-slate-100 rounded-xl focus:ring-4 focus:ring-slate-900/5 focus:bg-white focus:border-slate-900 outline-none transition-all font-bold text-slate-800"
+                          className="w-full px-4 py-2.5 bg-slate-50 border border-slate-100 rounded-xl focus:ring-4 focus:ring-slate-900/5 focus:bg-white focus:border-slate-900 outline-none transition-all font-bold text-slate-800"
                         />
                       </div>
                       <div className="space-y-2">
@@ -674,16 +666,16 @@ export default function Settings() {
                           type="text"
                           value={tenantForm.ie || ""}
                           onChange={(e) => setTenantForm({ ...tenantForm, ie: e.target.value })}
-                          className="w-full px-5 py-3 bg-slate-50 border border-slate-100 rounded-xl focus:ring-4 focus:ring-slate-900/5 focus:bg-white focus:border-slate-900 outline-none transition-all font-bold text-slate-800"
+                          className="w-full px-4 py-2.5 bg-slate-50 border border-slate-100 rounded-xl focus:ring-4 focus:ring-slate-900/5 focus:bg-white focus:border-slate-900 outline-none transition-all font-bold text-slate-800"
                         />
                       </div>
-                      <div className="col-span-1 md:col-span-2 space-y-2">
+                      <div>
                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-2">Slogan / Frase de Impacto</label>
                         <input
                           type="text"
                           value={tenantForm.slogan || ""}
                           onChange={(e) => setTenantForm({ ...tenantForm, slogan: e.target.value })}
-                          className="w-full px-8 py-5 bg-slate-50 border border-slate-100 rounded-[2rem] focus:ring-4 focus:ring-slate-900/5 focus:bg-white focus:border-slate-900 outline-none transition-all font-bold text-slate-800 italic"
+                          className="w-full px-4 py-2.5 bg-slate-50 border border-slate-100 rounded-xl focus:ring-4 focus:ring-slate-900/5 focus:bg-white focus:border-slate-900 outline-none transition-all font-bold text-slate-800 italic"
                         />
                       </div>
 
@@ -693,7 +685,7 @@ export default function Settings() {
                              type="text"
                              value={tenantForm.phone || ""}
                              onChange={(e) => setTenantForm({ ...tenantForm, phone: e.target.value })}
-                             className="w-full px-5 py-3 bg-slate-50 border border-slate-100 rounded-xl focus:ring-4 focus:ring-slate-900/5 outline-none transition-all font-bold"
+                             className="w-full px-4 py-2.5 bg-slate-50 border border-slate-100 rounded-xl focus:ring-4 focus:ring-slate-900/5 outline-none transition-all font-bold"
                            />
                       </div>
                       <div className="space-y-2">
@@ -702,7 +694,7 @@ export default function Settings() {
                           type="text"
                           value={tenantForm.whatsapp || ""}
                           onChange={(e) => setTenantForm({ ...tenantForm, whatsapp: e.target.value })}
-                          className="w-full px-5 py-3 bg-white border-2 border-emerald-500/20 rounded-xl focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none transition-all font-bold text-emerald-600"
+                          className="w-full px-4 py-2.5 bg-white border-2 border-emerald-500/20 rounded-xl focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none transition-all font-bold text-emerald-600"
                         />
                       </div>
 
@@ -712,7 +704,7 @@ export default function Settings() {
                           type="email"
                           value={tenantForm.email || ""}
                           onChange={(e) => setTenantForm({ ...tenantForm, email: e.target.value })}
-                          className="w-full px-5 py-3 bg-slate-50 border border-slate-100 rounded-xl focus:ring-4 focus:ring-slate-900/5 outline-none transition-all font-bold"
+                          className="w-full px-4 py-2.5 bg-slate-50 border border-slate-100 rounded-xl focus:ring-4 focus:ring-slate-900/5 outline-none transition-all font-bold"
                         />
                       </div>
                       <div className="space-y-2">
@@ -721,49 +713,49 @@ export default function Settings() {
                           type="text"
                           value={tenantForm.website || ""}
                           onChange={(e) => setTenantForm({ ...tenantForm, website: e.target.value })}
-                          className="w-full px-5 py-3 bg-slate-50 border border-slate-100 rounded-xl focus:ring-4 focus:ring-slate-900/5 outline-none transition-all font-bold"
+                          className="w-full px-4 py-2.5 bg-slate-50 border border-slate-100 rounded-xl focus:ring-4 focus:ring-slate-900/5 outline-none transition-all font-bold"
                         />
                       </div>
-                      <div className="col-span-1 md:col-span-2 space-y-2">
+                      <div>
                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-2">Instagram (@perfil)</label>
                         <input
                           type="text"
                           value={tenantForm.instagram || ""}
                           onChange={(e) => setTenantForm({ ...tenantForm, instagram: e.target.value })}
-                          className="w-full px-5 py-3 bg-slate-50 border border-slate-100 rounded-xl focus:ring-4 focus:ring-slate-900/5 outline-none transition-all font-bold"
+                          className="w-full px-4 py-2.5 bg-slate-50 border border-slate-100 rounded-xl focus:ring-4 focus:ring-slate-900/5 outline-none transition-all font-bold"
                         />
                       </div>
                     </div>
                   </div>
 
                   {/* Location Info */}
-                  <div className="bg-white rounded-[3rem] border border-slate-200 p-10 shadow-sm">
+                  <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
                     <div className="flex items-center gap-4 mb-10">
                        <div className="w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-400">
                           <Target size={20} />
                        </div>
                        <div>
-                          <h3 className="text-lg font-black text-slate-900 uppercase italic tracking-tight">Localização</h3>
+                          <h3 className="text-sm font-black text-slate-900 uppercase italic tracking-tight">Localização</h3>
                           <p className="text-xs text-slate-500 font-medium">Onde seus clientes devem levar os veículos</p>
                        </div>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-                       <div className="md:col-span-1 space-y-2">
+                    <div className="flex flex-col gap-6">
+                       <div>
                           <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-2">CEP</label>
                           <input
                             type="text"
                             value={tenantForm.zip_code || ""}
                             onChange={(e) => setTenantForm({ ...tenantForm, zip_code: e.target.value })}
-                            className="w-full px-5 py-3 bg-slate-50 border border-slate-100 rounded-xl focus:ring-4 focus:ring-slate-900/5 outline-none transition-all font-bold"
+                            className="w-full px-4 py-2.5 bg-slate-50 border border-slate-100 rounded-xl focus:ring-4 focus:ring-slate-900/5 outline-none transition-all font-bold"
                           />
                        </div>
-                        <div className="md:col-span-1 space-y-2">
+                        <div>
                           <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-2">UF</label>
                           <select
                             value={tenantForm.state || ""}
                             onChange={(e) => setTenantForm({ ...tenantForm, state: e.target.value })}
-                            className="w-full px-5 py-3 bg-slate-50 border border-slate-100 rounded-xl focus:ring-4 focus:ring-slate-900/5 outline-none transition-all font-bold appearance-none cursor-pointer"
+                            className="w-full px-4 py-2.5 bg-slate-50 border border-slate-100 rounded-xl focus:ring-4 focus:ring-slate-900/5 outline-none transition-all font-bold appearance-none cursor-pointer"
                           >
                             <option value="">--</option>
                             {estados.map((estado) => (
@@ -777,7 +769,7 @@ export default function Settings() {
                           value={tenantForm.city || ""}
                           onChange={(e) => setTenantForm({ ...tenantForm, city: e.target.value })}
                           disabled={!tenantForm.state}
-                          className="w-full px-5 py-3 bg-slate-50 border border-slate-100 rounded-xl focus:ring-4 focus:ring-slate-900/5 outline-none transition-all font-bold appearance-none cursor-pointer disabled:opacity-50"
+                          className="w-full px-4 py-2.5 bg-slate-50 border border-slate-100 rounded-xl focus:ring-4 focus:ring-slate-900/5 outline-none transition-all font-bold appearance-none cursor-pointer disabled:opacity-50"
                         >
                           <option value="">Selecione a cidade</option>
                           {cidades.map((cidade) => (
@@ -791,7 +783,7 @@ export default function Settings() {
                             type="text"
                             value={tenantForm.address || ""}
                             onChange={(e) => setTenantForm({ ...tenantForm, address: e.target.value })}
-                            className="w-full px-5 py-3 bg-slate-50 border border-slate-100 rounded-xl focus:ring-4 focus:ring-slate-900/5 outline-none transition-all font-bold"
+                            className="w-full px-4 py-2.5 bg-slate-50 border border-slate-100 rounded-xl focus:ring-4 focus:ring-slate-900/5 outline-none transition-all font-bold"
                           />
                        </div>
                     </div>
@@ -846,9 +838,9 @@ export default function Settings() {
               </div>
 
               <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
-                <h3 className="text-lg font-bold text-slate-800 mb-4">Horário de Funcionamento</h3>
+                <h3 className="text-sm font-bold text-slate-800 mb-4">Horário de Funcionamento</h3>
                 <div className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="flex flex-col gap-4">
                     <div>
                       <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">
                         Segunda a Sexta - Abertura
@@ -873,7 +865,7 @@ export default function Settings() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="flex flex-col gap-4">
                     <div>
                       <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">
                         Sábado - Abertura
@@ -898,7 +890,7 @@ export default function Settings() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="flex flex-col gap-4">
                     <div>
                       <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">
                         Domingo - Abertura (Opcional)
@@ -925,7 +917,7 @@ export default function Settings() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="flex flex-col gap-4">
                     <div>
                       <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">
                         Intervalo de Almoço - Início
@@ -953,8 +945,8 @@ export default function Settings() {
               </div>
 
               <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
-                <h3 className="text-lg font-bold text-slate-800 mb-4">Agendamentos</h3>
-                <div className="grid grid-cols-2 gap-4">
+                <h3 className="text-sm font-bold text-slate-800 mb-4">Agendamentos</h3>
+                <div className="flex flex-col gap-4">
                   <div>
                     <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">
                       Duração Padrão (minutos)
@@ -1007,7 +999,7 @@ export default function Settings() {
             >
               <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
                 <div>
-                  <h2 className="text-3xl font-black text-slate-900 mb-2 italic uppercase tracking-tight">
+                  <h2 className="text-xl font-bold text-slate-900 mb-2 italic uppercase tracking-tight">
                     👥 Equipe e Permissões
                   </h2>
                   <div className="flex items-center gap-3">
@@ -1075,14 +1067,14 @@ export default function Settings() {
                 ].map((stat, i) => (
                   <div key={i} className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex items-center justify-between">
                     <span className="text-xs font-black text-slate-400 uppercase tracking-widest">{stat.label}</span>
-                    <span className={`text-lg font-black text-${stat.color}-600 bg-${stat.color}-50 px-3 py-1 rounded-xl`}>{stat.count}</span>
+                    <span className={`text-sm font-black text-${stat.color}-600 bg-${stat.color}-50 px-3 py-1 rounded-xl`}>{stat.count}</span>
                   </div>
                 ))}
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {usersList.length === 0 ? (
-                  <div className="col-span-full py-24 text-center bg-white rounded-[2.5rem] border border-dashed border-slate-300">
+                  <div className="col-span-full py-24 text-center bg-white rounded-2xl border border-dashed border-slate-300">
                     <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-6">
                       <Users className="w-10 h-10 text-slate-300" />
                     </div>
@@ -1094,12 +1086,12 @@ export default function Settings() {
                     <motion.div 
                       layout
                       key={user.id} 
-                      className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm hover:shadow-2xl hover:-translate-y-1 transition-all duration-500 group overflow-hidden"
+                      className="bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-2xl hover:-translate-y-1 transition-all duration-500 group overflow-hidden"
                     >
                        <div className="p-8">
                           <div className="flex items-start justify-between mb-6">
                              <div className="relative">
-                                <div className="w-20 h-20 rounded-[2rem] bg-slate-100 border-4 border-white shadow-lg overflow-hidden group-hover:scale-110 transition-transform duration-700">
+                                <div className="w-20 h-20 rounded-xl bg-slate-100 border-4 border-white shadow-lg overflow-hidden group-hover:scale-110 transition-transform duration-700">
                                    {user.photo_url ? (
                                       <img src={user.photo_url} alt={user.name} className="w-full h-full object-cover" />
                                    ) : (
@@ -1167,7 +1159,7 @@ export default function Settings() {
                           </div>
 
                           <div className="space-y-1 mb-6">
-                             <h4 className="font-black text-slate-900 text-lg leading-tight uppercase italic truncate">{user.name}</h4>
+                             <h4 className="font-black text-slate-900 text-sm leading-tight uppercase italic truncate">{user.name}</h4>
                              <p className="text-xs text-slate-400 font-bold tracking-tight truncate">{user.email}</p>
                           </div>
                           
@@ -1214,7 +1206,7 @@ export default function Settings() {
                   <motion.div
                     initial={{ scale: 0.9, opacity: 0, y: 20 }}
                     animate={{ scale: 1, opacity: 1, y: 0 }}
-                    className="bg-white rounded-[3rem] shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col relative z-10 border border-white/20"
+                    className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col relative z-10 border border-white/20"
                   >
                     <div className="px-10 py-8 bg-gradient-to-r from-slate-900 to-slate-800 flex justify-between items-center shrink-0">
                       <div>
@@ -1251,7 +1243,7 @@ export default function Settings() {
                           setSaving(false);
                         }
                       }}
-                      className="flex-1 overflow-y-auto custom-scrollbar p-10 space-y-10"
+                      className="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-10"
                     >
                       {/* Photo Upload */}
                       <div className="flex flex-col items-center">
@@ -1259,7 +1251,7 @@ export default function Settings() {
                           className="relative group cursor-pointer" 
                           onClick={() => (document.getElementById('user_photo_input') as HTMLInputElement)?.click()}
                         >
-                          <div className="w-32 h-32 rounded-[2.5rem] bg-slate-50 border-4 border-slate-100 shadow-xl flex items-center justify-center overflow-hidden transition-transform duration-500 group-hover:scale-105">
+                          <div className="w-32 h-32 rounded-2xl bg-slate-50 border-4 border-slate-100 shadow-xl flex items-center justify-center overflow-hidden transition-transform duration-500 group-hover:scale-105">
                             {userForm.photo_url ? (
                               <img src={userForm.photo_url} className="w-full h-full object-cover" />
                             ) : (
@@ -1292,7 +1284,7 @@ export default function Settings() {
                         />
                       </div>
 
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                      <div className="flex flex-col gap-5">
                         <div className="space-y-2">
                           <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Nome Completo</label>
                           <input 
@@ -1300,7 +1292,7 @@ export default function Settings() {
                             type="text"
                             value={userForm.name}
                             onChange={(e) => setUserForm({...userForm, name: e.target.value})}
-                            className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-4 focus:ring-slate-900/5 focus:bg-white focus:border-slate-900 outline-none transition-all font-bold text-slate-900"
+                            className="w-full px-4 py-2.5 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-4 focus:ring-slate-900/5 focus:bg-white focus:border-slate-900 outline-none transition-all font-bold text-slate-900"
                             placeholder="Ex: Pedro Alvares"
                           />
                         </div>
@@ -1311,7 +1303,7 @@ export default function Settings() {
                             type="email"
                             value={userForm.email}
                             onChange={(e) => setUserForm({...userForm, email: e.target.value})}
-                            className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-4 focus:ring-slate-900/5 focus:bg-white focus:border-slate-900 outline-none transition-all font-bold text-slate-900"
+                            className="w-full px-4 py-2.5 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-4 focus:ring-slate-900/5 focus:bg-white focus:border-slate-900 outline-none transition-all font-bold text-slate-900"
                             placeholder="pedro@oficina.com"
                           />
                         </div>
@@ -1320,7 +1312,7 @@ export default function Settings() {
                           <select 
                             value={userForm.role}
                             onChange={(e) => setUserForm({...userForm, role: e.target.value})}
-                            className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-4 focus:ring-slate-900/5 focus:bg-white focus:border-slate-900 outline-none transition-all font-bold text-slate-900 appearance-none cursor-pointer"
+                            className="w-full px-4 py-2.5 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-4 focus:ring-slate-900/5 focus:bg-white focus:border-slate-900 outline-none transition-all font-bold text-slate-900 appearance-none cursor-pointer"
                           >
                             <option value="ADMIN">Administrador Geral</option>
                             <option value="MECHANIC">Mecânico / Técnico</option>
@@ -1337,7 +1329,7 @@ export default function Settings() {
                             type="password"
                             value={userForm.password}
                             onChange={(e) => setUserForm({...userForm, password: e.target.value})}
-                            className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-4 focus:ring-slate-900/5 focus:bg-white focus:border-slate-900 outline-none transition-all font-bold text-slate-900"
+                            className="w-full px-4 py-2.5 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-4 focus:ring-slate-900/5 focus:bg-white focus:border-slate-900 outline-none transition-all font-bold text-slate-900"
                             placeholder="••••••"
                           />
                         </div>
@@ -1403,14 +1395,14 @@ export default function Settings() {
                         <button 
                           type="button" 
                           onClick={() => setShowUserModal(false)}
-                          className="flex-1 px-8 py-5 border-2 border-slate-100 text-slate-400 rounded-3xl font-black text-xs uppercase tracking-widest hover:bg-slate-50 hover:border-slate-200 transition-all active:scale-95 cursor-pointer"
+                          className="flex-1 px-4 py-2.5 border-2 border-slate-100 text-slate-400 rounded-3xl font-black text-xs uppercase tracking-widest hover:bg-slate-50 hover:border-slate-200 transition-all active:scale-95 cursor-pointer"
                         >
                           Cancelar
                         </button>
                         <button 
                           type="submit"
                           disabled={saving}
-                          className="flex-[2] px-8 py-5 bg-slate-900 text-white rounded-3xl font-black text-xs uppercase tracking-[0.2em] hover:bg-slate-800 transition-all shadow-2xl shadow-slate-900/20 active:scale-95 disabled:opacity-50 cursor-pointer"
+                          className="flex-[2] px-4 py-2.5 bg-slate-900 text-white rounded-3xl font-black text-xs uppercase tracking-[0.2em] hover:bg-slate-800 transition-all shadow-2xl shadow-slate-900/20 active:scale-95 disabled:opacity-50 cursor-pointer"
                         >
                           {saving ? "Processando..." : editingUser ? "Confirmar Alterações" : "Ativar Novo Membro"}
                         </button>
@@ -1431,7 +1423,7 @@ export default function Settings() {
             >
               <div className="flex items-center justify-between mb-8">
                 <div>
-                  <h2 className="text-3xl font-black text-slate-900 mb-2 italic uppercase tracking-tight">📄 Documentos e PDF</h2>
+                  <h2 className="text-xl font-bold text-slate-900 mb-2 italic uppercase tracking-tight">📄 Documentos e PDF</h2>
                   <p className="text-sm font-medium text-slate-500">
                     Personalize o layout e as regras de impressão de seus documentos
                   </p>
@@ -1442,17 +1434,17 @@ export default function Settings() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              <div className="flex flex-col gap-8">
                 {/* Column 1: Layout & Numbering */}
                 <div className="space-y-8">
                   {/* PDF Configuration */}
-                  <div className="bg-white rounded-[2.5rem] border border-slate-200 p-8 shadow-sm">
+                  <div className="bg-white rounded-2xl border border-slate-200 p-8 shadow-sm">
                     <div className="flex items-center gap-4 mb-8">
                        <div className="w-12 h-12 rounded-2xl bg-slate-50 flex items-center justify-center text-slate-400">
                           <Palette size={24} />
                        </div>
                        <div>
-                          <h3 className="text-lg font-black text-slate-900 uppercase italic tracking-tight">Layout do Cabeçalho</h3>
+                          <h3 className="text-sm font-black text-slate-900 uppercase italic tracking-tight">Layout do Cabeçalho</h3>
                           <p className="text-xs text-slate-500 font-medium">O que deve aparecer no topo de cada folha</p>
                        </div>
                     </div>
@@ -1515,13 +1507,13 @@ export default function Settings() {
                   </div>
 
                   {/* OS Numbering */}
-                  <div className="bg-white rounded-[2.5rem] border border-slate-200 p-8 shadow-sm">
+                  <div className="bg-white rounded-2xl border border-slate-200 p-8 shadow-sm">
                     <div className="flex items-center gap-4 mb-8">
                        <div className="w-12 h-12 rounded-2xl bg-purple-50 flex items-center justify-center text-purple-500">
                           <Database size={24} />
                        </div>
                        <div>
-                          <h3 className="text-lg font-black text-slate-900 uppercase italic tracking-tight">Numeração de OS</h3>
+                          <h3 className="text-sm font-black text-slate-900 uppercase italic tracking-tight">Numeração de OS</h3>
                           <p className="text-xs text-slate-500 font-medium">Configure o sequencial de seus registros</p>
                        </div>
                     </div>
@@ -1533,7 +1525,7 @@ export default function Settings() {
                           type="text"
                           value={tenantForm.os_prefix || "OFC"}
                           onChange={(e) => setTenantForm({ ...tenantForm, os_prefix: e.target.value })}
-                          className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-4 focus:ring-slate-900/5 focus:bg-white focus:border-slate-900 outline-none transition-all font-bold text-slate-900"
+                          className="w-full px-4 py-2.5 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-4 focus:ring-slate-900/5 focus:bg-white focus:border-slate-900 outline-none transition-all font-bold text-slate-900"
                           placeholder="Ex: OS"
                         />
                       </div>
@@ -1541,7 +1533,7 @@ export default function Settings() {
                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Próximo Número</label>
                         <input
                           type="number"
-                          className="w-full px-6 py-4 bg-slate-100 border border-slate-100 rounded-2xl text-slate-400 font-bold cursor-not-allowed"
+                          className="w-full px-4 py-2.5 bg-slate-100 border border-slate-100 rounded-2xl text-slate-400 font-bold cursor-not-allowed"
                           value="128"
                           disabled
                         />
@@ -1552,7 +1544,7 @@ export default function Settings() {
                           type="text"
                           value={tenantForm.os_format || "OFC-{YEAR}-{NUMBER}"}
                           onChange={(e) => setTenantForm({ ...tenantForm, os_format: e.target.value })}
-                          className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-4 focus:ring-slate-900/5 focus:bg-white focus:border-slate-900 outline-none transition-all font-bold text-slate-600 font-mono"
+                          className="w-full px-4 py-2.5 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-4 focus:ring-slate-900/5 focus:bg-white focus:border-slate-900 outline-none transition-all font-bold text-slate-600 font-mono"
                           placeholder="Ex: {YEAR}{NUMBER}"
                         />
                       </div>
@@ -1562,13 +1554,13 @@ export default function Settings() {
 
                 {/* Column 2: Standard Texts */}
                 <div className="space-y-8">
-                  <div className="bg-white rounded-[2.5rem] border border-slate-200 p-8 shadow-sm h-full flex flex-col">
+                  <div className="bg-white rounded-2xl border border-slate-200 p-8 shadow-sm h-full flex flex-col">
                     <div className="flex items-center gap-4 mb-8">
                        <div className="w-12 h-12 rounded-2xl bg-emerald-50 flex items-center justify-center text-emerald-500">
                           <FileText size={24} />
                        </div>
                        <div>
-                          <h3 className="text-lg font-black text-slate-900 uppercase italic tracking-tight">Cláusulas e Textos</h3>
+                          <h3 className="text-sm font-black text-slate-900 uppercase italic tracking-tight">Cláusulas e Textos</h3>
                           <p className="text-xs text-slate-500 font-medium">Textos automáticos que poupam seu tempo</p>
                        </div>
                     </div>
@@ -1580,7 +1572,7 @@ export default function Settings() {
                           rows={4}
                           value={tenantForm.terms_and_conditions || ""}
                           onChange={(e) => setTenantForm({ ...tenantForm, terms_and_conditions: e.target.value })}
-                          className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-4 focus:ring-slate-900/5 focus:bg-white focus:border-slate-900 outline-none transition-all font-medium text-sm text-slate-700 leading-relaxed active:border-slate-900"
+                          className="w-full px-4 py-2.5 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-4 focus:ring-slate-900/5 focus:bg-white focus:border-slate-900 outline-none transition-all font-medium text-sm text-slate-700 leading-relaxed active:border-slate-900"
                           placeholder="Texto exibido na entrada do veículo..."
                         />
                       </div>
@@ -1591,7 +1583,7 @@ export default function Settings() {
                           rows={3}
                           value={tenantForm.default_warranty_text || ""}
                           onChange={(e) => setTenantForm({ ...tenantForm, default_warranty_text: e.target.value })}
-                          className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-4 focus:ring-slate-900/5 focus:bg-white focus:border-slate-900 outline-none transition-all font-medium text-sm text-slate-700 leading-relaxed"
+                          className="w-full px-4 py-2.5 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-4 focus:ring-slate-900/5 focus:bg-white focus:border-slate-900 outline-none transition-all font-medium text-sm text-slate-700 leading-relaxed"
                           placeholder="Regras de garantia (Ex: 90 dias)..."
                         />
                       </div>
@@ -1602,7 +1594,7 @@ export default function Settings() {
                           rows={3}
                           value={tenantForm.default_quote_text || ""}
                           onChange={(e) => setTenantForm({ ...tenantForm, default_quote_text: e.target.value })}
-                          className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-4 focus:ring-slate-900/5 focus:bg-white focus:border-slate-900 outline-none transition-all font-medium text-sm text-slate-700 leading-relaxed"
+                          className="w-full px-4 py-2.5 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-4 focus:ring-slate-900/5 focus:bg-white focus:border-slate-900 outline-none transition-all font-medium text-sm text-slate-700 leading-relaxed"
                           placeholder="Prazo de validade do orçamento..."
                         />
                       </div>
@@ -1645,7 +1637,7 @@ export default function Settings() {
             >
               <div className="flex items-center justify-between mb-8">
                 <div>
-                  <h2 className="text-3xl font-black text-slate-900 mb-2 italic uppercase tracking-tight">💬 Comunicação e WhatsApp</h2>
+                  <h2 className="text-xl font-bold text-slate-900 mb-2 italic uppercase tracking-tight">💬 Comunicação e WhatsApp</h2>
                   <p className="text-sm font-medium text-slate-500">
                     Gerencie a integração com clientes e canais de contato
                   </p>
@@ -1663,20 +1655,20 @@ export default function Settings() {
                 )}
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <div className="bg-white rounded-[2.5rem] border border-slate-200 p-8 shadow-sm">
+              <div className="flex flex-col gap-5">
+                <div className="bg-white rounded-2xl border border-slate-200 p-8 shadow-sm">
                   <div className="flex items-center gap-4 mb-8">
                      <div className="w-12 h-12 rounded-2xl bg-emerald-50 flex items-center justify-center text-emerald-500">
                         <MessageSquare size={24} />
                      </div>
                      <div>
-                        <h3 className="text-lg font-black text-slate-900 uppercase italic tracking-tight">Status WhatsApp</h3>
+                        <h3 className="text-sm font-black text-slate-900 uppercase italic tracking-tight">Status WhatsApp</h3>
                         <p className="text-xs text-slate-500 font-medium">Instância de conexão ativa</p>
                      </div>
                   </div>
                   
                   <div className="space-y-6">
-                    <div className="p-6 bg-slate-50 rounded-[2rem] border border-slate-100">
+                    <div className="p-6 bg-slate-50 rounded-xl border border-slate-100">
                       <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Número Conectado</div>
                       <div className="text-xl font-mono font-black text-slate-900">{tenantForm.whatsapp || 'Não Vinculado'}</div>
                     </div>
@@ -1691,13 +1683,13 @@ export default function Settings() {
                   </div>
                 </div>
 
-                <div className="bg-white rounded-[2.5rem] border border-slate-200 p-8 shadow-sm">
+                <div className="bg-white rounded-2xl border border-slate-200 p-8 shadow-sm">
                   <div className="flex items-center gap-4 mb-8">
                      <div className="w-12 h-12 rounded-2xl bg-blue-50 flex items-center justify-center text-blue-500">
                         <Bot size={24} />
                      </div>
                      <div>
-                        <h3 className="text-lg font-black text-slate-900 uppercase italic tracking-tight">Automação Bot</h3>
+                        <h3 className="text-sm font-black text-slate-900 uppercase italic tracking-tight">Automação Bot</h3>
                         <p className="text-xs text-slate-500 font-medium">Respostas automáticas inteligentes</p>
                      </div>
                   </div>
@@ -1730,14 +1722,14 @@ export default function Settings() {
                 </div>
               </div>
 
-              <div className="bg-white rounded-[2.5rem] border border-slate-200 p-8 shadow-sm">
+              <div className="bg-white rounded-2xl border border-slate-200 p-8 shadow-sm">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-4">
                     <div className="w-12 h-12 rounded-2xl bg-amber-50 flex items-center justify-center text-amber-500">
                       <TestTube size={24} />
                     </div>
                     <div>
-                      <h3 className="text-lg font-black text-slate-900 uppercase italic tracking-tight">Testar Comunicação</h3>
+                      <h3 className="text-sm font-black text-slate-900 uppercase italic tracking-tight">Testar Comunicação</h3>
                       <p className="text-xs text-slate-500 font-medium">Verifique se as notificações estão chegando</p>
                     </div>
                   </div>
@@ -1756,7 +1748,7 @@ export default function Settings() {
                   type="button"
                   onClick={() => handleSaveTenantSettings()}
                   disabled={saving}
-                  className="flex items-center gap-3 px-12 py-5 bg-slate-900 text-white rounded-[2rem] hover:bg-slate-800 transition-all font-black text-xs uppercase tracking-[0.3em] shadow-2xl shadow-slate-900/20 active:scale-[0.98] disabled:opacity-50 cursor-pointer"
+                  className="flex items-center gap-3 px-6 py-3.5 bg-slate-900 text-white rounded-xl hover:bg-slate-800 transition-all font-black text-xs uppercase tracking-[0.3em] shadow-2xl shadow-slate-900/20 active:scale-[0.98] disabled:opacity-50 cursor-pointer"
                 >
                   <Save className="w-5 h-5" />
                   {saving ? "Salvando..." : "Salvar Configurações"}
@@ -1776,7 +1768,7 @@ export default function Settings() {
             >
               <div className="flex items-center justify-between mb-8">
                 <div>
-                  <h2 className="text-3xl font-black text-slate-900 mb-2 italic uppercase tracking-tight">💰 Gestão Financeira</h2>
+                  <h2 className="text-xl font-bold text-slate-900 mb-2 italic uppercase tracking-tight">💰 Gestão Financeira</h2>
                   <p className="text-sm font-medium text-slate-500">
                     Defina taxas, juros e regras de faturamento padrão
                   </p>
@@ -1787,28 +1779,28 @@ export default function Settings() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              <div className="flex flex-col gap-8">
                 {/* Column 1: Payments */}
                 <div className="lg:col-span-2 space-y-8">
-                  <div className="bg-white rounded-[2.5rem] border border-slate-200 p-8 shadow-sm">
+                  <div className="bg-white rounded-2xl border border-slate-200 p-8 shadow-sm">
                     <div className="flex items-center gap-4 mb-8">
                        <div className="w-12 h-12 rounded-2xl bg-blue-50 flex items-center justify-center text-blue-500">
                           <CreditCard size={24} />
                        </div>
                        <div>
-                          <h3 className="text-lg font-black text-slate-900 uppercase italic tracking-tight">Regras de Recebimento</h3>
+                          <h3 className="text-sm font-black text-slate-900 uppercase italic tracking-tight">Regras de Recebimento</h3>
                           <p className="text-xs text-slate-500 font-medium">Configure como você cobra seus clientes</p>
                        </div>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="flex flex-col gap-6">
                       <div className="space-y-2">
                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Vencimento Padrão (Dias)</label>
                         <input
                           type="number"
                           value={tenantForm.default_due_days || 30}
                           onChange={(e) => setTenantForm({ ...tenantForm, default_due_days: parseInt(e.target.value) })}
-                          className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-4 focus:ring-slate-900/5 focus:bg-white focus:border-slate-900 outline-none transition-all font-bold text-slate-900"
+                          className="w-full px-4 py-2.5 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-4 focus:ring-slate-900/5 focus:bg-white focus:border-slate-900 outline-none transition-all font-bold text-slate-900"
                         />
                       </div>
                       <div className="space-y-2">
@@ -1817,26 +1809,26 @@ export default function Settings() {
                           type="number"
                           value={tenantForm.max_installments || 12}
                           onChange={(e) => setTenantForm({ ...tenantForm, max_installments: parseInt(e.target.value) })}
-                          className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-4 focus:ring-slate-900/5 focus:bg-white focus:border-slate-900 outline-none transition-all font-bold text-slate-900"
+                          className="w-full px-4 py-2.5 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-4 focus:ring-slate-900/5 focus:bg-white focus:border-slate-900 outline-none transition-all font-bold text-slate-900"
                         />
                       </div>
-                      <div className="col-span-1 md:col-span-2 space-y-2">
+                      <div>
                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Chave PIX Principal</label>
                         <input
                           type="text"
                           value={tenantForm.pix_key || ""}
                           onChange={(e) => setTenantForm({ ...tenantForm, pix_key: e.target.value })}
-                          className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-4 focus:ring-slate-900/5 focus:bg-white focus:border-slate-900 outline-none transition-all font-bold text-slate-900"
+                          className="w-full px-4 py-2.5 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-4 focus:ring-slate-900/5 focus:bg-white focus:border-slate-900 outline-none transition-all font-bold text-slate-900"
                           placeholder="CNPJ, E-mail ou Aleatória"
                         />
                       </div>
-                      <div className="col-span-1 md:col-span-2 space-y-2">
+                      <div>
                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] ml-1">Formas Acetias (Slug)</label>
                         <input
                           type="text"
                           value={tenantForm.payment_methods || "pix,card,cash"}
                           onChange={(e) => setTenantForm({ ...tenantForm, payment_methods: e.target.value })}
-                          className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-4 focus:ring-slate-900/5 focus:bg-white focus:border-slate-900 outline-none transition-all font-bold text-slate-600 font-mono"
+                          className="w-full px-4 py-2.5 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-4 focus:ring-slate-900/5 focus:bg-white focus:border-slate-900 outline-none transition-all font-bold text-slate-600 font-mono"
                         />
                       </div>
                     </div>
@@ -1845,13 +1837,13 @@ export default function Settings() {
 
                 {/* Column 2: Fees & Interest */}
                 <div className="space-y-8">
-                  <div className="bg-white rounded-[2.5rem] border border-slate-200 p-8 shadow-sm">
+                  <div className="bg-white rounded-2xl border border-slate-200 p-8 shadow-sm">
                     <div className="flex items-center gap-4 mb-8">
                        <div className="w-12 h-12 rounded-2xl bg-red-50 flex items-center justify-center text-red-500">
                           <AlertTriangle size={24} />
                        </div>
                        <div>
-                          <h3 className="text-lg font-black text-slate-900 uppercase italic tracking-tight">Multas e Juros</h3>
+                          <h3 className="text-sm font-black text-slate-900 uppercase italic tracking-tight">Multas e Juros</h3>
                           <p className="text-xs text-slate-500 font-medium">Rigor com atrasos</p>
                        </div>
                     </div>
@@ -1865,7 +1857,7 @@ export default function Settings() {
                             step="0.01"
                             value={tenantForm.late_fee_percentage || 0}
                             onChange={(e) => setTenantForm({ ...tenantForm, late_fee_percentage: parseFloat(e.target.value) })}
-                            className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-4 focus:ring-slate-900/5"
+                            className="w-full px-4 py-2.5 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-4 focus:ring-slate-900/5"
                           />
                           <span className="absolute right-6 top-1/2 -translate-y-1/2 font-black text-slate-300">%</span>
                         </div>
@@ -1879,14 +1871,14 @@ export default function Settings() {
                             step="0.01"
                             value={tenantForm.fixed_penalty || 0}
                             onChange={(e) => setTenantForm({ ...tenantForm, fixed_penalty: parseFloat(e.target.value) })}
-                            className="w-full px-6 py-4 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-4 focus:ring-slate-900/5"
+                            className="w-full px-4 py-2.5 bg-slate-50 border border-slate-100 rounded-2xl focus:ring-4 focus:ring-slate-900/5"
                           />
                           <span className="absolute left-4 top-1/2 -translate-y-1/2 font-black text-slate-300">R$</span>
                         </div>
                       </div>
 
                       <div className="pt-4 border-t border-slate-50">
-                         <div className="px-6 py-4 bg-slate-900 text-white rounded-2xl">
+                         <div className="px-4 py-2.5 bg-slate-900 text-white rounded-2xl">
                            <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Cálculo Automático</div>
                            <div className="text-xs font-bold leading-relaxed">O sistema calcula juros mora diários automaticamente no boleto/fatura.</div>
                          </div>
@@ -1901,7 +1893,7 @@ export default function Settings() {
                   type="button"
                   onClick={() => handleSaveTenantSettings()}
                   disabled={saving}
-                  className="flex items-center gap-3 px-12 py-5 bg-slate-900 text-white rounded-[2rem] hover:bg-slate-800 transition-all font-black text-xs uppercase tracking-[0.3em] shadow-2xl shadow-slate-900/20 active:scale-[0.98] disabled:opacity-50 cursor-pointer"
+                  className="flex items-center gap-3 px-6 py-3.5 bg-slate-900 text-white rounded-xl hover:bg-slate-800 transition-all font-black text-xs uppercase tracking-[0.3em] shadow-2xl shadow-slate-900/20 active:scale-[0.98] disabled:opacity-50 cursor-pointer"
                 >
                   <Save className="w-5 h-5" />
                   {saving ? "Salvando..." : "Salvar Configurações Financeiras"}
@@ -1925,7 +1917,7 @@ export default function Settings() {
               </div>
 
               <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
-                <h3 className="text-lg font-bold text-slate-800 mb-4">Ordens de Serviço</h3>
+                <h3 className="text-sm font-bold text-slate-800 mb-4">Ordens de Serviço</h3>
                 <div className="space-y-4">
                   <label className="flex items-center justify-between cursor-pointer">
                     <div>
@@ -1994,7 +1986,7 @@ export default function Settings() {
               </div>
 
               <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
-                <h3 className="text-lg font-bold text-slate-800 mb-4">Estoque</h3>
+                <h3 className="text-sm font-bold text-slate-800 mb-4">Estoque</h3>
                 <div className="space-y-4">
                   <label className="flex items-center justify-between cursor-pointer">
                     <div>
@@ -2053,7 +2045,7 @@ export default function Settings() {
               </div>
 
               <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
-                <h3 className="text-lg font-bold text-slate-800 mb-4">Alertas</h3>
+                <h3 className="text-sm font-bold text-slate-800 mb-4">Alertas</h3>
                 <div className="space-y-4">
                   <label className="flex items-center justify-between cursor-pointer">
                     <div>
@@ -2171,7 +2163,7 @@ export default function Settings() {
                   <Palette className="w-4 h-4" /> Paleta de Cores do Sistema
                 </h3>
                 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div className="flex flex-col gap-5">
                   {/* Primary & Secondary */}
                   <div className="space-y-6">
                     <div>
@@ -2339,7 +2331,7 @@ export default function Settings() {
 
               <form onSubmit={handleChangePassword} className="space-y-6">
                 <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
-                  <h3 className="text-lg font-bold text-slate-800 mb-4">Alterar Senha</h3>
+                  <h3 className="text-sm font-bold text-slate-800 mb-4">Alterar Senha</h3>
                   <div className="space-y-4">
                     <div>
                       <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wide mb-2">
@@ -2441,7 +2433,7 @@ export default function Settings() {
               </div>
 
               <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
-                <h3 className="text-lg font-bold text-slate-800 mb-4">Integrações</h3>
+                <h3 className="text-sm font-bold text-slate-800 mb-4">Integrações</h3>
                 <div className="space-y-3">
                   <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl">
                     <div className="flex items-center gap-3">
@@ -2470,7 +2462,7 @@ export default function Settings() {
               </div>
 
               <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
-                <h3 className="text-lg font-bold text-slate-800 mb-4">Ferramentas</h3>
+                <h3 className="text-sm font-bold text-slate-800 mb-4">Ferramentas</h3>
                 <div className="space-y-3">
                   <button
                     type="button"
@@ -2516,7 +2508,7 @@ export default function Settings() {
               </div>
 
               <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
-                <h3 className="text-lg font-bold text-slate-800 mb-4">Auditoria</h3>
+                <h3 className="text-sm font-bold text-slate-800 mb-4">Auditoria</h3>
                 <p className="text-sm text-slate-500 mb-4">
                   Logs de ações importantes (cancelamentos, estornos, alterações de valor)
                 </p>
