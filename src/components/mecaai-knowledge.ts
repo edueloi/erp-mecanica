@@ -41,8 +41,23 @@ export const knowledgeBase: KnowledgeItem[] = [
   },
   {
     id: 'plan_comparison',
-    keywords: ['diferenca entre planos', 'qual melhor para mim', 'comparar planos', 'versus', 'pro ou elite', 'start ou pro', 'qual a diferenca', 'entender planos'],
-    response: "A diferença principal está na **Automação**:\n\n• O **Start** foca na gestão básica (OS e Financeiro).\n• O **Pro** adiciona o **WhatsApp Automático** e o **Checklist HD** (fotos na entrada) — onde você ganha escala real.\n• O **Elite** é para redes de oficinas e grandes centros automotivos.\n\nPara a maioria das oficinas, o **PRO** traz o melhor custo-benefício. Vamos testar?",
+    keywords: ['diferenca entre planos', 'qual melhor para mim', 'comparar planos', 'versus', 'pro ou elite', 'start ou pro', 'qual a diferenca', 'entender planos', 'qual melhor plano', 'melhor opcao', 'qual me indica'],
+    response: "Para eu te indicar o melhor plano com precisão, preciso conhecer um pouco do seu negócio! 🏢\n\nQual o tamanho da sua oficina: **Pequena**, **Média** ou **Grande**?\n\n*(Se não souber classificar, me diga a quantidade de funcionários que você tem ou o seu faturamento médio mensal, e eu avalio para você!)*",
+  },
+  {
+    id: 'size_small',
+    keywords: ['pequena', 'pequeno porte', 'pequenas', 'sou pequeno', '1 funcionario', '2 funcionarios', '3 funcionarios', 'sozinho', 'fatura pouco', 'pouco movimento', 'comecando', 'iniciante', 'ate 30 mil', 'ate 50 mil'],
+    response: "Entendi! Para oficinas de **pequeno porte** (ou até 3 colaboradores), recomendo começar pelo **Plano Start (R$ 197/mês)**.\n\nEle te dá toda a base para organizar a casa: criar OS rapidamente, enviar orçamentos em PDF, e ter um controle de caixa e estoque afiado. Quando o volume aumentar, você pode mudar para o Pro e liberar automações. Que tal iniciarmos os 14 dias grátis?",
+  },
+  {
+    id: 'size_medium',
+    keywords: ['media', 'medio porte', 'medias', 'sou medio', '4 funcionarios', '5 funcionarios', '6 funcionarios', '7 funcionarios', '10 funcionarios', 'bastante movimento', 'faturamento medio', 'de 50 a 100 mil', 'mais de 50 mil', '100 mil'],
+    response: "Legal! Para oficinas de **médio porte** (ou acima de 4 funcionários), o ideal e mais recomendado é o **Plano Pro (R$ 297/mês)**! 🏆\n\nNesse nível você precisa de **escala**. O Plano Pro libera o **WhatsApp Automático** e o **Checklist HD com fotos** na entrada do veículo, passando muito mais credibilidade e evitando dor de cabeça. Além de liberar cálculo automático de comissão para os mecânicos. Faz sentido testarmos o Pro?",
+  },
+  {
+    id: 'size_large',
+    keywords: ['grande', 'grande porte', 'grandes', 'sou grande', 'rede', 'filiais', 'mais de 10 funcionarios', '15 funcionarios', '20 funcionarios', 'faturamento alto', 'mais de 200 mil', 'centro automotivo grande', 'mais de uma loja'],
+    response: "Perfeito! Para **grandes centros automotivos** ou **redes**, a indicação certeira é o **Plano Elite (R$ 497/mês)**.\n\nCom ele você tem controle total corporativo: gestão de múltiplas unidades 🏢, níveis de permissão super rigorosos para os usuários (gerentes, vendedores, caixa) e acesso à nossa API para integrações externas. Sem contar o suporte VIP prioritário. Bora agendar uma demonstração desse plano?",
   },
   {
     id: 'upgrade_plan',
