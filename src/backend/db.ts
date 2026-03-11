@@ -44,6 +44,19 @@ export function initDb() {
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
   )`);
 
+  try { db.exec("ALTER TABLE services ADD COLUMN charging_type TEXT DEFAULT 'FIXED'"); } catch (e) {}
+
+  // Service Parts / Kits
+  db.exec(`CREATE TABLE IF NOT EXISTS service_parts (
+    id TEXT PRIMARY KEY,
+    tenant_id TEXT NOT NULL,
+    service_id TEXT NOT NULL,
+    part_id TEXT NOT NULL,
+    quantity REAL DEFAULT 1,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(service_id) REFERENCES services(id) ON DELETE CASCADE
+  )`);
+
   // Migrations for new profile fields
   try { db.exec('ALTER TABLE users ADD COLUMN phone TEXT'); } catch (e) {}
   try { db.exec('ALTER TABLE users ADD COLUMN cpf TEXT'); } catch (e) {}

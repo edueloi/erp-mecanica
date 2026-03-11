@@ -322,7 +322,7 @@ export default function Clients() {
               <th className="px-4 py-2.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Documento</th>
               <th className="px-4 py-2.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Contato</th>
               <th className="px-4 py-2.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider text-center">Veículos</th>
-              <th className="px-4 py-2.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Última OS</th>
+              <th className="px-4 py-2.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider text-center">O.S.</th>
               <th className="px-4 py-2.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Pendências</th>
               <th className="px-4 py-2.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Status</th>
               <th className="px-6 py-2.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider sticky right-0 bg-slate-50 z-20 text-right shadow-[-12px_0_15px_-4px_rgba(0,0,0,0.05)]">Ações</th>
@@ -380,22 +380,24 @@ export default function Clients() {
                   </div>
                 </td>
                 <td className="px-4 py-2 text-center">
-                  <span className="inline-flex items-center justify-center w-6 h-6 bg-slate-100 rounded-full text-[10px] font-bold text-slate-600">
-                    {client.vehicles?.length || 0}
+                  <span className="inline-flex items-center justify-center min-w-[24px] h-6 px-2 bg-slate-100 rounded-full text-[10px] font-bold text-slate-600">
+                    {client.vehicles_count || 0}
+                  </span>
+                </td>
+                <td className="px-4 py-2 text-center">
+                  <span className="inline-flex items-center justify-center min-w-[24px] h-6 px-2 bg-slate-100 rounded-full text-[10px] font-bold text-slate-600">
+                    {client.os_count || 0}
                   </span>
                 </td>
                 <td className="px-4 py-2">
-                  <span className="text-xs text-slate-600">
-                    {client.last_visit ? format(new Date(client.last_visit), 'dd/MM/yy') : 'Nunca'}
-                  </span>
-                </td>
-                <td className="px-4 py-2">
-                  {client.pending_amount > 0 ? (
-                    <div className="flex items-center gap-1 text-red-600 font-bold text-xs">
-                      <AlertTriangle size={12} /> R$ {client.pending_amount.toLocaleString('pt-BR')}
+                  {client.pendencies_count > 0 ? (
+                    <div className="flex items-center gap-1 text-red-600 font-bold text-xs bg-red-50 w-fit px-2 py-1 rounded-md">
+                      <AlertTriangle size={12} /> {client.pendencies_count} pendente(s)
                     </div>
                   ) : (
-                    <span className="text-xs text-slate-400">---</span>
+                    <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-md flex items-center gap-1 w-fit">
+                      <CheckCircle size={12} /> OK
+                    </span>
                   )}
                 </td>
                 <td className="px-4 py-2">

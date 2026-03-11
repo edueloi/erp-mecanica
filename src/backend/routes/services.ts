@@ -21,7 +21,7 @@ router.get("/", (req: AuthRequest, res) => {
 router.post("/", (req: AuthRequest, res) => {
   const { 
     name, code, category, description, estimated_time, 
-    default_price, estimated_cost, status, type, 
+    default_price, estimated_cost, status, type, charging_type,
     warranty_days, allow_discount, requires_diagnosis, compatible_vehicles 
   } = req.body;
 
@@ -30,12 +30,12 @@ router.post("/", (req: AuthRequest, res) => {
     db.prepare(`
       INSERT INTO services (
         id, tenant_id, name, code, category, description, estimated_time,
-        default_price, estimated_cost, status, type, warranty_days,
+        default_price, estimated_cost, status, type, charging_type, warranty_days,
         allow_discount, requires_diagnosis, compatible_vehicles
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       id, req.user!.tenant_id, name, code, category, description, estimated_time,
-      default_price || 0, estimated_cost || 0, status || 'ACTIVE', type || 'LABOR', 
+      default_price || 0, estimated_cost || 0, status || 'ACTIVE', type || 'LABOR', charging_type || 'FIXED',
       warranty_days || 90, allow_discount ? 1 : 0, requires_diagnosis ? 1 : 0, 
       compatible_vehicles
     );
@@ -52,7 +52,7 @@ router.patch("/:id", (req: AuthRequest, res) => {
   const data = req.body;
   const allowedFields = [
     'name', 'code', 'category', 'description', 'estimated_time',
-    'default_price', 'estimated_cost', 'status', 'type',
+    'default_price', 'estimated_cost', 'status', 'type', 'charging_type',
     'warranty_days', 'allow_discount', 'requires_diagnosis', 'compatible_vehicles'
   ];
 
@@ -90,6 +90,68 @@ router.delete("/:id", (req: AuthRequest, res) => {
       return res.status(404).json({ error: "Service not found" });
     }
     res.json({ message: "Service deleted successfully" });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Create/Link part to a service
+router.post("/:id/parts", (req: AuthRequest, res) => {
+  const { part_id, quantity } = req.body;
+  const service_id = req.params.id;
+  const tenant_id = req.user!.tenant_id;
+
+  try {
+    const existing = db.prepare("SELECT id FROM service_parts WHERE service_id = ? AND part_id = ? AND tenant_id = ?").get(service_id, part_id, tenant_id);
+    if (existing) {
+      return res.status(400).json({ error: "Part already linked to this service" });
+    }
+
+    const id = uuidv4();
+    db.prepare(`
+      INSERT INTO service_parts (id, tenant_id, service_id, part_id, quantity)
+      VALUES (?, ?, ?, ?, ?)
+    `).run(id, tenant_id, service_id, part_id, quantity || 1);
+
+    const newLink = db.prepare(`
+      SELECT sp.*, p.name as part_name, p.code as part_code, p.sale_price 
+      FROM service_parts sp 
+      JOIN parts p ON p.id = sp.part_id 
+      WHERE sp.id = ?
+    `).get(id);
+
+    res.status(201).json(newLink);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get all parts linked to a service
+router.get("/:id/parts", (req: AuthRequest, res) => {
+  const service_id = req.params.id;
+  const tenant_id = req.user!.tenant_id;
+
+  try {
+    const parts = db.prepare(`
+      SELECT sp.*, p.name as part_name, p.code as part_code, p.sale_price, p.stock_quantity as current_stock 
+      FROM service_parts sp
+      JOIN parts p ON p.id = sp.part_id
+      WHERE sp.service_id = ? AND sp.tenant_id = ?
+    `).all(service_id, tenant_id);
+    res.json(parts);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Remove part link from a service
+router.delete("/:id/parts/:part_id", (req: AuthRequest, res) => {
+  const { id: service_id, part_id } = req.params;
+  const tenant_id = req.user!.tenant_id;
+
+  try {
+    db.prepare("DELETE FROM service_parts WHERE service_id = ? AND part_id = ? AND tenant_id = ?").run(service_id, part_id, tenant_id);
+    res.json({ message: "Part link removed" });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }

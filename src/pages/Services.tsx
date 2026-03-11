@@ -30,6 +30,24 @@ interface Service {
   compatible_vehicles?: string;
 }
 
+interface Part { 
+  id: string; 
+  name: string; 
+  code: string; 
+  sale_price: number; 
+  stock_quantity: number; 
+}
+
+interface ServicePart {
+  id: string;
+  part_id: string;
+  part_name: string;
+  part_code: string;
+  sale_price: number;
+  quantity: number;
+  current_stock: number;
+}
+
 const categoryMap: Record<ServiceCategory, { label: string; color: string }> = {
   MOTOR: { label: 'Motor', color: 'bg-red-50 text-red-600 border-red-100' },
   FREIO: { label: 'Freio', color: 'bg-orange-50 text-orange-600 border-orange-100' },
@@ -50,6 +68,12 @@ export default function Services() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [activeDetailTab, setActiveDetailTab] = useState<'SUMMARY' | 'PARTS' | 'HISTORY' | 'COMPATIBILITY'>('SUMMARY');
   
+  const [availableParts, setAvailableParts] = useState<Part[]>([]);
+  const [serviceParts, setServiceParts] = useState<ServicePart[]>([]);
+  const [searchPartQuery, setSearchPartQuery] = useState('');
+  const [selectedPart, setSelectedPart] = useState<Part | null>(null);
+  const [partQuantity, setPartQuantity] = useState(1);
+
   const [formData, setFormData] = useState({
     name: '',
     code: '',
@@ -80,9 +104,30 @@ export default function Services() {
     }
   };
 
+  const fetchAvailableParts = async () => {
+    try {
+      const res = await api.get('/parts');
+      setAvailableParts(Array.isArray(res.data) ? res.data : []);
+    } catch (err) { }
+  };
+
+  const fetchServiceParts = async (id: string) => {
+    try {
+      const res = await api.get(`/services/${id}/parts`);
+      setServiceParts(Array.isArray(res.data) ? res.data : []);
+    } catch (err) { }
+  };
+
   useEffect(() => {
     fetchServices();
+    fetchAvailableParts();
   }, []);
+
+  useEffect(() => {
+    if (isDetailDrawerOpen && selectedService && (activeDetailTab === 'PARTS' || activeDetailTab === 'SUMMARY')) {
+      fetchServiceParts(selectedService.id);
+    }
+  }, [isDetailDrawerOpen, selectedService, activeDetailTab]);
 
   const handleCreateService = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -144,6 +189,32 @@ export default function Services() {
     } catch (err) {
       console.error('Error deleting service:', err);
       alert('Não foi possível excluir o serviço. Ele pode estar vinculado a ordens de serviço.');
+    }
+  };
+
+  const handleLinkPart = async () => {
+    if (!selectedPart || !selectedService) return;
+    try {
+      await api.post(`/services/${selectedService.id}/parts`, {
+        part_id: selectedPart.id,
+        quantity: partQuantity
+      });
+      setSelectedPart(null);
+      setPartQuantity(1);
+      setSearchPartQuery('');
+      fetchServiceParts(selectedService.id);
+    } catch (err: any) {
+      alert(err.response?.data?.error || 'Erro ao vincular peça');
+    }
+  };
+
+  const handleRemovePart = async (part_id: string) => {
+    if (!selectedService) return;
+    try {
+      await api.delete(`/services/${selectedService.id}/parts/${part_id}`);
+      fetchServiceParts(selectedService.id);
+    } catch (err) {
+      console.error('Error removing part linked:', err);
     }
   };
 
@@ -652,22 +723,141 @@ export default function Services() {
                         </p>
                       </div>
 
-                      <div className="pt-4 space-y-3">
+                      <div className="pt-4 space-y-3 border-t border-slate-100">
                         <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
                           <Package size={12} /> Peças Vinculadas (Padrão)
                         </h3>
-                        <p className="text-xs text-slate-400 italic">Nenhuma peça vinculada a este serviço.</p>
+                        {serviceParts.length > 0 ? (
+                           <div className="space-y-2">
+                             {serviceParts.map(sp => (
+                               <div key={sp.id} className="flex justify-between items-center text-xs p-2 bg-slate-50 border border-slate-100 rounded">
+                                 <div>
+                                   <p className="font-bold text-slate-700">{sp.part_name}</p>
+                                   <p className="text-slate-500 font-mono text-[10px]">{sp.part_code}</p>
+                                 </div>
+                                 <div className="text-right">
+                                   <p className="font-bold text-slate-700">{sp.quantity}x</p>
+                                   <p className="text-slate-500 text-[10px]">R$ {sp.sale_price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+                                 </div>
+                               </div>
+                             ))}
+                           </div>
+                        ) : (
+                          <p className="text-xs text-slate-400 italic">Nenhuma peça vinculada a este serviço.</p>
+                        )}
                       </div>
                     </>
                   )}
 
                   {activeDetailTab === 'PARTS' && (
-                    <div className="space-y-4">
-                      <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
-                        <Package size={12} /> Kits e Peças Vinculadas
-                      </h3>
-                      <div className="bg-slate-50 border border-slate-100 rounded-xl p-6 text-center">
-                        <p className="text-sm text-slate-500">Em breve você poderá vincular kits de peças padrão a este serviço.</p>
+                    <div className="space-y-6">
+                      <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 shadow-sm space-y-4">
+                         <h3 className="text-xs font-bold text-slate-900 flex items-center gap-2">
+                           <Plus size={14} /> Adicionar Peça ao Padrão
+                         </h3>
+                         <div className="space-y-3">
+                           <div>
+                             <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1.5">Buscar Peça</label>
+                             <div className="relative">
+                               <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                               <input 
+                                 type="text"
+                                 className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-slate-900/10"
+                                 placeholder="Digite o nome ou código da peça..."
+                                 value={searchPartQuery}
+                                 onChange={e => {
+                                   setSearchPartQuery(e.target.value);
+                                   if (!e.target.value) setSelectedPart(null);
+                                 }}
+                               />
+                               {searchPartQuery && !selectedPart && (
+                                 <div className="absolute top-full left-0 right-0 mt-1 max-h-48 overflow-y-auto bg-white border border-slate-200 rounded-xl shadow-xl z-20">
+                                   {availableParts
+                                     .filter(p => p.name.toLowerCase().includes(searchPartQuery.toLowerCase()) || (p.code && p.code.toLowerCase().includes(searchPartQuery.toLowerCase())))
+                                     .slice(0, 5)
+                                     .map(p => (
+                                       <div 
+                                         key={p.id}
+                                         className="p-3 hover:bg-slate-50 cursor-pointer border-b border-slate-50 last:border-0"
+                                         onClick={() => {
+                                            setSelectedPart(p);
+                                            setSearchPartQuery(p.name);
+                                         }}
+                                       >
+                                          <p className="text-sm font-bold text-slate-900">{p.name}</p>
+                                          <div className="flex items-center gap-2 text-xs text-slate-500 mt-1">
+                                            <span className="font-mono bg-slate-100 px-1.5 rounded">{p.code}</span>
+                                            <span>Estoque: {p.stock_quantity}</span>
+                                            <span className="font-medium text-emerald-600">R$ {p.sale_price.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</span>
+                                          </div>
+                                       </div>
+                                     ))}
+                                 </div>
+                               )}
+                             </div>
+                           </div>
+
+                           <div className="flex gap-3 items-end">
+                             <div className="w-24">
+                                <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1.5">Unidades</label>
+                                <input 
+                                  type="number"
+                                  min="0.1"
+                                  step="0.1"
+                                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm outline-none"
+                                  value={partQuantity}
+                                  onChange={e => setPartQuantity(parseFloat(e.target.value) || 1)}
+                                />
+                             </div>
+                             <button
+                               onClick={handleLinkPart}
+                               disabled={!selectedPart}
+                               className="flex-1 px-4 py-2 bg-slate-900 text-white font-bold text-sm rounded-lg hover:bg-slate-800 transition-colors disabled:opacity-50"
+                             >
+                               Vincular ao Serviço
+                             </button>
+                           </div>
+                         </div>
+                      </div>
+
+                      <div className="space-y-4">
+                        <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                          <Package size={12} /> Kits e Peças Vinculadas ({serviceParts.length})
+                        </h3>
+                        
+                        {serviceParts.length === 0 ? (
+                          <div className="bg-slate-50 border border-slate-100 rounded-xl p-6 text-center">
+                            <p className="text-sm text-slate-500">Nenhuma peça padrão definida para este serviço.</p>
+                          </div>
+                        ) : (
+                          <div className="space-y-2">
+                            {serviceParts.map((sp) => (
+                              <div key={sp.id} className="bg-white border text-left border-slate-200 rounded-xl p-3 flex items-center gap-3">
+                                <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-lg flex items-center justify-center shrink-0">
+                                  <Package size={18} />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <h4 className="text-sm font-bold text-slate-900 truncate">{sp.part_name}</h4>
+                                  <div className="flex items-center gap-2 text-xs text-slate-500 mt-1">
+                                    <span className="font-mono bg-slate-100 px-1.5 rounded">{sp.part_code}</span>
+                                    <span>R$ {sp.sale_price.toLocaleString('pt-BR', {minimumFractionDigits:2})}</span>
+                                  </div>
+                                </div>
+                                <div className="text-right px-3 border-r border-slate-100">
+                                  <p className="text-[10px] font-bold text-slate-400 uppercase mb-0.5">Qtd.</p>
+                                  <p className="text-sm font-black text-slate-700">{sp.quantity}</p>
+                                </div>
+                                <button 
+                                  onClick={() => handleRemovePart(sp.part_id)}
+                                  className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors shrink-0" 
+                                  title="Remover vínculo"
+                                >
+                                  <Trash2 size={16} />
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     </div>
                   )}

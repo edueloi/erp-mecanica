@@ -9,22 +9,35 @@ router.use(authenticateToken);
 
 router.get("/", (req: AuthRequest, res) => {
   const { q, status } = req.query;
-  let query = "SELECT * FROM clients WHERE tenant_id = ?";
+  let query = `
+    SELECT 
+      c.*,
+      (SELECT COUNT(*) FROM vehicles v WHERE v.client_id = c.id) as vehicles_count,
+      (SELECT COUNT(*) FROM work_orders wo WHERE wo.client_id = c.id) as os_count,
+      (SELECT COUNT(*) FROM accounts_receivable ar WHERE ar.client_id = c.id AND ar.status = 'PENDING') as pendencies_count
+    FROM clients c 
+    WHERE c.tenant_id = ?
+  `;
   const params: any[] = [req.user!.tenant_id];
 
   if (q) {
-    query += " AND (name LIKE ? OR document LIKE ? OR email LIKE ? OR phone LIKE ?)";
+    query += " AND (c.name LIKE ? OR c.document LIKE ? OR c.email LIKE ? OR c.phone LIKE ?)";
     params.push(`%${q}%`, `%${q}%`, `%${q}%`, `%${q}%`);
   }
 
   if (status) {
-    query += " AND status = ?";
+    query += " AND c.status = ?";
     params.push(status);
   }
 
-  query += " ORDER BY name ASC";
-  const clients = db.prepare(query).all(...params);
-  res.json(clients.map((c: any) => ({ ...c, tags: JSON.parse(c.tags || "[]") })));
+  query += " ORDER BY c.name ASC";
+  try {
+    const clients = db.prepare(query).all(...params);
+    res.json(clients.map((c: any) => ({ ...c, tags: JSON.parse(c.tags || "[]") })));
+  } catch (err: any) {
+    console.error("Error fetching clients:", err);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 router.post("/", (req: AuthRequest, res) => {
