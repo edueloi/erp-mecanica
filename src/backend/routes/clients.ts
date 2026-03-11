@@ -83,7 +83,7 @@ router.get("/:id", (req: AuthRequest, res) => {
   // Include relationships
   const vehicles = db.prepare("SELECT * FROM vehicles WHERE client_id = ?").all(req.params.id);
   const workOrders = db.prepare(`
-    SELECT wo.*, v.plate, v.model 
+    SELECT wo.*, v.plate, v.model, v.brand
     FROM work_orders wo 
     JOIN vehicles v ON wo.vehicle_id = v.id 
     WHERE wo.client_id = ? 

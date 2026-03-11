@@ -29,6 +29,7 @@ export default function Clients() {
   const [isNewModalOpen, setIsNewModalOpen] = useState(false);
   const [isEditDrawerOpen, setIsEditDrawerOpen] = useState(false);
   const [isHistoryDrawerOpen, setIsHistoryDrawerOpen] = useState(false);
+  const [historyTab, setHistoryTab] = useState<'vehicles' | 'os'>('os');
   const [selectedClient, setSelectedClient] = useState<any>(null);
   const [isCepLoading, setIsCepLoading] = useState(false);
   const [isEditCepLoading, setIsEditCepLoading] = useState(false);
@@ -185,11 +186,12 @@ export default function Clients() {
     }
   };
 
-  const handleViewHistory = async (client: any) => {
+  const handleViewHistory = async (client: any, tab: 'vehicles' | 'os' = 'os') => {
     try {
       setLoading(true);
       const res = await api.get(`/clients/${client.id}`);
       setSelectedClient(res.data);
+      setHistoryTab(tab);
       setIsHistoryDrawerOpen(true);
     } catch (err) {
       console.error('Error fetching history:', err);
@@ -380,14 +382,32 @@ export default function Clients() {
                   </div>
                 </td>
                 <td className="px-4 py-2 text-center">
-                  <span className="inline-flex items-center justify-center min-w-[24px] h-6 px-2 bg-slate-100 rounded-full text-[10px] font-bold text-slate-600">
+                  <button
+                    onClick={(e) => { e.stopPropagation(); if ((client.vehicles_count || 0) > 0) handleViewHistory(client, 'vehicles'); }}
+                    className={cn(
+                      "inline-flex items-center justify-center min-w-[24px] h-6 px-2 rounded-full text-[10px] font-bold transition-all",
+                      (client.vehicles_count || 0) > 0
+                        ? "bg-blue-50 text-blue-600 hover:bg-blue-100 hover:scale-110 cursor-pointer"
+                        : "bg-slate-100 text-slate-400 cursor-default"
+                    )}
+                    title={(client.vehicles_count || 0) > 0 ? "Ver veículos" : "Sem veículos"}
+                  >
                     {client.vehicles_count || 0}
-                  </span>
+                  </button>
                 </td>
                 <td className="px-4 py-2 text-center">
-                  <span className="inline-flex items-center justify-center min-w-[24px] h-6 px-2 bg-slate-100 rounded-full text-[10px] font-bold text-slate-600">
+                  <button
+                    onClick={(e) => { e.stopPropagation(); if ((client.os_count || 0) > 0) handleViewHistory(client, 'os'); }}
+                    className={cn(
+                      "inline-flex items-center justify-center min-w-[24px] h-6 px-2 rounded-full text-[10px] font-bold transition-all",
+                      (client.os_count || 0) > 0
+                        ? "bg-orange-50 text-orange-600 hover:bg-orange-100 hover:scale-110 cursor-pointer"
+                        : "bg-slate-100 text-slate-400 cursor-default"
+                    )}
+                    title={(client.os_count || 0) > 0 ? "Ver ordens de serviço" : "Sem O.S."}
+                  >
                     {client.os_count || 0}
-                  </span>
+                  </button>
                 </td>
                 <td className="px-4 py-2">
                   {client.pendencies_count > 0 ? (
@@ -768,14 +788,15 @@ export default function Clients() {
               transition={{ type: "spring", damping: 25, stiffness: 200 }}
               className="bg-white w-full max-w-md h-full shadow-2xl flex flex-col relative z-10"
             >
-              <div className="px-6 py-6 border-b border-slate-100 flex items-center justify-between bg-slate-900 shrink-0">
+              {/* Header */}
+              <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between bg-slate-900 shrink-0">
                 <div className="flex items-center gap-3 text-white">
                   <div className="w-10 h-10 rounded-xl bg-blue-500/20 flex items-center justify-center">
                     <History size={20} className="text-blue-400" />
                   </div>
                   <div>
-                    <h2 className="text-lg font-black italic uppercase tracking-tight">Histórico do Cliente</h2>
-                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Todas as passagens na oficina</p>
+                    <h2 className="text-base font-black italic uppercase tracking-tight">Histórico do Cliente</h2>
+                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Passagens na oficina</p>
                   </div>
                 </div>
                 <button 
@@ -786,81 +807,183 @@ export default function Clients() {
                 </button>
               </div>
 
-              <div className="px-8 py-6 bg-slate-50 border-b border-slate-100 shrink-0">
-                <div className="flex items-center gap-4">
-                    <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center shadow-sm border border-slate-200 font-bold text-xl text-slate-400 uppercase">
-                        {selectedClient.name.charAt(0)}
-                    </div>
-                    <div>
-                        <h3 className="font-black text-slate-900 text-lg leading-tight uppercase italic">{selectedClient.name}</h3>
-                        <p className="text-[10px] font-black text-slate-400 bg-white border border-slate-200 px-2 py-0.5 rounded mt-1 inline-block tracking-wider uppercase font-mono">
-                            {selectedClient.document}
-                        </p>
-                    </div>
+              {/* Client Info */}
+              <div className="px-6 py-4 bg-slate-50 border-b border-slate-100 shrink-0">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-sm border border-slate-200 font-bold text-lg text-slate-500 uppercase">
+                    {selectedClient.name.charAt(0)}
+                  </div>
+                  <div>
+                    <h3 className="font-black text-slate-900 text-base leading-tight uppercase italic">{selectedClient.name}</h3>
+                    <p className="text-[10px] font-black text-slate-400 bg-white border border-slate-200 px-2 py-0.5 rounded mt-0.5 inline-block tracking-wider uppercase font-mono">
+                      {selectedClient.document || 'Sem documento'}
+                    </p>
+                  </div>
                 </div>
               </div>
 
-              <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
-                {(!selectedClient.workOrders || selectedClient.workOrders.length === 0) ? (
-                  <div className="text-center py-20">
-                    <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-6">
-                      <ClipboardList size={40} className="text-slate-200" />
-                    </div>
-                    <h3 className="text-slate-900 font-bold mb-1 italic uppercase">Sem registros</h3>
-                    <p className="text-xs text-slate-500 font-medium">Este cliente ainda não possui ordens de serviço finalizadas.</p>
-                  </div>
-                ) : (
-                  <div className="relative border-l-2 border-slate-100 ml-3 pl-10 space-y-10 py-4">
-                    {selectedClient.workOrders.map((wo: any) => (
-                      <div key={wo.id} className="relative group">
-                        <div className="absolute -left-[49px] top-0 w-6 h-6 rounded-full border-4 border-white bg-blue-500 shadow-sm z-10 transition-transform group-hover:scale-125" />
-                        
-                        <div 
-                            className="bg-white rounded-3xl border border-slate-100 p-6 shadow-sm group-hover:shadow-xl group-hover:border-blue-100 transition-all cursor-pointer"
-                            onClick={() => navigate(`/work-orders/${wo.id}`)}
-                        >
-                          <div className="flex items-start justify-between mb-4">
-                            <div>
-                              <span className="text-[10px] font-black text-blue-600 uppercase tracking-[0.2em] mb-1 block">{wo.number}</span>
-                              <h4 className="font-black text-slate-900 text-sm leading-tight uppercase italic mb-1">
-                                {wo.brand} {wo.model} - {wo.plate}
-                              </h4>
-                            </div>
-                            <span className={cn(
-                                "px-3 py-1 rounded-full text-[9px] font-black uppercase border",
-                                wo.status === 'FINISHED' ? "bg-emerald-50 text-emerald-600 border-emerald-100" : "bg-blue-50 text-blue-600 border-blue-100"
-                            )}>
-                                {wo.status === 'FINISHED' ? 'Finalizada' : wo.status}
-                            </span>
-                          </div>
+              {/* Tabs */}
+              <div className="flex border-b border-slate-100 shrink-0 bg-white">
+                <button
+                  onClick={() => setHistoryTab('vehicles')}
+                  className={cn(
+                    "flex-1 flex items-center justify-center gap-2 py-3 text-[11px] font-black uppercase tracking-wider transition-all border-b-2",
+                    historyTab === 'vehicles'
+                      ? "border-blue-600 text-blue-600 bg-blue-50/50"
+                      : "border-transparent text-slate-400 hover:text-slate-600 hover:bg-slate-50"
+                  )}
+                >
+                  <Car size={14} />
+                  Veículos
+                  {selectedClient.vehicles && selectedClient.vehicles.length > 0 && (
+                    <span className="bg-blue-100 text-blue-600 rounded-full px-1.5 text-[9px] font-black">{selectedClient.vehicles.length}</span>
+                  )}
+                </button>
+                <button
+                  onClick={() => setHistoryTab('os')}
+                  className={cn(
+                    "flex-1 flex items-center justify-center gap-2 py-3 text-[11px] font-black uppercase tracking-wider transition-all border-b-2",
+                    historyTab === 'os'
+                      ? "border-orange-500 text-orange-600 bg-orange-50/50"
+                      : "border-transparent text-slate-400 hover:text-slate-600 hover:bg-slate-50"
+                  )}
+                >
+                  <ClipboardList size={14} />
+                  O.S.
+                  {selectedClient.workOrders && selectedClient.workOrders.length > 0 && (
+                    <span className="bg-orange-100 text-orange-600 rounded-full px-1.5 text-[9px] font-black">{selectedClient.workOrders.length}</span>
+                  )}
+                </button>
+              </div>
 
-                          <div className="space-y-2 mb-4">
-                            {wo.items?.slice(0, 3).map((item: any, idx: number) => (
-                              <div key={idx} className="flex items-center justify-between text-[10px] py-1 border-b border-slate-50 last:border-0 font-medium">
-                                <span className="text-slate-700 uppercase truncate pr-4">{item.description}</span>
-                                <span className="text-slate-400 font-bold shrink-0">x{item.quantity}</span>
-                              </div>
-                            ))}
-                            {wo.items?.length > 3 && (
-                                <p className="text-[9px] text-slate-400 italic">E mais {wo.items.length - 3} itens...</p>
-                            )}
-                          </div>
-
-                          <div className="flex items-center justify-between pt-4 border-t border-slate-50">
-                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{format(new Date(wo.created_at), 'dd/MM/yyyy')}</span>
-                            <span className="text-sm font-black text-emerald-600">R$ {wo.total_amount?.toLocaleString('pt-BR')}</span>
-                          </div>
+              {/* Content */}
+              <div className="flex-1 overflow-y-auto custom-scrollbar">
+                {/* Vehicles Tab */}
+                {historyTab === 'vehicles' && (
+                  <div className="p-6">
+                    {(!selectedClient.vehicles || selectedClient.vehicles.length === 0) ? (
+                      <div className="text-center py-16">
+                        <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                          <Car size={32} className="text-slate-200" />
                         </div>
+                        <h3 className="text-slate-700 font-bold mb-1 italic uppercase text-sm">Sem veículos</h3>
+                        <p className="text-xs text-slate-400">Este cliente não possui veículos cadastrados.</p>
                       </div>
-                    ))}
+                    ) : (
+                      <div className="space-y-3">
+                        {selectedClient.vehicles.map((vehicle: any) => (
+                          <div
+                            key={vehicle.id}
+                            onClick={() => { setIsHistoryDrawerOpen(false); navigate(`/vehicles/${vehicle.id}`); }}
+                            className="group bg-white border border-slate-100 rounded-2xl p-4 shadow-sm hover:shadow-md hover:border-blue-200 transition-all cursor-pointer"
+                          >
+                            <div className="flex items-center gap-4">
+                              <div className="w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center shrink-0 group-hover:bg-blue-100 transition-colors">
+                                <Car size={22} className="text-blue-500" />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <h4 className="font-black text-slate-900 text-sm uppercase italic leading-tight">
+                                  {vehicle.brand} {vehicle.model}
+                                </h4>
+                                <div className="flex items-center gap-2 mt-1">
+                                  <span className="text-[10px] font-black text-slate-500 bg-slate-100 px-2 py-0.5 rounded font-mono tracking-wider uppercase">
+                                    {vehicle.plate}
+                                  </span>
+                                  {vehicle.year && (
+                                    <span className="text-[10px] text-slate-400 font-bold">{vehicle.year}</span>
+                                  )}
+                                  {vehicle.color && (
+                                    <span className="text-[10px] text-slate-400">{vehicle.color}</span>
+                                  )}
+                                </div>
+                              </div>
+                              <ChevronRight size={16} className="text-slate-300 group-hover:text-blue-400 shrink-0 transition-colors" />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Work Orders Tab */}
+                {historyTab === 'os' && (
+                  <div className="p-6">
+                    {(!selectedClient.workOrders || selectedClient.workOrders.length === 0) ? (
+                      <div className="text-center py-16">
+                        <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                          <ClipboardList size={32} className="text-slate-200" />
+                        </div>
+                        <h3 className="text-slate-700 font-bold mb-1 italic uppercase text-sm">Sem registros</h3>
+                        <p className="text-xs text-slate-400">Este cliente não possui ordens de serviço.</p>
+                      </div>
+                    ) : (
+                      <div className="relative border-l-2 border-slate-100 ml-3 pl-8 space-y-6 py-2">
+                        {selectedClient.workOrders.map((wo: any) => (
+                          <div key={wo.id} className="relative group">
+                            <div className="absolute -left-[41px] top-1 w-5 h-5 rounded-full border-4 border-white bg-orange-400 shadow-sm z-10 transition-transform group-hover:scale-125" />
+                            <div 
+                              className="bg-white rounded-2xl border border-slate-100 p-4 shadow-sm group-hover:shadow-lg group-hover:border-orange-100 transition-all cursor-pointer"
+                              onClick={() => { setIsHistoryDrawerOpen(false); navigate(`/work-orders/${wo.id}`); }}
+                            >
+                              <div className="flex items-start justify-between mb-3">
+                                <div>
+                                  <span className="text-[10px] font-black text-orange-500 uppercase tracking-[0.15em] mb-0.5 block">{wo.number}</span>
+                                  <h4 className="font-black text-slate-900 text-xs leading-tight uppercase italic">
+                                    {wo.brand} {wo.model} {wo.plate ? `— ${wo.plate}` : ''}
+                                  </h4>
+                                </div>
+                                <span className={cn(
+                                  "px-2 py-0.5 rounded-full text-[9px] font-black uppercase border shrink-0 ml-2",
+                                  wo.status === 'FINISHED' ? "bg-emerald-50 text-emerald-600 border-emerald-100" :
+                                  wo.status === 'IN_PROGRESS' ? "bg-blue-50 text-blue-600 border-blue-100" :
+                                  "bg-slate-50 text-slate-500 border-slate-200"
+                                )}>
+                                  {wo.status === 'FINISHED' ? 'Finalizada' : wo.status === 'IN_PROGRESS' ? 'Em andamento' : wo.status}
+                                </span>
+                              </div>
+
+                              {wo.items && wo.items.length > 0 && (
+                                <div className="space-y-1 mb-3">
+                                  {wo.items.slice(0, 2).map((item: any, idx: number) => (
+                                    <div key={idx} className="flex items-center justify-between text-[10px] font-medium">
+                                      <span className="text-slate-600 uppercase truncate pr-2">{item.description}</span>
+                                      <span className="text-slate-400 font-bold shrink-0">x{item.quantity}</span>
+                                    </div>
+                                  ))}
+                                  {wo.items.length > 2 && (
+                                    <p className="text-[9px] text-slate-400 italic">+{wo.items.length - 2} itens</p>
+                                  )}
+                                </div>
+                              )}
+
+                              <div className="flex items-center justify-between pt-2 border-t border-slate-50">
+                                <span className="text-[10px] font-black text-slate-400 uppercase tracking-wide">
+                                  {format(new Date(wo.created_at), "dd/MM/yyyy")}
+                                </span>
+                                <span className="text-xs font-black text-emerald-600">
+                                  R$ {wo.total_amount?.toLocaleString('pt-BR') || '0'}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
 
-              <div className="p-6 border-t border-slate-100 bg-slate-50 flex gap-4">
+              <div className="p-4 border-t border-slate-100 bg-slate-50 flex gap-3 shrink-0">
+                <button 
+                  onClick={() => { setIsHistoryDrawerOpen(false); navigate(`/clients/${selectedClient.id}`); }}
+                  className="flex-1 py-3 bg-slate-900 text-white rounded-xl text-xs font-black uppercase tracking-widest hover:bg-slate-800 transition-all cursor-pointer"
+                >
+                  Ver Perfil Completo
+                </button>
                 <button 
                   onClick={() => setIsHistoryDrawerOpen(false)} 
-                  className="flex-1 py-4 border-2 border-slate-200 rounded-2xl text-xs font-black uppercase tracking-widest text-slate-400 hover:bg-white hover:text-slate-600 transition-all cursor-pointer"
+                  className="px-4 py-3 border-2 border-slate-200 rounded-xl text-xs font-black uppercase tracking-widest text-slate-400 hover:bg-white hover:text-slate-600 transition-all cursor-pointer"
                 >
                   Fechar
                 </button>
