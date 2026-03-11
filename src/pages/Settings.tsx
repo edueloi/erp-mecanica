@@ -35,6 +35,7 @@ import {
   Bot,
   Target,
   AlertTriangle,
+  LayoutGrid,
 } from "lucide-react";
 import { useSettings } from "../contexts/SettingsContext";
 import { useAuthStore } from "../services/authStore";
@@ -43,6 +44,7 @@ import api from "../services/api";
 import { cn } from "../utils/cn";
 
 type Tab = 
+  | "overview"
   | "appearance" 
   | "user" 
   | "shop"
@@ -76,7 +78,7 @@ export default function Settings() {
   const navigate = useNavigate();
   const { user: currentUser, setUser: setCurrentUser } = useAuthStore();
   const { preferences, tenantSettings, updatePreferences, updateTenantSettings } = useSettings();
-  const [activeTab, setActiveTab] = useState<Tab>((tab === "shop" ? "shop" : tab as Tab) || "user");
+  const [activeTab, setActiveTab] = useState<Tab>((tab as any) || "overview");
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
@@ -290,14 +292,15 @@ export default function Settings() {
   };
 
   const tabs = [
+    { id: "overview", label: "Início", icon: LayoutGrid },
     { id: "user", label: "Meu Perfil", icon: User },
     { id: "shop", label: "Minha Oficina", icon: Building2 },
     { id: "hours", label: "Horários", icon: Clock },
     { id: "team", label: "Equipe", icon: Users },
-    { id: "documents", label: "Documentos e PDF", icon: FileText },
+    { id: "documents", label: "Docs/PDFs", icon: FileText },
     { id: "communication", label: "WhatsApp", icon: MessageSquare },
     { id: "financial", label: "Financeiro", icon: DollarSign },
-    { id: "operational", label: "Regras Operacionais", icon: Wrench },
+    { id: "operational", label: "Regras", icon: Wrench },
     { id: "notifications", label: "Notificações", icon: Bell },
     { id: "appearance", label: "Aparência", icon: Palette },
     { id: "security", label: "Segurança", icon: Shield },
@@ -329,84 +332,96 @@ export default function Settings() {
 
       {/* Header */}
 
-      <div className="flex flex-1 overflow-hidden bg-white">
-        {/* Sidebar Navigation */}
-        <div className="w-full lg:w-72 shrink-0 flex flex-col border-r border-slate-100">
-          <div className="space-y-6 h-fit lg:sticky lg:top-0 p-6">
-            <div>
-              <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] mb-4 ml-2 block">Geral</span>
-              <nav className="flex flex-col gap-2">
-                {tabs.slice(0, 1).map((tabItem) => {
-                  const isActive = activeTab === tabItem.id;
-                  const Icon = tabItem.icon;
-                  return (
-                    <button
-                      key={tabItem.id}
-                      onClick={() => { setActiveTab(tabItem.id as Tab); navigate(`/settings/${tabItem.id}`); }}
-                      className={cn(
-                        "w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all duration-300 cursor-pointer group",
-                        isActive ? "bg-slate-900 text-white shadow-lg shadow-slate-900/10" : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
-                      )}
-                    >
-                      <Icon className={cn("w-5 h-5 transition-transform group-hover:scale-110", isActive ? "text-white" : "text-slate-400")} />
-                      {tabItem.label}
-                    </button>
-                  );
-                })}
-              </nav>
-            </div>
-
-            <div>
-              <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] mb-4 ml-2 block">Operação</span>
-              <nav className="flex flex-col gap-2">
-                {tabs.slice(1, 4).map((tabItem) => {
-                  const isActive = activeTab === tabItem.id;
-                  const Icon = tabItem.icon;
-                  return (
-                    <button
-                      key={tabItem.id}
-                      onClick={() => { setActiveTab(tabItem.id as Tab); navigate(`/settings/${tabItem.id}`); }}
-                      className={cn(
-                        "w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all duration-300 cursor-pointer group",
-                        isActive ? "bg-slate-900 text-white shadow-lg shadow-slate-900/10" : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
-                      )}
-                    >
-                      <Icon className={cn("w-5 h-5 transition-transform group-hover:scale-110", isActive ? "text-white" : "text-slate-400")} />
-                      {tabItem.label}
-                    </button>
-                  );
-                })}
-              </nav>
-            </div>
-
-            <div>
-              <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] mb-4 ml-2 block">Preferências e Ajustes</span>
-              <nav className="flex flex-col gap-2">
-                {tabs.slice(4).map((tabItem) => {
-                  const isActive = activeTab === tabItem.id;
-                  const Icon = tabItem.icon;
-                  return (
-                    <button
-                      key={tabItem.id}
-                      onClick={() => { setActiveTab(tabItem.id as Tab); navigate(`/settings/${tabItem.id}`); }}
-                      className={cn(
-                        "w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all duration-300 cursor-pointer group",
-                        isActive ? "bg-slate-900 text-white shadow-lg shadow-slate-900/10" : "text-slate-500 hover:bg-slate-50 hover:text-slate-900"
-                      )}
-                    >
-                      <Icon className={cn("w-5 h-5 transition-transform group-hover:scale-110", isActive ? "text-white" : "text-slate-400")} />
-                      {tabItem.label}
-                    </button>
-                  );
-                })}
-              </nav>
-            </div>
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Visual Navigation Dock */}
+        <div className="bg-white border-b border-slate-200 p-3 sticky top-0 z-40 overflow-x-auto no-scrollbar shadow-sm">
+          <div className="flex items-center gap-2 max-w-7xl mx-auto px-4">
+            {tabs.map((tabItem) => {
+              const Icon = tabItem.icon;
+              const isActive = activeTab === tabItem.id;
+              return (
+                <button
+                  key={tabItem.id}
+                  onClick={() => { 
+                    setActiveTab(tabItem.id as Tab); 
+                    navigate(`/settings/${tabItem.id}`); 
+                  }}
+                  className={cn(
+                    "flex flex-col items-center gap-1.5 px-6 py-3 rounded-2xl transition-all duration-500 min-w-[110px] group cursor-pointer",
+                    isActive ? "bg-slate-900 text-white shadow-xl shadow-slate-900/20 scale-105" : "text-slate-400 hover:bg-slate-50 hover:text-slate-900"
+                  )}
+                >
+                  <Icon className={cn("w-5 h-5 transition-all duration-500 group-hover:scale-125", isActive ? "text-white" : "text-slate-400")} />
+                  <span className="text-[9px] font-black uppercase tracking-[0.2em] whitespace-nowrap text-center">{tabItem.label}</span>
+                </button>
+              );
+            })}
           </div>
         </div>
 
-        {/* Content Area */}
-        <div className="flex-1 overflow-y-auto p-4 lg:p-6 bg-[#F8FAFC]">
+        <div className="flex-1 overflow-y-auto p-4 lg:p-10 bg-[#F8FAFC]">
           <AnimatePresence mode="wait">
+            {/* 00) AJUSTES HUB (OVERVIEW) */}
+            {activeTab === "overview" && (
+              <motion.div
+                key="settings-hub"
+                initial={{ opacity: 0, y: 30 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                className="max-w-6xl mx-auto py-16 px-6 relative"
+              >
+                {/* Decorative background elements */}
+                <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[800px] bg-slate-200/20 blur-[120px] rounded-full -z-10" />
+                <div className="absolute bottom-0 right-0 w-[400px] h-[400px] bg-emerald-100/10 blur-[100px] rounded-full -z-10" />
+
+                <div className="text-center mb-20">
+                  <motion.div 
+                    initial={{ scale: 0.9 }}
+                    animate={{ scale: 1 }}
+                    className="inline-flex items-center gap-3 px-4 py-1.5 bg-slate-900 text-white rounded-full text-[10px] font-black uppercase tracking-[0.3em] mb-6 shadow-xl shadow-slate-900/20"
+                  >
+                    🚀 Central de Controle
+                  </motion.div>
+                  <h1 className="text-5xl font-black text-slate-900 mb-6 italic uppercase tracking-tighter leading-none">
+                    Ajustes do <span className="text-transparent bg-clip-text bg-gradient-to-r from-slate-900 to-slate-500">Sistema</span>
+                  </h1>
+                  <p className="text-slate-500 font-medium max-w-sm mx-auto text-sm">Configure cada detalhe da sua oficina em um ambiente intuitivo e moderno</p>
+                </div>
+
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                  {tabs.slice(1).map((tabItem, idx) => {
+                    const Icon = tabItem.icon;
+                    return (
+                      <motion.button
+                        layout
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: idx * 0.05 }}
+                        key={tabItem.id}
+                        onClick={() => { setActiveTab(tabItem.id as Tab); navigate(`/settings/${tabItem.id}`); }}
+                        className="group relative bg-white border border-slate-100 p-8 rounded-[2.5rem] shadow-sm hover:shadow-2xl hover:-translate-y-2 transition-all duration-500 cursor-pointer overflow-hidden text-center flex flex-col items-center"
+                      >
+                        {/* Glassmorphism background hover */}
+                        <div className="absolute inset-0 bg-gradient-to-br from-slate-50/0 to-slate-50/100 opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
+                        
+                        <div className="w-16 h-16 rounded-2xl bg-slate-50 border border-slate-100 text-slate-400 flex items-center justify-center mb-6 group-hover:bg-slate-900 group-hover:text-white group-hover:scale-110 group-hover:rotate-3 transition-all duration-500 shadow-inner group-hover:shadow-2xl group-hover:shadow-slate-900/20">
+                          <Icon className="w-8 h-8" />
+                        </div>
+                        
+                        <div className="space-y-2 relative z-10">
+                          <h3 className="text-[10px] font-black text-slate-900 uppercase tracking-[0.2em] group-hover:tracking-[0.3em] transition-all">{tabItem.label}</h3>
+                          <div className="w-6 h-1 bg-slate-100 mx-auto rounded-full group-hover:w-12 group-hover:bg-slate-900 transition-all duration-500" />
+                        </div>
+
+                        {/* Corner accent */}
+                        <div className="absolute -bottom-2 -right-2 w-12 h-12 bg-slate-50 rounded-full scale-0 group-hover:scale-100 transition-transform duration-700 delay-100" />
+                      </motion.button>
+                    )
+                  })}
+                </div>
+              </motion.div>
+            )}
+
             {/* 0) MEU PERFIL */}
             {activeTab === "user" && (
               <motion.div
@@ -1423,7 +1438,7 @@ export default function Settings() {
             >
               <div className="flex items-center justify-between mb-8">
                 <div>
-                  <h2 className="text-xl font-bold text-slate-900 mb-2 italic uppercase tracking-tight">📄 Documentos e PDF</h2>
+                  <h2 className="text-xl font-bold text-slate-900 mb-2 italic uppercase tracking-tight">📄 Docs/PDFs</h2>
                   <p className="text-sm font-medium text-slate-500">
                     Personalize o layout e as regras de impressão de seus documentos
                   </p>
@@ -1910,7 +1925,7 @@ export default function Settings() {
               className="max-w-3xl mx-auto space-y-6"
             >
               <div className="mb-6">
-                <h2 className="text-2xl font-bold text-slate-900 mb-2">⚙️ Regras Operacionais</h2>
+                <h2 className="text-2xl font-bold text-slate-900 mb-2">⚙️ Regras</h2>
                 <p className="text-sm text-slate-600">
                   Defina comportamentos do sistema
                 </p>
