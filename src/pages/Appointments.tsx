@@ -4,7 +4,7 @@ import {
   MoreVertical, Phone, MessageSquare, CheckCircle, X, 
   Car, User, Info, AlertCircle, Trash2, Edit, Send, 
   Check, Play, Ban, RefreshCw, ClipboardList, Filter,
-  LayoutGrid, List as ListIcon
+  LayoutGrid, List as ListIcon, Tag
 } from 'lucide-react';
 import api from '../services/api';
 import { motion, AnimatePresence } from 'motion/react';
@@ -61,7 +61,10 @@ export default function Appointments() {
     notes: '',
     internal_notes: '',
     origin: '',
-    send_confirmation: true
+    send_confirmation: true,
+    type: 'CLIENT',
+    title: '',
+    color: '#3b82f6'
   });
 
   const [editAppointment, setEditAppointment] = useState<any>(null);
@@ -183,7 +186,10 @@ export default function Appointments() {
         notes: '',
         internal_notes: '',
         origin: '',
-        send_confirmation: true
+        send_confirmation: true,
+        type: 'CLIENT',
+        title: '',
+        color: '#3b82f6'
       });
       fetchAppointments();
     } catch (err) {
@@ -463,14 +469,22 @@ export default function Appointments() {
                                 onClick={() => openDetails(app)}
                                 className={cn(
                                   "w-full p-2 rounded-xl border text-left mb-1 transition-all hover:scale-[1.02] active:scale-[0.98] shadow-sm",
-                                  statusConfig[app.status as AppointmentStatus]?.color
+                                  app.type === 'INTERNAL'
+                                    ? 'bg-white border-l-4'
+                                    : statusConfig[app.status as AppointmentStatus]?.color
                                 )}
+                                style={app.type === 'INTERNAL' ? { borderLeftColor: app.color || '#3b82f6' } : undefined}
                               >
                                 <div className="flex items-center justify-between mb-1">
                                   <span className="text-[10px] font-bold">{app.time}</span>
-                                  <span className="text-[10px] font-black uppercase tracking-tighter">{app.plate}</span>
+                                  {app.type === 'INTERNAL' 
+                                    ? <Tag size={10} style={{ color: app.color || '#3b82f6' }} />
+                                    : <span className="text-[10px] font-black uppercase tracking-tighter">{app.plate}</span>
+                                  }
                                 </div>
-                                <p className="text-xs font-bold truncate">{app.client_name}</p>
+                                <p className="text-xs font-bold truncate">
+                                  {app.type === 'INTERNAL' ? (app.title || 'Evento') : app.client_name}
+                                </p>
                                 <p className="text-[9px] opacity-70 truncate">{app.service_description}</p>
                               </button>
                             ))}
@@ -573,19 +587,25 @@ export default function Appointments() {
                       <p className="text-sm font-bold text-slate-900">{app.time}</p>
                       <div className={cn(
                         "w-2 h-2 rounded-full mx-auto mt-1",
-                        app.status === 'ARRIVED' ? "bg-emerald-500" : "bg-slate-300"
-                      )}></div>
+                        app.type === 'INTERNAL' ? '' : app.status === 'ARRIVED' ? "bg-emerald-500" : "bg-slate-300"
+                      )} style={app.type === 'INTERNAL' ? { backgroundColor: app.color || '#3b82f6' } : undefined}></div>
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-bold text-slate-900 truncate">{app.client_name}</p>
-                      <p className="text-xs text-slate-500 truncate">{app.plate} • {app.service_description}</p>
+                      <p className="text-sm font-bold text-slate-900 truncate">
+                        {app.type === 'INTERNAL' ? `📌 ${app.title || 'Evento'}` : app.client_name}
+                      </p>
+                      <p className="text-xs text-slate-500 truncate">
+                        {app.type === 'INTERNAL' ? app.service_description : `${app.plate} • ${app.service_description}`}
+                      </p>
                     </div>
+                    {app.type !== 'INTERNAL' && (
                     <div className={cn(
                       "px-2 py-1 rounded-lg text-[9px] font-bold uppercase border",
                       statusConfig[app.status as AppointmentStatus]?.color
                     )}>
                       {statusConfig[app.status as AppointmentStatus]?.label}
                     </div>
+                    )}
                   </button>
                 ))}
               
@@ -651,11 +671,26 @@ export default function Appointments() {
                   </div>
 
                   <div className="grid grid-cols-1 gap-4">
+                    {selectedAppointment.type === 'INTERNAL' ? (
+                      <div className="p-4 border border-slate-100 rounded-2xl">
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Evento Interno</p>
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: (selectedAppointment.color || '#3b82f6') + '20' }}>
+                            <Tag size={16} style={{ color: selectedAppointment.color || '#3b82f6' }} />
+                          </div>
+                          <div>
+                            <p className="text-sm font-bold text-slate-900">{selectedAppointment.title || 'Evento'}</p>
+                            <p className="text-xs text-slate-500">Visível para toda a equipe</p>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                    <>
                     <div className="p-4 border border-slate-100 rounded-2xl">
                       <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Cliente</p>
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 bg-slate-100 rounded-lg flex items-center justify-center text-slate-600 font-bold">
-                          {selectedAppointment.client_name.charAt(0)}
+                          {selectedAppointment.client_name?.charAt(0)}
                         </div>
                         <div>
                           <p className="text-sm font-bold text-slate-900">{selectedAppointment.client_name}</p>
@@ -675,6 +710,8 @@ export default function Appointments() {
                         </div>
                       </div>
                     </div>
+                    </>
+                    )}
                   </div>
 
                   <div className="p-4 border border-slate-100 rounded-2xl">
@@ -815,11 +852,35 @@ export default function Appointments() {
               </div>
               
               <form onSubmit={handleCreate} className="overflow-y-auto p-4 space-y-3">
+                {/* Type Toggle */}
+                <div className="flex bg-slate-100 rounded-lg p-1 gap-1">
+                  <button type="button" onClick={() => setNewAppointment({...newAppointment, type: 'CLIENT'})} className={cn('flex-1 py-2 rounded-md text-xs font-bold transition-all', newAppointment.type === 'CLIENT' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400')}>
+                    👤 Cliente
+                  </button>
+                  <button type="button" onClick={() => setNewAppointment({...newAppointment, type: 'INTERNAL', client_id: '', vehicle_id: ''})} className={cn('flex-1 py-2 rounded-md text-xs font-bold transition-all', newAppointment.type === 'INTERNAL' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400')}>
+                    📌 Evento Interno
+                  </button>
+                </div>
+
+                {newAppointment.type === 'INTERNAL' && (
+                  <div className="grid grid-cols-4 gap-3">
+                    <div className="col-span-3">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase mb-1 block">Título *</label>
+                      <input type="text" required placeholder="Ex: Palestra, Almoço, Fechamento..." className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none" value={newAppointment.title} onChange={(e) => setNewAppointment({...newAppointment, title: e.target.value})} />
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-500 uppercase mb-1 block">Cor</label>
+                      <input type="color" className="w-full h-[38px] rounded-lg border border-slate-200 cursor-pointer" value={newAppointment.color} onChange={(e) => setNewAppointment({...newAppointment, color: e.target.value})} />
+                    </div>
+                  </div>
+                )}
+
                 <div className="grid grid-cols-2 gap-3">
+                  {newAppointment.type === 'CLIENT' && (
                   <div className="col-span-2">
                     <label className="text-[10px] font-bold text-slate-500 uppercase mb-1 block">Cliente *</label>
                     <select 
-                      required
+                      required={newAppointment.type === 'CLIENT'}
                       className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
                       value={newAppointment.client_id}
                       onChange={(e) => {
@@ -833,11 +894,13 @@ export default function Appointments() {
                       ))}
                     </select>
                   </div>
+                  )}
 
+                  {newAppointment.type === 'CLIENT' && (
                   <div className="col-span-2">
                     <label className="text-[10px] font-bold text-slate-500 uppercase mb-1 block">Veículo *</label>
                     <select 
-                      required
+                      required={newAppointment.type === 'CLIENT'}
                       disabled={!newAppointment.client_id}
                       className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 outline-none disabled:bg-slate-50 disabled:text-slate-400"
                       value={newAppointment.vehicle_id}
@@ -854,6 +917,7 @@ export default function Appointments() {
                       </p>
                     )}
                   </div>
+                  )}
 
                   <div>
                     <label className="text-[10px] font-bold text-slate-500 uppercase mb-1 block">Data *</label>

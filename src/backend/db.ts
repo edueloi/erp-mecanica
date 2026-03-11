@@ -66,6 +66,11 @@ export function initDb() {
   try { db.exec('ALTER TABLE work_orders ADD COLUMN technical_report TEXT'); } catch (e) {}
   try { db.exec('ALTER TABLE work_orders ADD COLUMN defect TEXT'); } catch (e) {}
 
+  // Appointments migrations for internal events
+  try { db.exec("ALTER TABLE appointments ADD COLUMN type TEXT DEFAULT 'CLIENT'"); } catch (e) {}
+  try { db.exec('ALTER TABLE appointments ADD COLUMN title TEXT'); } catch (e) {}
+  try { db.exec('ALTER TABLE appointments ADD COLUMN color TEXT'); } catch (e) {}
+
   db.exec('CREATE TABLE IF NOT EXISTS tenant_audit_logs (id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, user_id TEXT, action_type TEXT NOT NULL, description TEXT, payment_date DATETIME, payment_method TEXT, old_status TEXT, new_status TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)');
   
   // Custom Permissions Profiles

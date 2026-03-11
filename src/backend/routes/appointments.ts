@@ -11,10 +11,12 @@ router.use(authenticateToken);
 router.get("/", (req: AuthRequest, res) => {
   const { date, status, q } = req.query;
   let query = `
-    SELECT a.*, c.name as client_name, c.phone as client_phone, v.plate, v.model 
+    SELECT a.*, 
+      c.name as client_name, c.phone as client_phone, 
+      v.plate, v.model 
     FROM appointments a
-    JOIN clients c ON a.client_id = c.id
-    JOIN vehicles v ON a.vehicle_id = v.id
+    LEFT JOIN clients c ON a.client_id = c.id
+    LEFT JOIN vehicles v ON a.vehicle_id = v.id
     WHERE a.tenant_id = ?
   `;
   const params: any[] = [req.user!.tenant_id];
@@ -30,8 +32,8 @@ router.get("/", (req: AuthRequest, res) => {
   }
 
   if (q) {
-    query += " AND (c.name LIKE ? OR v.plate LIKE ? OR c.phone LIKE ?)";
-    params.push(`%${q}%`, `%${q}%`, `%${q}%`);
+    query += " AND (c.name LIKE ? OR v.plate LIKE ? OR c.phone LIKE ? OR a.title LIKE ? OR a.service_description LIKE ?)";
+    params.push(`%${q}%`, `%${q}%`, `%${q}%`, `%${q}%`, `%${q}%`);
   }
 
   query += " ORDER BY a.date ASC, a.time ASC";
@@ -68,36 +70,50 @@ router.get("/stats", (req: AuthRequest, res) => {
   }
 });
 
-// Create appointment
+// Create appointment (CLIENT or INTERNAL)
 router.post("/", (req: AuthRequest, res) => {
   const { 
     client_id, vehicle_id, date, time, service_description, 
-    estimated_duration, notes, internal_notes, origin, send_confirmation 
+    estimated_duration, notes, internal_notes, origin, send_confirmation,
+    type, title, color
   } = req.body;
   
   const id = uuidv4();
   const user_id = req.user!.id;
   const tenant_id = req.user!.tenant_id;
+  const appointmentType = type || 'CLIENT';
 
   try {
     db.prepare(`
       INSERT INTO appointments (
         id, tenant_id, client_id, vehicle_id, user_id, date, time, 
         service_description, estimated_duration, status, notes, 
-        internal_notes, origin, send_confirmation
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', ?, ?, ?, ?)
+        internal_notes, origin, send_confirmation, type, title, color
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', ?, ?, ?, ?, ?, ?, ?)
     `).run(
-      id, tenant_id, client_id, vehicle_id, user_id, date, time, 
+      id, tenant_id, 
+      appointmentType === 'INTERNAL' ? null : client_id, 
+      appointmentType === 'INTERNAL' ? null : vehicle_id, 
+      user_id, date, time, 
       service_description, estimated_duration || 60, notes, 
-      internal_notes, origin, send_confirmation ? 1 : 0
+      internal_notes, origin, send_confirmation ? 1 : 0,
+      appointmentType, title || null, color || null
     );
 
-    // Buscar agendamento com dados do cliente e veículo (JOIN)
+    if (appointmentType === 'INTERNAL') {
+      // For internal events, no JOIN needed
+      const newAppointment = db.prepare(`
+        SELECT a.* FROM appointments a WHERE a.id = ?
+      `).get(id);
+      return res.status(201).json(newAppointment);
+    }
+
+    // For client appointments, JOIN to get client/vehicle data
     const newAppointment = db.prepare(`
       SELECT a.*, c.name as client_name, c.phone as client_phone, v.plate, v.model 
       FROM appointments a
-      JOIN clients c ON a.client_id = c.id
-      JOIN vehicles v ON a.vehicle_id = v.id
+      LEFT JOIN clients c ON a.client_id = c.id
+      LEFT JOIN vehicles v ON a.vehicle_id = v.id
       WHERE a.id = ?
     `).get(id);
     
@@ -136,6 +152,18 @@ router.patch("/:id", (req: AuthRequest, res) => {
     db.prepare(`UPDATE appointments SET ${setClause}, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND tenant_id = ?`)
       .run(...params);
     res.json({ message: "Appointment updated successfully" });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Delete appointment
+router.delete("/:id", (req: AuthRequest, res) => {
+  const { id } = req.params;
+  try {
+    db.prepare("DELETE FROM appointments WHERE id = ? AND tenant_id = ?")
+      .run(id, req.user!.tenant_id);
+    res.json({ message: "Appointment deleted" });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }

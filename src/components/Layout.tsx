@@ -302,7 +302,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
         {/* Page Content */}
         <div className="flex-1 overflow-y-auto bg-[#f8fafc] custom-scrollbar">
-          <div className="p-4 lg:p-8 max-w-[1600px] mx-auto">
+          <div className={location.pathname.startsWith('/settings') || location.pathname === '/finance/cashflow' ? '' : 'px-4 py-4'}>
             {children}
           </div>
         </div>
