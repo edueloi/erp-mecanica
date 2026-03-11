@@ -23,6 +23,7 @@ interface Service {
   estimated_cost: number;
   status: ServiceStatus;
   type: ServiceType;
+  charging_type: 'FIXED' | 'HOURLY';
   warranty_days: number;
   allow_discount: boolean;
   requires_diagnosis: boolean;
@@ -59,6 +60,7 @@ export default function Services() {
     estimated_cost: 0,
     status: 'ACTIVE' as ServiceStatus,
     type: 'LABOR' as ServiceType,
+    charging_type: 'FIXED' as 'FIXED' | 'HOURLY',
     warranty_days: 90,
     allow_discount: true,
     requires_diagnosis: false,
@@ -95,7 +97,7 @@ export default function Services() {
       setFormData({
         name: '', code: '', category: 'OUTROS', description: '',
         estimated_time: '01:00', default_price: 0, estimated_cost: 0,
-        status: 'ACTIVE', type: 'LABOR', warranty_days: 90,
+        status: 'ACTIVE', type: 'LABOR', charging_type: 'FIXED', warranty_days: 90,
         allow_discount: true, requires_diagnosis: false, compatible_vehicles: ''
       });
       fetchServices();
@@ -121,6 +123,7 @@ export default function Services() {
       estimated_cost: service.estimated_cost || 0,
       status: service.status || 'ACTIVE',
       type: service.type || 'LABOR',
+      charging_type: service.charging_type || 'FIXED',
       warranty_days: service.warranty_days || 90,
       allow_discount: service.allow_discount ?? true,
       requires_diagnosis: service.requires_diagnosis ?? false,
@@ -418,7 +421,21 @@ export default function Services() {
                     </div>
                   </div>
                   <div>
-                    <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1.5">Valor Padrão</label>
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1.5">Trabalho ou Cobrança</label>
+                    <select 
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-slate-900/10 focus:border-slate-900 transition-all outline-none cursor-pointer"
+                      value={formData.charging_type}
+                      onChange={e => setFormData({...formData, charging_type: e.target.value as 'FIXED' | 'HOURLY'})}
+                    >
+                      <option value="FIXED">Valor Fixo</option>
+                      <option value="HOURLY">Por Hora Técnica</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1.5">Valor Padrão {formData.charging_type === 'HOURLY' ? '(Hora)' : ''}</label>
                     <div className="relative">
                       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-bold">R$</span>
                       <input 
@@ -569,11 +586,15 @@ export default function Services() {
                       {/* Summary Section */}
                       <div className="grid grid-cols-2 gap-4">
                         <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                          <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">Valor de Venda</p>
+                          <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">
+                            Valor de Venda {selectedService.charging_type === 'HOURLY' ? '(Hora)' : '(Fixo)'}
+                          </p>
                           <p className="text-lg font-black text-slate-900">R$ {selectedService.default_price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
                         </div>
                         <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                          <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">Custo Estimado</p>
+                          <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">
+                            Custo Estimado {selectedService.charging_type === 'HOURLY' ? '(Hora)' : ''}
+                          </p>
                           <p className="text-lg font-black text-slate-500">R$ {selectedService.estimated_cost.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
                         </div>
                       </div>
@@ -613,6 +634,12 @@ export default function Services() {
                             <p className="text-[10px] font-bold text-slate-400 uppercase">Tipo</p>
                             <p className="text-sm font-bold text-slate-700 mt-1">
                               {selectedService.type === 'LABOR' ? 'Mão de Obra' : selectedService.type === 'WITH_PART' ? 'Serviço com Peça' : 'Serviço Composto'}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-[10px] font-bold text-slate-400 uppercase">Cobrança</p>
+                            <p className="text-sm font-bold text-slate-700 mt-1">
+                              {selectedService.charging_type === 'HOURLY' ? 'Por Hora Técnica' : 'Valor Fixo'}
                             </p>
                           </div>
                         </div>
