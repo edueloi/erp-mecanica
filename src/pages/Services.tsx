@@ -46,6 +46,8 @@ export default function Services() {
   const [isNewModalOpen, setIsNewModalOpen] = useState(false);
   const [isDetailDrawerOpen, setIsDetailDrawerOpen] = useState(false);
   const [selectedService, setSelectedService] = useState<Service | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [activeDetailTab, setActiveDetailTab] = useState<'SUMMARY' | 'PARTS' | 'HISTORY' | 'COMPATIBILITY'>('SUMMARY');
   
   const [formData, setFormData] = useState({
     name: '',
@@ -83,8 +85,13 @@ export default function Services() {
   const handleCreateService = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await api.post('/services', formData);
+      if (editingId) {
+        await api.put(`/services/${editingId}`, formData);
+      } else {
+        await api.post('/services', formData);
+      }
       setIsNewModalOpen(false);
+      setEditingId(null);
       setFormData({
         name: '', code: '', category: 'OUTROS', description: '',
         estimated_time: '01:00', default_price: 0, estimated_cost: 0,
@@ -92,8 +99,48 @@ export default function Services() {
         allow_discount: true, requires_diagnosis: false, compatible_vehicles: ''
       });
       fetchServices();
+      if (isDetailDrawerOpen) {
+         fetchServices(); // update data in background
+         // If a selected service exists, it won't magically update without finding it again, 
+         // but that's fine for now or we could setIsDetailDrawerOpen(false) to refresh simple.
+      }
     } catch (err) {
-      console.error('Error creating service:', err);
+      console.error('Error creating/updating service:', err);
+    }
+  };
+
+  const handleEditClick = (service: Service) => {
+    setEditingId(service.id);
+    setFormData({
+      name: service.name || '',
+      code: service.code || '',
+      category: service.category || 'OUTROS',
+      description: service.description || '',
+      estimated_time: service.estimated_time || '01:00',
+      default_price: service.default_price || 0,
+      estimated_cost: service.estimated_cost || 0,
+      status: service.status || 'ACTIVE',
+      type: service.type || 'LABOR',
+      warranty_days: service.warranty_days || 90,
+      allow_discount: service.allow_discount ?? true,
+      requires_diagnosis: service.requires_diagnosis ?? false,
+      compatible_vehicles: service.compatible_vehicles || ''
+    });
+    setIsNewModalOpen(true);
+  };
+
+
+  const handleDeleteService = async (id: string) => {
+    if (!window.confirm('Deseja realmente excluir este serviço?')) return;
+    try {
+      await api.delete(`/services/${id}`);
+      fetchServices();
+      if (selectedService?.id === id) {
+        setIsDetailDrawerOpen(false);
+      }
+    } catch (err) {
+      console.error('Error deleting service:', err);
+      alert('Não foi possível excluir o serviço. Ele pode estar vinculado a ordens de serviço.');
     }
   };
 
@@ -265,16 +312,28 @@ export default function Services() {
                   </td>
                   <td className="px-6 py-3 text-right sticky right-0 bg-white group-hover:bg-slate-50 transition-colors shadow-[-12px_0_15px_-4px_rgba(0,0,0,0.02)] z-10">
                     <div className="flex items-center justify-end gap-1" onClick={e => e.stopPropagation()}>
-                      <button className="p-1.5 text-slate-400 hover:text-slate-900 hover:bg-slate-200 rounded transition-all" title="Ver Detalhes">
+                      <button 
+                        onClick={() => { setSelectedService(service); setIsDetailDrawerOpen(true); setActiveDetailTab('SUMMARY'); }} 
+                        className="p-1.5 text-slate-400 hover:text-slate-900 hover:bg-slate-200 rounded transition-all" title="Ver Detalhes"
+                      >
                         <Eye size={14} />
                       </button>
-                      <button className="p-1.5 text-slate-400 hover:text-slate-900 hover:bg-slate-200 rounded transition-all" title="Editar">
+                      <button 
+                        onClick={() => handleEditClick(service)}
+                        className="p-1.5 text-slate-400 hover:text-slate-900 hover:bg-slate-200 rounded transition-all" title="Editar"
+                      >
                         <Edit size={14} />
                       </button>
-                      <button className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-all" title="Peças Vinculadas">
+                      <button 
+                        onClick={() => { setSelectedService(service); setIsDetailDrawerOpen(true); setActiveDetailTab('PARTS'); }} 
+                        className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-all" title="Peças Vinculadas"
+                      >
                         <Package size={14} />
                       </button>
-                      <button className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-all" title="Inativar">
+                      <button 
+                        onClick={() => handleDeleteService(service.id)}
+                        className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-all" title="Excluir"
+                      >
                         <Trash2 size={14} />
                       </button>
                     </div>
@@ -498,88 +557,131 @@ export default function Services() {
               <div className="flex-1 overflow-y-auto">
                 {/* Tabs */}
                 <div className="flex border-b border-slate-100 px-6 sticky top-0 bg-white z-10">
-                  <button className="px-4 py-3 text-xs font-bold text-slate-900 border-b-2 border-slate-900">Resumo</button>
-                  <button className="px-4 py-3 text-xs font-bold text-slate-400 hover:text-slate-600">Peças</button>
-                  <button className="px-4 py-3 text-xs font-bold text-slate-400 hover:text-slate-600">Histórico</button>
-                  <button className="px-4 py-3 text-xs font-bold text-slate-400 hover:text-slate-600">Compatibilidade</button>
+                  <button onClick={() => setActiveDetailTab('SUMMARY')} className={`px-4 py-3 text-xs font-bold transition-all ${activeDetailTab === 'SUMMARY' ? 'text-slate-900 border-b-2 border-slate-900' : 'text-slate-400 hover:text-slate-600'}`}>Resumo</button>
+                  <button onClick={() => setActiveDetailTab('PARTS')} className={`px-4 py-3 text-xs font-bold transition-all ${activeDetailTab === 'PARTS' ? 'text-slate-900 border-b-2 border-slate-900' : 'text-slate-400 hover:text-slate-600'}`}>Peças</button>
+                  <button onClick={() => setActiveDetailTab('HISTORY')} className={`px-4 py-3 text-xs font-bold transition-all ${activeDetailTab === 'HISTORY' ? 'text-slate-900 border-b-2 border-slate-900' : 'text-slate-400 hover:text-slate-600'}`}>Histórico</button>
+                  <button onClick={() => setActiveDetailTab('COMPATIBILITY')} className={`px-4 py-3 text-xs font-bold transition-all ${activeDetailTab === 'COMPATIBILITY' ? 'text-slate-900 border-b-2 border-slate-900' : 'text-slate-400 hover:text-slate-600'}`}>Compatibilidade</button>
                 </div>
 
                 <div className="p-6 space-y-6">
-                  {/* Summary Section */}
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                      <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">Valor de Venda</p>
-                      <p className="text-lg font-black text-slate-900">R$ {selectedService.default_price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
-                    </div>
-                    <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                      <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">Custo Estimado</p>
-                      <p className="text-lg font-black text-slate-500">R$ {selectedService.estimated_cost.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
-                    </div>
-                  </div>
-
-                  <div className="bg-emerald-50 p-4 rounded-2xl border border-emerald-100 flex items-center justify-between">
-                    <div>
-                      <p className="text-[10px] font-bold text-emerald-600 uppercase mb-1">Lucro Bruto</p>
-                      <p className="text-xl font-black text-emerald-700">R$ {(selectedService.default_price - selectedService.estimated_cost).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-[10px] font-bold text-emerald-600 uppercase mb-1">Margem</p>
-                      <p className="text-xl font-black text-emerald-700">{calculateMargin(selectedService.default_price, selectedService.estimated_cost).toFixed(1)}%</p>
-                    </div>
-                  </div>
-
-                  <div className="space-y-4">
-                    <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Informações Técnicas</h3>
-                    <div className="grid grid-cols-2 gap-y-4">
-                      <div>
-                        <p className="text-[10px] font-bold text-slate-400 uppercase">Tempo Estimado</p>
-                        <div className="flex items-center gap-2 text-sm font-bold text-slate-700 mt-1">
-                          <Clock size={14} className="text-slate-400" />
-                          {selectedService.estimated_time}h
+                  {activeDetailTab === 'SUMMARY' && (
+                    <>
+                      {/* Summary Section */}
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                          <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">Valor de Venda</p>
+                          <p className="text-lg font-black text-slate-900">R$ {selectedService.default_price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+                        </div>
+                        <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                          <p className="text-[10px] font-bold text-slate-400 uppercase mb-1">Custo Estimado</p>
+                          <p className="text-lg font-black text-slate-500">R$ {selectedService.estimated_cost.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
                         </div>
                       </div>
-                      <div>
-                        <p className="text-[10px] font-bold text-slate-400 uppercase">Garantia</p>
-                        <p className="text-sm font-bold text-slate-700 mt-1">{selectedService.warranty_days} dias</p>
+
+                      <div className="bg-emerald-50 p-4 rounded-2xl border border-emerald-100 flex items-center justify-between">
+                        <div>
+                          <p className="text-[10px] font-bold text-emerald-600 uppercase mb-1">Lucro Bruto</p>
+                          <p className="text-xl font-black text-emerald-700">R$ {(selectedService.default_price - selectedService.estimated_cost).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-[10px] font-bold text-emerald-600 uppercase mb-1">Margem</p>
+                          <p className="text-xl font-black text-emerald-700">{calculateMargin(selectedService.default_price, selectedService.estimated_cost).toFixed(1)}%</p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="text-[10px] font-bold text-slate-400 uppercase">Categoria</p>
-                        <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold border uppercase tracking-tight mt-1 ${categoryMap[selectedService.category]?.color || categoryMap.OUTROS.color}`}>
-                          {categoryMap[selectedService.category]?.label || 'Outros'}
-                        </span>
+
+                      <div className="space-y-4">
+                        <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Informações Técnicas</h3>
+                        <div className="grid grid-cols-2 gap-y-4">
+                          <div>
+                            <p className="text-[10px] font-bold text-slate-400 uppercase">Tempo Estimado</p>
+                            <div className="flex items-center gap-2 text-sm font-bold text-slate-700 mt-1">
+                              <Clock size={14} className="text-slate-400" />
+                              {selectedService.estimated_time || '00:00'}
+                            </div>
+                          </div>
+                          <div>
+                            <p className="text-[10px] font-bold text-slate-400 uppercase">Garantia</p>
+                            <p className="text-sm font-bold text-slate-700 mt-1">{selectedService.warranty_days} dias</p>
+                          </div>
+                          <div>
+                            <p className="text-[10px] font-bold text-slate-400 uppercase">Categoria</p>
+                            <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold border uppercase tracking-tight mt-1 ${categoryMap[selectedService.category]?.color || categoryMap.OUTROS.color}`}>
+                              {categoryMap[selectedService.category]?.label || 'Outros'}
+                            </span>
+                          </div>
+                          <div>
+                            <p className="text-[10px] font-bold text-slate-400 uppercase">Tipo</p>
+                            <p className="text-sm font-bold text-slate-700 mt-1">
+                              {selectedService.type === 'LABOR' ? 'Mão de Obra' : selectedService.type === 'WITH_PART' ? 'Serviço com Peça' : 'Serviço Composto'}
+                            </p>
+                          </div>
+                        </div>
                       </div>
-                      <div>
-                        <p className="text-[10px] font-bold text-slate-400 uppercase">Tipo</p>
-                        <p className="text-sm font-bold text-slate-700 mt-1">
-                          {selectedService.type === 'LABOR' ? 'Mão de Obra' : selectedService.type === 'WITH_PART' ? 'Serviço com Peça' : 'Serviço Composto'}
+
+                      <div className="space-y-2">
+                        <p className="text-[10px] font-bold text-slate-400 uppercase">Descrição</p>
+                        <p className="text-sm text-slate-600 leading-relaxed bg-slate-50 p-4 rounded-xl border border-slate-100 italic">
+                          "{selectedService.description || 'Nenhuma descrição adicionada.'}"
                         </p>
                       </div>
+
+                      <div className="pt-4 space-y-3">
+                        <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                          <Package size={12} /> Peças Vinculadas (Padrão)
+                        </h3>
+                        <p className="text-xs text-slate-400 italic">Nenhuma peça vinculada a este serviço.</p>
+                      </div>
+                    </>
+                  )}
+
+                  {activeDetailTab === 'PARTS' && (
+                    <div className="space-y-4">
+                      <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                        <Package size={12} /> Kits e Peças Vinculadas
+                      </h3>
+                      <div className="bg-slate-50 border border-slate-100 rounded-xl p-6 text-center">
+                        <p className="text-sm text-slate-500">Em breve você poderá vincular kits de peças padrão a este serviço.</p>
+                      </div>
                     </div>
-                  </div>
+                  )}
 
-                  <div className="space-y-2">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase">Descrição</p>
-                    <p className="text-sm text-slate-600 leading-relaxed bg-slate-50 p-4 rounded-xl border border-slate-100 italic">
-                      "{selectedService.description}"
-                    </p>
-                  </div>
+                  {activeDetailTab === 'HISTORY' && (
+                    <div className="space-y-4">
+                      <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                        <History size={12} /> Últimas Realizações
+                      </h3>
+                      <div className="bg-slate-50 border border-slate-100 rounded-xl p-6 text-center">
+                        <p className="text-sm text-slate-500">O histórico de OS e veículos que realizaram este serviço ficará aqui.</p>
+                      </div>
+                    </div>
+                  )}
 
-                  <div className="pt-4 space-y-3">
-                    <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
-                      <Package size={12} /> Peças Vinculadas (Padrão)
-                    </h3>
-                    <p className="text-xs text-slate-400 italic">Nenhuma peça vinculada a este serviço.</p>
-                  </div>
+                  {activeDetailTab === 'COMPATIBILITY' && (
+                    <div className="space-y-4">
+                      <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                        <Wrench size={12} /> Veículos Compatíveis
+                      </h3>
+                      <div className="bg-slate-50 border border-slate-100 rounded-xl p-6 text-center whitespace-pre-wrap">
+                        <p className="text-sm text-slate-500">{selectedService.compatible_vehicles || 'Compatibilidade geral ou não informada detalhadamente.'}</p>
+                      </div>
+                    </div>
+                  )}
                 </div>
-              </div>
 
-              <div className="p-6 border-t border-slate-100 flex gap-3 shrink-0 bg-slate-50/50">
-                <button className="flex-1 py-3 border border-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 transition-all flex items-center justify-center gap-2">
-                  <Edit size={14} /> Editar Serviço
-                </button>
-                <button className="flex-1 py-3 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-slate-800 transition-all shadow-lg shadow-slate-900/20 flex items-center justify-center gap-2">
-                  <History size={14} /> Ver Histórico
-                </button>
+                <div className="p-6 border-t border-slate-100 flex gap-3 shrink-0 bg-slate-50/50">
+                  <button 
+                    onClick={() => { setIsDetailDrawerOpen(false); handleEditClick(selectedService); }} 
+                    className="flex-1 py-3 border border-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 transition-all flex items-center justify-center gap-2"
+                  >
+                    <Edit size={14} /> Editar Serviço
+                  </button>
+                  <button 
+                    onClick={() => setActiveDetailTab('HISTORY')}
+                    className="flex-1 py-3 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-slate-800 transition-all shadow-lg shadow-slate-900/20 flex items-center justify-center gap-2"
+                  >
+                    <History size={14} /> Ver Histórico
+                  </button>
+                </div>
               </div>
             </motion.div>
           </div>
