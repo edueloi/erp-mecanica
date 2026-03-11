@@ -890,7 +890,7 @@ export default function Suppliers() {
                       </div>
                     </td>
                     <td className="px-6 py-4 sticky right-0 bg-white group-hover:bg-indigo-50/30 transition-colors shadow-[-12px_0_15px_-4px_rgba(0,0,0,0.02)] z-10">
-                      <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
+                      <div className="flex items-center justify-end gap-2" onClick={e => e.stopPropagation()}>
                         <button
                           onClick={() => handleCreateOrder(supplier)}
                           className="p-2 text-indigo-400 hover:text-indigo-600 hover:bg-slate-200 rounded-xl transition-all"

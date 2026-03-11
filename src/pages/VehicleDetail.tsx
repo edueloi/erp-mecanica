@@ -328,7 +328,7 @@ export default function VehicleDetail() {
                           </span>
                         </td>
                         <td className="px-6 py-4 text-right">
-                          <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
+                          <div className="flex items-center justify-end gap-1" onClick={e => e.stopPropagation()}>
                             <button className="p-1.5 text-slate-400 hover:text-slate-900 hover:bg-slate-200 rounded transition-all">
                               <ExternalLink size={14} />
                             </button>

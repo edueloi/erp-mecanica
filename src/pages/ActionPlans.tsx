@@ -618,7 +618,7 @@ export default function ActionPlans() {
                             {board.icon || board.name.charAt(0).toUpperCase()}
                           </div>
                           <div 
-                            className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                            className="flex gap-1 transition-opacity"
                             onClick={(e) => e.stopPropagation()}
                           >
                             <button

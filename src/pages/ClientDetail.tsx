@@ -441,7 +441,7 @@ export default function ClientDetail() {
                         <td className="px-6 py-4 text-xs font-medium text-slate-600">{v.km?.toLocaleString('pt-BR')} KM</td>
                         <td className="px-6 py-4 text-xs text-slate-500">{v.last_os_date || '---'}</td>
                         <td className="px-6 py-4 text-right">
-                          <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <div className="flex items-center justify-end gap-1">
                             <button className="p-1.5 text-slate-400 hover:text-slate-900 hover:bg-slate-200 rounded transition-all" title="Criar OS">
                               <Plus size={14} />
                             </button>
@@ -504,7 +504,7 @@ export default function ClientDetail() {
                           </span>
                         </td>
                         <td className="px-6 py-4 text-right">
-                          <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
+                          <div className="flex items-center justify-end gap-1" onClick={e => e.stopPropagation()}>
                             <button className="p-1.5 text-slate-400 hover:text-slate-900 hover:bg-slate-200 rounded transition-all" title="Ver OS">
                               <ExternalLink size={14} />
                             </button>
@@ -669,7 +669,7 @@ export default function ClientDetail() {
                              </span>
                            </td>
                            <td className="px-6 py-4 text-right">
-                             <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                             <div className="flex items-center justify-end gap-1">
                                <button className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-slate-200 rounded transition-all cursor-pointer" title="Ver Detalhes">
                                  <ExternalLink size={14} />
                                </button>

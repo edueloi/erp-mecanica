@@ -217,7 +217,7 @@ export default function VehicleEntries() {
                   {/* Ações */}
                   <td className="px-6 py-2 text-right sticky right-0 bg-white group-hover:bg-slate-50 transition-colors shadow-[-12px_0_15px_-4px_rgba(0,0,0,0.02)] z-10">
                     <div
-                      className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                      className="flex items-center justify-end gap-1"
                       onClick={e => e.stopPropagation()}
                     >
                       <button
