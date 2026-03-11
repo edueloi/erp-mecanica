@@ -662,7 +662,7 @@ export default function CashFlow() {
       {/* Transactions Table */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-lg overflow-hidden">
         <div className="overflow-x-auto overflow-y-auto max-h-[600px] scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent">
-          <table className="w-full">
+          <table className="w-full min-w-[1200px]">
             <thead className="bg-slate-50 border-b border-slate-200">
               <tr>
                 <th className="text-left p-4 text-[10px] font-semibold text-slate-600 uppercase tracking-wide">
@@ -713,10 +713,10 @@ export default function CashFlow() {
                     key={transaction.id}
                     className="hover:bg-slate-50 transition-colors"
                   >
-                    <td className="p-4 text-sm text-slate-900">
+                    <td className="p-4 text-sm text-slate-900 whitespace-nowrap">
                       {formatDate(transaction.date)}
                     </td>
-                    <td className="p-4">
+                    <td className="p-4 whitespace-nowrap">
                       <span
                         className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium ${getTypeColor(
                           transaction.type
@@ -725,7 +725,7 @@ export default function CashFlow() {
                         {getTypeLabel(transaction.type)}
                       </span>
                     </td>
-                    <td className="p-4 text-sm text-slate-900">
+                    <td className="p-4 text-sm text-slate-900 min-w-[300px] whitespace-nowrap">
                       {transaction.description}
                       {transaction.related_account_name && (
                         <div className="text-xs text-slate-500">
@@ -733,15 +733,15 @@ export default function CashFlow() {
                         </div>
                       )}
                     </td>
-                    <td className="p-4 text-sm text-slate-600">{transaction.category}</td>
-                    <td className="p-4 text-sm text-slate-600">
+                    <td className="p-4 text-sm text-slate-600 whitespace-nowrap">{transaction.category}</td>
+                    <td className="p-4 text-sm text-slate-600 whitespace-nowrap">
                       {transaction.account_name}
                     </td>
-                    <td className="p-4 text-sm text-slate-600">
+                    <td className="p-4 text-sm text-slate-600 whitespace-nowrap">
                       {transaction.payment_method || "-"}
                     </td>
                     <td
-                      className={`p-4 text-sm font-semibold text-right ${
+                      className={`p-4 text-sm font-semibold text-right whitespace-nowrap ${
                         transaction.type === "in" ? "text-green-600" : "text-red-600"
                       }`}
                     >

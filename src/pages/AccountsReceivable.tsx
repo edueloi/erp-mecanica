@@ -20,6 +20,7 @@ import {
   ArrowUpCircle,
   TrendingDown,
   Download,
+  Trash2,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import api from "../services/api";
@@ -64,6 +65,8 @@ interface Stats {
 export default function AccountsReceivable() {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [filteredAccounts, setFilteredAccounts] = useState<Account[]>([]);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [accountToDelete, setAccountToDelete] = useState<Account | null>(null);
   const [stats, setStats] = useState<Stats>({
     total_receivable: 0,
     due_today: 0,
@@ -226,13 +229,19 @@ export default function AccountsReceivable() {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("Tem certeza que deseja excluir esta conta?")) return;
+  const handleDelete = (account: Account) => {
+    setAccountToDelete(account);
+    setDeleteConfirmOpen(true);
+  };
 
+  const confirmDelete = async () => {
+    if (!accountToDelete) return;
     try {
-      await api.delete(`/accounts-receivable/${id}`);
+      await api.delete(`/accounts-receivable/${accountToDelete.id}`);
       fetchAccounts();
       fetchStats();
+      setDeleteConfirmOpen(false);
+      setAccountToDelete(null);
     } catch (error: any) {
       alert(error.response?.data?.error || "Erro ao excluir conta");
     }
@@ -497,7 +506,7 @@ export default function AccountsReceivable() {
       {/* Grid Style Table */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-xl overflow-hidden">
         <div className="overflow-x-auto overflow-y-auto max-h-[600px] scrollbar-thin scrollbar-thumb-slate-200 scrollbar-track-transparent">
-          <table className="w-full border-separate border-spacing-0">
+          <table className="w-full min-w-[1200px] border-separate border-spacing-0">
             <thead>
               <tr className="bg-slate-50/50">
                 <th className="px-6 py-4 text-left text-[10px] font-bold text-slate-500 uppercase tracking-widest border-b border-slate-100">Vencimento</th>
@@ -526,13 +535,13 @@ export default function AccountsReceivable() {
                       <span className="text-[10px] text-slate-400 font-medium tracking-tight">Vencimento</span>
                     </div>
                   </td>
-                  <td className="px-6 py-5">
+                  <td className="px-6 py-5 whitespace-nowrap">
                     <div className="flex flex-col">
                       <span className="text-sm font-semibold text-slate-900 leading-none mb-1">{account.client_name}</span>
                       <span className="text-xs text-slate-500 font-medium">{account.client_phone || 'Sem telefone'}</span>
                     </div>
                   </td>
-                  <td className="px-6 py-5">
+                  <td className="px-6 py-5 whitespace-nowrap">
                     {account.work_order_number ? (
                       <Link
                         to={`/work-orders/${account.work_order_id}`}
@@ -548,13 +557,13 @@ export default function AccountsReceivable() {
                       <span className="text-xs text-slate-400 font-medium italic">Lançamento Direto</span>
                     )}
                   </td>
-                  <td className="px-6 py-5 min-w-[200px]">
+                  <td className="px-6 py-5 min-w-[300px] whitespace-nowrap">
                     <p className="text-sm text-slate-600 line-clamp-1 font-medium">{account.description}</p>
                     {account.payment_method && (
                       <span className="text-[10px] text-slate-400 font-medium">Via {account.payment_method}</span>
                     )}
                   </td>
-                  <td className="px-6 py-5 text-right">
+                  <td className="px-6 py-5 text-right whitespace-nowrap">
                     <div className="flex flex-col items-end">
                       <span className="text-sm font-bold text-slate-900">{formatCurrency(account.original_amount)}</span>
                       {account.amount_paid > 0 && (
@@ -565,7 +574,7 @@ export default function AccountsReceivable() {
                       </span>
                     </div>
                   </td>
-                  <td className="px-6 py-5">
+                  <td className="px-6 py-5 whitespace-nowrap">
                     <div className="flex flex-col items-center gap-1.5">
                       {getStatusBadge(account.status)}
                       <span className="text-[10px] text-slate-400 font-medium">
@@ -593,11 +602,11 @@ export default function AccountsReceivable() {
                       </button>
                       {account.amount_paid === 0 && (
                         <button
-                          onClick={() => handleDelete(account.id)}
+                          onClick={() => handleDelete(account)}
                           className="p-2 text-red-600 hover:bg-red-50 rounded-xl transition-all shadow-sm active:scale-95"
                           title="Remover"
                         >
-                          <XCircle className="w-4 h-4" />
+                          <Trash2 className="w-4 h-4" />
                         </button>
                       )}
                     </div>
@@ -1077,6 +1086,52 @@ export default function AccountsReceivable() {
                       className="px-6 py-2.5 bg-slate-700 text-white rounded-xl hover:bg-slate-800 transition-colors text-sm font-medium"
                     >
                       Fechar
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            </div>
+          </>
+        )}
+      </AnimatePresence>
+      {/* Delete Confirmation Modal */}
+      <AnimatePresence>
+        {deleteConfirmOpen && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[110]"
+              onClick={() => setDeleteConfirmOpen(false)}
+            />
+            <div className="fixed inset-0 flex items-center justify-center z-[120] p-4 pointer-events-none">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden pointer-events-auto"
+              >
+                <div className="p-6">
+                  <div className="w-12 h-12 bg-rose-100 rounded-full flex items-center justify-center mb-4">
+                    <AlertCircle className="w-6 h-6 text-rose-600" />
+                  </div>
+                  <h3 className="text-lg font-bold text-slate-900 mb-2 italic tracking-tighter uppercase">Excluir Recebível</h3>
+                  <p className="text-slate-600 text-sm mb-6 font-medium">
+                    Tem certeza que deseja excluir este recebível de <span className="font-black text-slate-900">{accountToDelete?.client_name}</span>? Esta ação não pode ser desfeita e afetará o fluxo de caixa histórico.
+                  </p>
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => setDeleteConfirmOpen(false)}
+                      className="flex-1 px-4 py-2.5 border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-50 transition-all text-[10px] font-black uppercase tracking-widest italic"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      onClick={confirmDelete}
+                      className="flex-1 px-4 py-2.5 bg-rose-600 text-white rounded-xl hover:bg-rose-700 transition-all text-[10px] font-black uppercase tracking-widest italic shadow-lg shadow-rose-200"
+                    >
+                      Excluir Agora
                     </button>
                   </div>
                 </div>

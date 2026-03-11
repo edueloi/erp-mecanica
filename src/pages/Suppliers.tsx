@@ -27,6 +27,7 @@ import {
   ChevronDown,
   ClipboardList,
   ShoppingCart,
+  History,
 } from "lucide-react";
 import api from "../services/api";
 import { jsPDF } from 'jspdf';
@@ -93,6 +94,8 @@ export default function Suppliers() {
   const [showPODetail, setShowPODetail] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [supplierToDelete, setSupplierToDelete] = useState<Supplier | null>(null);
+  const [showHistoryModal, setShowHistoryModal] = useState(false);
+  const [supplierHistory, setSupplierHistory] = useState<any[]>([]);
   const [notification, setNotification] = useState<{
     show: boolean;
     type: 'success' | 'error' | 'info';
@@ -312,6 +315,18 @@ export default function Suppliers() {
       notes: "",
     });
     setShowEditModal(true);
+  };
+
+  const handleViewHistory = async (supplier: Supplier) => {
+    setSelectedSupplier(supplier);
+    try {
+      // Filter existing purchaseOrders or fetch fresh
+      const filtered = purchaseOrders.filter(po => po.supplier_id === supplier.id);
+      setSupplierHistory(filtered);
+      setShowHistoryModal(true);
+    } catch (err) {
+      showNotification('error', 'Erro', 'Falha ao carregar histórico.');
+    }
   };
 
   const handleCreateOrder = (supplier: Supplier) => {
@@ -638,6 +653,7 @@ export default function Suppliers() {
       notes: "",
     });
     setPartFormData({ name: '', code: '', cost_price: 0, sale_price: 0 });
+    setShowHistoryModal(false);
   };
 
   const formatDate = (dateString: string) => {
@@ -769,7 +785,7 @@ export default function Suppliers() {
           <div className="p-6">
             <h2 className="text-lg font-bold text-slate-800 mb-4">Lista de Pedidos de Compra</h2>
             <div className="border border-slate-200 rounded-2xl overflow-x-auto w-full pb-5">
-              <table className="w-full text-sm min-w-[900px]">
+              <table className="w-full text-sm min-w-[1000px]">
                 <thead className="bg-slate-50 border-b border-slate-200">
                   <tr>
                     <th className="px-6 py-2.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider text-left">Número</th>
@@ -832,7 +848,7 @@ export default function Suppliers() {
           </div>
         ) : (
           <div className="flex-1 overflow-auto bg-slate-50/30 min-h-0 min-w-0 w-full relative pb-5">
-            <table className="w-full min-w-[1000px]">
+            <table className="w-full min-w-[1200px]">
               <thead className="bg-white border-b border-slate-200 sticky top-0 z-10 shadow-sm">
                 <tr>
                   <th className="px-6 py-2.5 text-left text-[10px] font-bold text-slate-400 uppercase tracking-wider">Fornecedor</th>
@@ -852,10 +868,18 @@ export default function Suppliers() {
                           <Building2 className="w-5 h-5" />
                         </div>
                         <div>
-                          <p className="font-bold text-slate-900 group-hover:text-indigo-600 transition-colors">
-                            {supplier.name}
-                            {supplier.is_preferred && <Star className="w-3 h-3 text-yellow-500 fill-yellow-500 inline ml-1" />}
-                          </p>
+                          <div className="flex items-center gap-2">
+                            <p className="font-bold text-slate-900 group-hover:text-indigo-600 transition-colors">
+                              {supplier.name}
+                              {supplier.is_preferred && <Star className="w-3 h-3 text-yellow-500 fill-yellow-500 inline ml-1" />}
+                            </p>
+                            {(supplier.open_orders || 0) > 0 && (
+                              <div className="bg-amber-100/50 border border-amber-200 px-1.5 py-0.5 rounded-md flex items-center gap-1 animate-pulse">
+                                <AlertCircle size={10} className="text-amber-600" />
+                                <span className="text-[9px] font-black text-amber-700 uppercase tracking-tighter">Pendente</span>
+                              </div>
+                            )}
+                          </div>
                           <p className="text-xs text-slate-500 font-medium">{supplier.trade_name || supplier.cnpj}</p>
                         </div>
                       </div>
@@ -898,6 +922,13 @@ export default function Suppliers() {
                           title="Novo Pedido de Compra"
                         >
                           <FilePlus className="w-5 h-5" />
+                        </button>
+                        <button
+                          onClick={() => handleViewHistory(supplier)}
+                          className="p-2 text-slate-400 hover:text-slate-900 hover:bg-slate-200 rounded-xl transition-all"
+                          title="Ver Histórico de Pedidos"
+                        >
+                          <History className="w-5 h-5" />
                         </button>
                         <button
                           onClick={() => handleEdit(supplier)}
@@ -1721,6 +1752,107 @@ export default function Suppliers() {
                   <button type="submit" className="flex-1 px-6 py-2.5 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-all text-[10px] font-black uppercase tracking-widest italic shadow-lg shadow-emerald-200">Salvar e Adicionar</button>
                 </div>
               </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Supplier History Modal */}
+      <AnimatePresence>
+        {showHistoryModal && selectedSupplier && (
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[140] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col"
+            >
+              <div className="bg-slate-900 px-6 py-4 flex items-center justify-between shrink-0">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-2xl bg-white/10 flex items-center justify-center text-white">
+                    <History size={24} />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-black text-white italic tracking-tighter uppercase leading-none">Histórico de Pedidos</h2>
+                    <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest mt-1.5">{selectedSupplier.name}</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setShowHistoryModal(false)} 
+                  className="w-10 h-10 flex items-center justify-center text-slate-400 hover:text-white hover:bg-white/10 rounded-xl transition-all"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className="p-0 overflow-y-auto flex-1">
+                <div className="p-6">
+                  {supplierHistory.length > 0 ? (
+                    <div className="border border-slate-100 rounded-2xl overflow-hidden shadow-sm">
+                      <table className="w-full text-xs">
+                        <thead className="bg-slate-50 border-b border-slate-100">
+                          <tr>
+                            <th className="text-left px-6 py-3 font-black text-slate-400 tracking-widest uppercase italic">Pedido</th>
+                            <th className="text-left px-6 py-3 font-black text-slate-400 tracking-widest uppercase italic">Data</th>
+                            <th className="text-left px-6 py-3 font-black text-slate-400 tracking-widest uppercase italic">Status</th>
+                            <th className="text-right px-6 py-3 font-black text-slate-400 tracking-widest uppercase italic">Total</th>
+                            <th className="text-right px-6 py-3 font-black text-slate-400 tracking-widest uppercase italic">Ações</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-50 bg-white">
+                          {supplierHistory.map((po) => (
+                            <tr key={po.id} className="hover:bg-slate-50/50 transition-all group">
+                              <td className="px-6 py-4">
+                                <span className="font-black text-slate-900 group-hover:text-indigo-600">{po.number}</span>
+                              </td>
+                              <td className="px-6 py-4 text-slate-500 font-bold">{formatDate(po.order_date)}</td>
+                              <td className="px-6 py-4">
+                                <span className={`px-2 py-0.5 rounded-md text-[9px] font-black tracking-widest uppercase ${
+                                  po.status === 'RECEIVED' ? 'bg-emerald-500 text-white' :
+                                  po.status === 'PARTIAL' ? 'bg-blue-500 text-white' :
+                                  po.status === 'DRAFT' ? 'bg-slate-500 text-white' :
+                                  'bg-amber-500 text-white'
+                                }`}>
+                                  {po.status === 'RECEIVED' ? 'RECEBIDO' :
+                                   po.status === 'PARTIAL' ? 'PARCIAL' :
+                                   po.status === 'DRAFT' ? 'RASCUNHO' :
+                                   'PENDENTE'}
+                                </span>
+                              </td>
+                              <td className="px-6 py-4 text-right">
+                                <span className="font-black text-slate-900 italic">R$ {po.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                              </td>
+                              <td className="px-6 py-4 text-right">
+                                <button 
+                                  onClick={() => handleViewPODetail(po.id)}
+                                  className="text-indigo-600 hover:bg-indigo-50 p-2 rounded-lg transition-all"
+                                  title="Ver Detalhes"
+                                >
+                                  <ArrowRight size={18} />
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center py-20 bg-slate-50 border-2 border-dashed border-slate-100 rounded-3xl opacity-40">
+                      <History size={48} className="text-slate-300 mb-4" />
+                      <p className="text-sm font-black text-slate-400 uppercase tracking-widest italic">Nenhum pedido realizado anteriormente</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+              
+              <div className="p-4 bg-slate-50 border-t border-slate-100 shrink-0">
+                <button 
+                  onClick={() => setShowHistoryModal(false)}
+                  className="w-full py-3 border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-100 transition-all text-[10px] font-black uppercase tracking-[0.2em] italic"
+                >
+                  Fechar Histórico
+                </button>
+              </div>
             </motion.div>
           </div>
         )}
