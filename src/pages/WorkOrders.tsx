@@ -419,7 +419,7 @@ export default function WorkOrders() {
       </header>
 
       {/* Stats Bar - Compact */}
-      <div className="bg-white border-b border-slate-200 px-6 py-2 flex items-center gap-2 overflow-x-auto no-scrollbar shrink-0 mt-[25px]">
+      <div className="bg-white border-b border-slate-200 px-6 py-2 flex items-center gap-2 overflow-x-auto no-scrollbar shrink-0">
         {[
           { label: 'Rascunhos', value: stats.draft || 0, status: 'DRAFT', color: 'bg-slate-400' },
           { label: 'Abertas', value: stats.open || 0, status: 'OPEN', color: 'bg-amber-500' },
@@ -458,30 +458,33 @@ export default function WorkOrders() {
       </div>
 
       {/* Search & Filters - Compact */}
-      <div className="bg-white border-b border-slate-200 px-6 py-3 flex flex-wrap items-center gap-4 shrink-0">
-        <div className="relative flex-1 min-w-[300px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+      <div className="bg-white border-b border-slate-200 px-6 py-2 flex items-center gap-4 overflow-x-auto no-scrollbar shrink-0">
+        <div className="relative flex-1 min-w-[200px] max-w-xs shrink-0">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
           <input 
             type="text" 
-            placeholder="Buscar por OS, cliente, placa, modelo..."
-            className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-1 focus:ring-slate-900 outline-none transition-all"
+            placeholder="Buscar por OS, cliente, placa..."
+            className="w-full pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:ring-1 focus:ring-slate-900 focus:bg-white transition-all outline-none"
             value={search}
             onChange={e => setSearch(e.target.value)}
           />
         </div>
-
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="h-4 w-px bg-slate-200 shrink-0" />
+        <div className="flex items-center gap-2 shrink-0">
+          <Filter size={14} className="text-slate-400" />
           <select 
-            className="h-9 px-3 bg-slate-50 border border-slate-200 rounded-lg text-xs font-bold text-slate-600 outline-none focus:ring-1 focus:ring-slate-900"
+            className="bg-transparent text-xs font-bold text-slate-600 outline-none cursor-pointer"
             value={statusFilter}
             onChange={e => setStatusFilter(e.target.value)}
           >
-            <option value="">Todos Status</option>
+            <option value="">Status</option>
             {Object.entries(statusConfig).map(([key, value]: any) => (
               <option key={key} value={key}>{value.label}</option>
             ))}
           </select>
-
+        </div>
+        <div className="h-4 w-px bg-slate-200 shrink-0" />
+        <div className="flex items-center shrink-0">
           <SearchableFilter 
             options={users.map(u => ({ id: u.id, name: u.name }))}
             value={responsibleFilter}
@@ -489,7 +492,9 @@ export default function WorkOrders() {
             placeholder="Responsável"
             icon={User}
           />
-
+        </div>
+        <div className="h-4 w-px bg-slate-200 shrink-0" />
+        <div className="flex items-center shrink-0">
           <SearchableFilter 
             options={clients.map(c => ({ id: c.id, name: c.name }))}
             value={clientFilter}
@@ -497,8 +502,11 @@ export default function WorkOrders() {
             placeholder="Cliente"
             icon={User}
           />
+        </div>
 
-          {(statusFilter || responsibleFilter || clientFilter || search) && (
+        {(statusFilter || responsibleFilter || clientFilter || search) && (
+          <>
+            <div className="h-4 w-px bg-slate-200 shrink-0" />
             <button 
               onClick={() => {
                 setStatusFilter('');
@@ -506,12 +514,12 @@ export default function WorkOrders() {
                 setClientFilter('');
                 setSearch('');
               }}
-              className="h-9 px-3 text-red-500 hover:bg-red-50 rounded-lg text-xs font-bold flex items-center gap-2 transition-all border border-red-100"
+              className="h-6 px-2 text-red-500 hover:bg-red-50 rounded text-[10px] font-bold flex items-center gap-1 transition-all uppercase tracking-wider shrink-0"
             >
-              <FilterX size={14} /> Limpar
+              <FilterX size={12} /> Limpar
             </button>
-          )}
-        </div>
+          </>
+        )}
       </div>
 
       {/* Table - Data Heavy */}
@@ -527,7 +535,7 @@ export default function WorkOrders() {
               <th className="px-4 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-200 text-right">Valor</th>
               <th className="px-4 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-200 text-center">Status</th>
               <th className="px-4 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-200 text-center">Garantia</th>
-              <th className="px-6 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-200 text-right">Ações</th>
+              <th className="px-6 py-3 text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-200 sticky right-0 bg-white shadow-[-12px_0_15px_-4px_rgba(0,0,0,0.05)] z-20 text-right">Ações</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
@@ -591,11 +599,11 @@ export default function WorkOrders() {
                     <span className="text-[10px] text-slate-300 font-bold uppercase">N/A</span>
                   )}
                 </td>
-                <td className="px-6 py-4 text-right">
-                  <div className="flex items-center justify-end gap-1" onClick={e => e.stopPropagation()}>
+                <td className="px-6 py-4 text-right sticky right-0 bg-white group-hover:bg-slate-50 transition-colors shadow-[-12px_0_15px_-4px_rgba(0,0,0,0.02)] z-10">
+                  <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
                     <button 
                       onClick={() => navigate(`/work-orders/${wo.id}`)}
-                      className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
+                      className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-slate-200 rounded transition-all cursor-pointer"
                       title="Ver Detalhes"
                     >
                       <Eye size={16} />
@@ -603,12 +611,12 @@ export default function WorkOrders() {
                     <button 
                       onClick={(e) => { e.stopPropagation(); handleDownloadPDF(wo.id); }}
                       disabled={downloadingPDF === wo.id}
-                      className="p-1.5 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-all disabled:opacity-50" 
+                      className="p-1.5 text-slate-400 hover:text-slate-900 hover:bg-slate-200 rounded transition-all cursor-pointer disabled:opacity-50" 
                       title="Imprimir PDF"
                     >
                       {downloadingPDF === wo.id ? <div className="w-4 h-4 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" /> : <Printer size={16} />}
                     </button>
-                    <button className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all" title="WhatsApp">
+                    <button className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-slate-200 rounded transition-all cursor-pointer" title="WhatsApp">
                       <Send size={16} />
                     </button>
                   </div>

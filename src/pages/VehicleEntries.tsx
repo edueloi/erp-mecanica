@@ -69,22 +69,11 @@ export default function VehicleEntries() {
   return (
     <div className="flex flex-col h-full -m-6">
       {/* Header - Compact */}
-      <header className="bg-white border-b border-slate-200 px-6 py-3 flex items-center justify-between sticky top-0 z-30">
+      <header className="bg-white border-b border-slate-200 px-6 py-3 flex items-center justify-between sticky top-0 z-30 shrink-0">
         <div className="flex items-center gap-4 flex-1">
           <div>
             <h1 className="text-lg font-bold text-slate-900 leading-tight">Checklist de Entrada</h1>
             <p className="text-[10px] text-slate-500 font-medium uppercase tracking-wider whitespace-nowrap">Inspeção e recepção de veículos</p>
-          </div>
-          <div className="h-6 w-px bg-slate-200 hidden md:block" />
-          <div className="relative flex-1 max-w-md hidden md:block">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-            <input
-              type="text"
-              placeholder="Buscar por placa, cliente ou responsável..."
-              className="w-full pl-9 pr-4 py-1.5 bg-slate-50 border-transparent rounded-lg text-sm focus:ring-slate-900 focus:bg-white transition-all outline-none"
-              value={searchTerm}
-              onChange={e => setSearchTerm(e.target.value)}
-            />
           </div>
         </div>
 
@@ -98,55 +87,30 @@ export default function VehicleEntries() {
         </div>
       </header>
 
-      {/* Mobile Search */}
-      <div className="md:hidden bg-white border-b border-slate-200 px-6 py-2">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-          <input
-            type="text"
-            placeholder="Buscar entradas..."
-            className="w-full pl-9 pr-4 py-2 bg-slate-50 border-transparent rounded-lg text-sm outline-none"
+      {/* Filters */}
+      <div className="bg-white border-b border-slate-200 px-6 py-2 flex items-center gap-4 overflow-x-auto no-scrollbar shrink-0">
+        <div className="relative flex-1 min-w-[200px] max-w-xs shrink-0">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+          <input 
+            type="text" 
+            placeholder="Buscar por placa, cliente ou responsável..."
+            className="w-full pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:ring-1 focus:ring-slate-900 focus:bg-white transition-all outline-none"
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
           />
         </div>
-      </div>
-
-      {/* Filters */}
-      <div className="bg-white border-b border-slate-200 px-6 py-2 flex items-center gap-4 overflow-x-auto no-scrollbar shrink-0 mt-[25px]">
+        <div className="h-4 w-px bg-slate-200 shrink-0" />
         <div className="flex items-center gap-2 shrink-0">
           <Filter size={14} className="text-slate-400" />
           <select
-            className="bg-transparent border-none focus:ring-0 text-xs font-bold text-slate-600 p-0 pr-6 outline-none"
+            className="bg-transparent text-xs font-bold text-slate-600 outline-none cursor-pointer"
             value={statusFilter}
             onChange={e => setStatusFilter(e.target.value)}
           >
-            <option value="">Status: Todos</option>
+            <option value="">Todos Status</option>
             <option value="COMPLETED">Finalizado</option>
             <option value="DRAFT">Rascunho</option>
           </select>
-        </div>
-
-        <div className="h-4 w-px bg-slate-200 shrink-0" />
-
-        <div className="flex items-center gap-2 shrink-0">
-          {[
-            { id: 'COMPLETED', label: 'Finalizados', color: 'bg-emerald-50 text-emerald-600 border-emerald-100' },
-            { id: 'DRAFT', label: 'Rascunhos', color: 'bg-amber-50 text-amber-600 border-amber-100' },
-          ].map(filter => (
-            <button
-              key={filter.id}
-              onClick={() => setStatusFilter(statusFilter === filter.id ? '' : filter.id)}
-              className={cn(
-                'px-2 py-1 rounded-md text-[10px] font-bold transition-all border uppercase tracking-tight whitespace-nowrap',
-                statusFilter === filter.id
-                  ? 'bg-slate-900 text-white border-slate-900'
-                  : `${filter.color}`
-              )}
-            >
-              {filter.label}
-            </button>
-          ))}
         </div>
       </div>
 
@@ -161,7 +125,7 @@ export default function VehicleEntries() {
               <th className="px-4 py-2.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Responsável</th>
               <th className="px-4 py-2.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Fotos</th>
               <th className="px-4 py-2.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Status</th>
-              <th className="px-6 py-2.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider text-right">Ações</th>
+              <th className="px-6 py-2.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider text-right sticky right-0 bg-slate-50 shadow-[-12px_0_15px_-4px_rgba(0,0,0,0.05)] z-20">Ações</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
@@ -251,7 +215,7 @@ export default function VehicleEntries() {
                   </td>
 
                   {/* Ações */}
-                  <td className="px-6 py-2 text-right">
+                  <td className="px-6 py-2 text-right sticky right-0 bg-white group-hover:bg-slate-50 transition-colors shadow-[-12px_0_15px_-4px_rgba(0,0,0,0.02)] z-10">
                     <div
                       className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
                       onClick={e => e.stopPropagation()}

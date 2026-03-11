@@ -321,18 +321,6 @@ export default function Parts() {
               <span className="text-xs text-slate-600"><strong>{formatCurrency(stats.total_value || 0)}</strong></span>
             </div>
           </div>
-
-          <div className="h-6 w-px bg-slate-200 hidden lg:block mx-2" />
-          <div className="relative flex-1 max-w-md hidden md:block">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-            <input
-              type="text"
-              placeholder="Buscar por nome, código..."
-              className="w-full pl-9 pr-4 py-1.5 bg-slate-50 border-transparent rounded-lg text-sm focus:ring-slate-900 focus:bg-white transition-all outline-none"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
         </div>
 
         <div className="flex items-center gap-2">
@@ -352,7 +340,18 @@ export default function Parts() {
       </header>
 
       {/* Filters */}
-      <div className="bg-white border-b border-slate-200 px-6 py-2 flex items-center gap-4 overflow-x-auto no-scrollbar mt-[25px]">
+      <div className="bg-white border-b border-slate-200 px-6 py-2 flex items-center gap-4 overflow-x-auto no-scrollbar">
+        <div className="relative flex-1 min-w-[200px] max-w-xs shrink-0">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+          <input 
+            type="text" 
+            placeholder="Buscar peças..."
+            className="w-full pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:ring-1 focus:ring-slate-900 focus:bg-white transition-all outline-none"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
+        <div className="h-4 w-px bg-slate-200 shrink-0" />
         <div className="flex items-center gap-2 shrink-0">
           <Filter size={14} className="text-slate-400" />
           <select
@@ -424,7 +423,7 @@ export default function Parts() {
               <th className="px-4 py-3 text-right text-[10px] font-bold text-slate-500 uppercase tracking-wider">Margem</th>
               <th className="px-4 py-3 text-center text-[10px] font-bold text-slate-500 uppercase tracking-wider">Estoque</th>
               <th className="px-4 py-3 text-center text-[10px] font-bold text-slate-500 uppercase tracking-wider">Status</th>
-              <th className="px-4 py-3 text-center text-[10px] font-bold text-slate-500 uppercase tracking-wider">Ações</th>
+              <th className="px-4 py-3 text-center text-[10px] font-bold text-slate-500 uppercase tracking-wider sticky right-0 bg-slate-50 z-20 shadow-[-12px_0_15px_-4px_rgba(0,0,0,0.05)]">Ações</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
@@ -471,8 +470,8 @@ export default function Parts() {
                         {status.label}
                       </span>
                     </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center justify-center gap-1">
+                    <td className="px-4 py-3 sticky right-0 bg-white group-hover:bg-slate-50 transition-colors shadow-[-12px_0_15px_-4px_rgba(0,0,0,0.02)] z-10">
+                      <div className="flex items-center justify-center gap-1" onClick={e => e.stopPropagation()}>
                         <button
                           onClick={() => openDetails(part)}
                           className="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded transition-colors cursor-pointer"

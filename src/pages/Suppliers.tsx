@@ -654,146 +654,114 @@ export default function Suppliers() {
   return (
     <div className="flex flex-col h-[calc(100vh-64px)] bg-slate-50 overflow-hidden lg:-mx-5 lg:mt-0 lg:mb-0 -mx-4 -mt-4 -mb-4 min-w-0">
       {/* Header */}
-      <div className="bg-gradient-to-r from-slate-800 to-slate-700 px-6 py-8 border-b border-slate-200">
-        <div className="flex items-center justify-between mb-6">
+      <header className="bg-white border-b border-slate-200 px-6 py-3 flex items-center justify-between sticky top-0 z-30 shrink-0">
+        <div className="flex items-center gap-4 flex-1">
           <div>
-            <h1 className="text-2xl font-bold text-white mb-1">Fornecedores</h1>
-            <p className="text-slate-300 text-sm">Gestão completa de fornecedores e compras</p>
+            <h1 className="text-lg font-bold text-slate-900 leading-tight">Fornecedores</h1>
+            <p className="text-[10px] text-slate-500 font-medium whitespace-nowrap">Gestão completa e compras</p>
           </div>
-          <div className="flex gap-2">
-            <button
-              onClick={() => setShowOrdersList(!showOrdersList)}
-              className="h-9 px-4 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors flex items-center gap-2 text-sm font-medium shadow-sm"
-            >
-              <ClipboardList className="w-4 h-4" />
-              {showOrdersList ? "Ver Fornecedores" : "Ver Pedidos de Compra"}
-            </button>
-            <button
-              onClick={() => setShowNewModal(true)}
-              className="h-9 px-4 bg-white text-slate-700 rounded-lg hover:bg-slate-50 transition-colors flex items-center gap-2 text-sm font-medium shadow-sm"
-            >
-              <Plus className="w-4 h-4" />
-              Novo Fornecedor
-            </button>
+          <div className="h-6 w-px bg-slate-200 hidden md:block mx-2" />
+          
+          {/* Stats Inline */}
+          <div className="hidden lg:flex items-center gap-4 cursor-pointer" onClick={() => setShowOrdersList(true)}>
+            <div className="flex items-center gap-2">
+              <Building2 size={14} className="text-blue-600" />
+              <span className="text-xs text-slate-600"><strong>{stats.total}</strong> <span className="hidden xl:inline">fornecedores</span></span>
+            </div>
+            <div className="h-4 w-px bg-slate-200" />
+            <div className="flex items-center gap-2">
+              <Star size={14} className="text-yellow-500" />
+              <span className="text-xs text-slate-600"><strong>{stats.preferred}</strong> <span className="hidden xl:inline">preferenciais</span></span>
+            </div>
+            <div className="h-4 w-px bg-slate-200" />
+            <div className="flex items-center gap-2">
+              <Clock size={14} className="text-orange-500" />
+              <span className="text-xs text-slate-600"><strong>{stats.open_orders}</strong> <span className="hidden xl:inline">pedidos abertos</span></span>
+            </div>
           </div>
         </div>
 
-        {/* Stats */}
-        <div className="hidden lg:grid grid-cols-4 gap-4">
-          <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/20">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-blue-500/20 rounded-lg flex items-center justify-center">
-                <Building2 className="w-5 h-5 text-blue-300" />
-              </div>
-              <div>
-                <p className="text-slate-300 text-xs font-medium">Total</p>
-                <p className="text-white text-2xl font-bold">{stats.total}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/20">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-green-500/20 rounded-lg flex items-center justify-center">
-                <TrendingUp className="w-5 h-5 text-green-300" />
-              </div>
-              <div>
-                <p className="text-slate-300 text-xs font-medium">Ativos</p>
-                <p className="text-white text-2xl font-bold">{stats.active}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/20">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-yellow-500/20 rounded-lg flex items-center justify-center">
-                <Star className="w-5 h-5 text-yellow-300" />
-              </div>
-              <div>
-                <p className="text-slate-300 text-xs font-medium">Preferenciais</p>
-                <p className="text-white text-2xl font-bold">{stats.preferred}</p>
-              </div>
-            </div>
-          </div>
-
-          <button 
-            onClick={() => setShowOrdersList(true)}
-            className="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/20 hover:bg-white/20 transition-all text-left w-full"
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            onClick={() => setShowOrdersList(!showOrdersList)}
+            className="h-9 px-3 text-slate-600 hover:bg-slate-100 rounded-lg text-xs font-bold flex items-center gap-2 transition-all cursor-pointer"
           >
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-orange-500/20 rounded-lg flex items-center justify-center">
-                <Clock className="w-5 h-5 text-orange-300" />
-              </div>
-              <div>
-                <p className="text-slate-300 text-xs font-medium">Pedidos em Aberto</p>
-                <p className="text-white text-2xl font-bold">{stats.open_orders}</p>
-              </div>
-            </div>
+            <ClipboardList size={14} /> <span className="hidden sm:inline">{showOrdersList ? "Ver Fornecedores" : "Ver Pedidos"}</span>
+          </button>
+          <button
+            onClick={() => setShowNewModal(true)}
+            className="h-9 px-4 bg-slate-900 text-white rounded-lg text-xs font-bold flex items-center gap-2 hover:bg-slate-800 transition-all shadow-sm whitespace-nowrap cursor-pointer"
+          >
+            <Plus size={16} /> Novo Fornecedor
           </button>
         </div>
-      </div>
+      </header>
 
       {/* Filters */}
-      <div className="px-6 py-4 bg-white border-b border-slate-200">
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="flex-1 min-w-[300px] relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
-            <input
-              type="text"
-              placeholder="Buscar por nome, CNPJ, telefone ou cidade..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 h-9 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
-            />
-          </div>
-
+      <div className="bg-white border-b border-slate-200 px-6 py-2 flex items-center gap-4 overflow-x-auto no-scrollbar shrink-0">
+        <div className="relative flex-1 min-w-[200px] max-w-xs shrink-0">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+          <input 
+            type="text" 
+            placeholder="Buscar fornecedores..."
+            className="w-full pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:ring-1 focus:ring-slate-900 focus:bg-white transition-all outline-none"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
+        <div className="h-4 w-px bg-slate-200 shrink-0" />
+        <div className="flex items-center gap-2 shrink-0">
+          <Filter size={14} className="text-slate-400" />
           <select
             value={selectedCategory}
             onChange={(e) => setSelectedCategory(e.target.value)}
-            className="h-9 px-3 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
+            className="bg-transparent text-xs font-bold text-slate-600 outline-none cursor-pointer"
           >
             <option value="all">Todas Categorias</option>
             {categories.map((cat) => (
               <option key={cat} value={cat}>{cat}</option>
             ))}
           </select>
-
+        </div>
+        <div className="h-4 w-px bg-slate-200 shrink-0" />
+        <div className="flex items-center gap-2 shrink-0">
+          <span className="text-[10px] font-bold text-slate-400 uppercase">Status:</span>
           <select
             value={selectedStatus}
             onChange={(e) => setSelectedStatus(e.target.value)}
-            className="h-9 px-3 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
+            className="bg-transparent text-xs font-bold text-slate-600 outline-none cursor-pointer"
           >
             <option value="all">Todos Status</option>
             <option value="ACTIVE">Ativo</option>
             <option value="INACTIVE">Inativo</option>
           </select>
-
+        </div>
+        <div className="h-4 w-px bg-slate-200 shrink-0" />
+        <div className="flex items-center gap-2 shrink-0">
+          <span className="text-[10px] font-bold text-slate-400 uppercase">Cidade:</span>
           <select
             value={selectedCity}
             onChange={(e) => setSelectedCity(e.target.value)}
-            className="h-9 px-3 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
+            className="bg-transparent text-xs font-bold text-slate-600 outline-none cursor-pointer"
           >
             <option value="all">Todas Cidades</option>
             {cities.map((city) => (
               <option key={city} value={city}>{city}</option>
             ))}
           </select>
-
-          <button
-            onClick={() => setShowPreferredOnly(!showPreferredOnly)}
-            className={`h-9 px-4 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
-              showPreferredOnly
-                ? "bg-yellow-500 text-white"
-                : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-            }`}
-          >
-            <Star className="w-4 h-4" />
-            Preferenciais
-          </button>
         </div>
-        <div className="mt-3 text-sm text-slate-500">
-          {filteredSuppliers.length} fornecedores encontrados
-        </div>
+        <div className="h-4 w-px bg-slate-200 shrink-0" />
+        <button
+          onClick={() => setShowPreferredOnly(!showPreferredOnly)}
+          className={`h-6 px-2 rounded text-[10px] font-bold transition-colors flex items-center gap-1 uppercase tracking-wider shrink-0 ${
+            showPreferredOnly
+              ? "bg-yellow-100 text-yellow-700"
+              : "bg-slate-100 text-slate-500 hover:bg-slate-200"
+          }`}
+        >
+          <Star className="w-3 h-3" />
+          Preferenciais
+        </button>
       </div>
 
         {showOrdersList ? (
@@ -803,12 +771,12 @@ export default function Suppliers() {
               <table className="w-full text-sm min-w-[900px]">
                 <thead className="bg-slate-50 border-b border-slate-200">
                   <tr>
-                    <th className="text-left px-6 py-3 font-semibold text-slate-600">Número</th>
-                    <th className="text-left px-6 py-3 font-semibold text-slate-600">Fornecedor</th>
-                    <th className="text-left px-6 py-3 font-semibold text-slate-600">Data</th>
-                    <th className="text-right px-6 py-3 font-semibold text-slate-600">Total</th>
-                    <th className="text-center px-6 py-3 font-semibold text-slate-600">Status</th>
-                    <th className="text-right px-6 py-3 font-semibold text-slate-600">Ações</th>
+                    <th className="px-6 py-2.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider text-left">Número</th>
+                    <th className="px-6 py-2.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider text-left">Fornecedor</th>
+                    <th className="px-6 py-2.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider text-left">Data</th>
+                    <th className="px-6 py-2.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider text-right">Total</th>
+                    <th className="px-6 py-2.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider text-center">Status</th>
+                    <th className="px-6 py-2.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider text-right sticky right-0 bg-slate-50 shadow-[-12px_0_15px_-4px_rgba(0,0,0,0.05)] z-20">Ações</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 bg-white">
@@ -830,8 +798,8 @@ export default function Suppliers() {
                            po.status === 'DRAFT' ? 'RASCUNHO' : 'PENDENTE'}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-right">
-                        <div className="flex items-center justify-end gap-2">
+                      <td className="px-6 py-4 text-right sticky right-0 bg-white group-hover:bg-slate-50 transition-colors shadow-[-12px_0_15px_-4px_rgba(0,0,0,0.02)] z-10">
+                        <div className="flex items-center justify-end gap-2" onClick={e => e.stopPropagation()}>
                           <button 
                             onClick={() => handleDownloadPOPDF(po)}
                             className="text-slate-400 hover:text-rose-600 p-2 rounded-lg transition-all"
@@ -866,12 +834,12 @@ export default function Suppliers() {
             <table className="w-full min-w-[1000px]">
               <thead className="bg-white border-b border-slate-200 sticky top-0 z-10 shadow-sm">
                 <tr>
-                  <th className="text-left px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Fornecedor</th>
-                  <th className="text-left px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Categoria</th>
-                  <th className="text-left px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Status</th>
-                  <th className="text-left px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Contato</th>
-                  <th className="text-left px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Localização</th>
-                  <th className="text-right px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Ações</th>
+                  <th className="px-6 py-2.5 text-left text-[10px] font-bold text-slate-400 uppercase tracking-wider">Fornecedor</th>
+                  <th className="px-6 py-2.5 text-left text-[10px] font-bold text-slate-400 uppercase tracking-wider">Categoria</th>
+                  <th className="px-6 py-2.5 text-left text-[10px] font-bold text-slate-400 uppercase tracking-wider">Status</th>
+                  <th className="px-6 py-2.5 text-left text-[10px] font-bold text-slate-400 uppercase tracking-wider">Contato</th>
+                  <th className="px-6 py-2.5 text-left text-[10px] font-bold text-slate-400 uppercase tracking-wider">Localização</th>
+                  <th className="px-6 py-2.5 text-right text-[10px] font-bold text-slate-400 uppercase tracking-wider sticky right-0 bg-white shadow-[-12px_0_15px_-4px_rgba(0,0,0,0.05)] z-20">Ações</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 bg-white">
@@ -921,25 +889,25 @@ export default function Suppliers() {
                         {supplier.city} - {supplier.state}
                       </div>
                     </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <td className="px-6 py-4 sticky right-0 bg-white group-hover:bg-indigo-50/30 transition-colors shadow-[-12px_0_15px_-4px_rgba(0,0,0,0.02)] z-10">
+                      <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
                         <button
                           onClick={() => handleCreateOrder(supplier)}
-                          className="p-2 text-indigo-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
+                          className="p-2 text-indigo-400 hover:text-indigo-600 hover:bg-slate-200 rounded-xl transition-all"
                           title="Novo Pedido de Compra"
                         >
                           <FilePlus className="w-5 h-5" />
                         </button>
                         <button
                           onClick={() => handleEdit(supplier)}
-                          className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all"
+                          className="p-2 text-slate-400 hover:text-blue-600 hover:bg-slate-200 rounded-xl transition-all"
                           title="Editar"
                         >
                           <Edit className="w-5 h-5" />
                         </button>
                         <button
                           onClick={() => handleDeleteClick(supplier)}
-                          className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all"
+                          className="p-2 text-slate-400 hover:text-rose-600 hover:bg-slate-200 rounded-xl transition-all"
                           title="Excluir"
                         >
                           <Trash2 className="w-5 h-5" />

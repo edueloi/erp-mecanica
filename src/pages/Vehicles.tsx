@@ -211,17 +211,6 @@ export default function Vehicles() {
             <h1 className="text-lg font-bold text-slate-900 leading-tight">Veículos</h1>
             <p className="text-[10px] text-slate-500 font-medium uppercase tracking-wider whitespace-nowrap">Gestão da frota</p>
           </div>
-          <div className="h-6 w-px bg-slate-200 hidden md:block" />
-          <div className="relative flex-1 max-w-md hidden md:block">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-            <input 
-              type="text" 
-              placeholder="Buscar por placa, modelo, cliente, chassi..."
-              className="w-full pl-9 pr-4 py-1.5 bg-slate-50 border-transparent rounded-lg text-sm focus:ring-slate-900 focus:bg-white transition-all outline-none"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-            />
-          </div>
         </div>
 
         <div className="flex items-center gap-2">
@@ -240,22 +229,19 @@ export default function Vehicles() {
         </div>
       </header>
 
-      {/* Mobile Search - Only visible on small screens */}
-      <div className="md:hidden bg-white border-b border-slate-200 px-6 py-2">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+      {/* Filters & Chips - Combined Row */}
+      <div className="bg-white border-b border-slate-200 px-6 py-2 flex items-center gap-4 overflow-x-auto no-scrollbar shrink-0">
+        <div className="relative flex-1 min-w-[200px] max-w-xs shrink-0">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
           <input 
             type="text" 
             placeholder="Buscar veículos..."
-            className="w-full pl-9 pr-4 py-2 bg-slate-50 border-transparent rounded-lg text-sm outline-none"
+            className="w-full pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:ring-1 focus:ring-slate-900 focus:bg-white transition-all outline-none"
             value={search}
             onChange={e => setSearch(e.target.value)}
           />
         </div>
-      </div>
-
-      {/* Filters & Chips - Combined Row */}
-      <div className="bg-white border-b border-slate-200 px-6 py-2 flex items-center gap-4 overflow-x-auto no-scrollbar shrink-0 mt-[25px]">
+        <div className="h-4 w-px bg-slate-200 shrink-0" />
         <div className="flex items-center gap-2 shrink-0">
           <Filter size={14} className="text-slate-400" />
           <select 
@@ -301,21 +287,21 @@ export default function Vehicles() {
       </div>
 
       {/* Table - Data Heavy */}
-      <div className="flex-1 overflow-auto px-6 pb-6">
+      <div className="flex-1 overflow-auto bg-white">
         <table className="w-full text-left border-separate border-spacing-0">
-          <thead className="sticky top-0 z-10">
-            <tr className="bg-white">
-              <th className="px-6 py-2.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-200">Veículo</th>
-              <th className="px-4 py-2.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-200">Placa</th>
-              <th className="px-4 py-2.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-200">Proprietário</th>
-              <th className="px-4 py-2.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-200 text-center">KM Atual</th>
-              <th className="px-4 py-2.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-200">Última OS</th>
-              <th className="px-4 py-2.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-200">Próxima Revisão</th>
-              <th className="px-4 py-2.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-200">Status</th>
-              <th className="px-6 py-2.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-200 text-right">Ações</th>
+          <thead className="sticky top-0 bg-slate-50 z-20 shadow-[inset_0_-1px_0_rgba(0,0,0,0.1)]">
+            <tr>
+              <th className="px-6 py-2.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Veículo</th>
+              <th className="px-4 py-2.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Placa</th>
+              <th className="px-4 py-2.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Proprietário</th>
+              <th className="px-4 py-2.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider text-center">KM Atual</th>
+              <th className="px-4 py-2.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Última OS</th>
+              <th className="px-4 py-2.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Próxima Revisão</th>
+              <th className="px-4 py-2.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Status</th>
+              <th className="px-6 py-2.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider text-right sticky right-0 bg-slate-50 shadow-[-12px_0_15px_-4px_rgba(0,0,0,0.05)] z-20">Ações</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100">
+          <tbody className="divide-y divide-slate-100 bg-white">
             {loading && !vehicles.length ? (
               <tr>
                 <td colSpan={8} className="px-6 py-12 text-center text-slate-400 text-sm italic">Carregando veículos...</td>
@@ -327,7 +313,7 @@ export default function Vehicles() {
             ) : filteredVehicles.map((vehicle) => (
               <tr 
                 key={vehicle.id} 
-                className="hover:bg-slate-50/80 transition-colors group cursor-pointer"
+                className="hover:bg-slate-50 transition-colors group cursor-pointer"
                 onClick={() => navigate(`/vehicles/${vehicle.id}`)}
               >
                 <td className="px-6 py-2">
@@ -390,28 +376,28 @@ export default function Vehicles() {
                     {statusMap[vehicle.status || 'ACTIVE']?.label}
                   </span>
                 </td>
-                <td className="px-6 py-2 text-right">
-                  <div className="flex items-center justify-end gap-1.5" onClick={e => e.stopPropagation()}>
+                <td className="px-6 py-2 text-right sticky right-0 bg-white group-hover:bg-slate-50 transition-colors shadow-[-12px_0_15px_-4px_rgba(0,0,0,0.02)] z-10">
+                  <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
                     <button 
                       onClick={() => navigate(`/vehicles/${vehicle.id}`)}
-                      className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-slate-900 hover:bg-slate-200 rounded-lg transition-all" 
+                      className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-slate-200 rounded transition-all cursor-pointer" 
                       title="Ver Detalhes"
                     >
                       <Info size={16} />
                     </button>
                     <button 
                       onClick={() => { setSelectedVehicle(vehicle); setIsEditDrawerOpen(true); }}
-                      className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all" 
+                      className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-slate-200 rounded transition-all cursor-pointer" 
                       title="Editar"
                     >
                       <Edit size={16} />
                     </button>
-                    <button className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all" title="Nova OS">
+                    <button className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-slate-200 rounded transition-all cursor-pointer" title="Nova OS">
                       <Plus size={16} />
                     </button>
                     <button 
                       onClick={() => openHistory(vehicle)}
-                      className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all" 
+                      className="p-1.5 text-slate-400 hover:text-purple-600 hover:bg-slate-200 rounded transition-all cursor-pointer" 
                       title="Histórico"
                     >
                       <History size={16} />

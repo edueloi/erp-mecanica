@@ -122,17 +122,6 @@ export default function Services() {
             <h1 className="text-lg font-bold text-slate-900 leading-tight">Catálogo de Serviços</h1>
             <p className="text-[10px] text-slate-500 font-medium">Gerencie preços, tempos e margens dos serviços.</p>
           </div>
-          <div className="h-6 w-px bg-slate-200 hidden md:block mx-2" />
-          <div className="relative flex-1 max-w-md hidden md:block">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-            <input 
-              type="text" 
-              placeholder="Buscar por nome, código ou categoria..."
-              className="w-full pl-9 pr-4 py-1.5 bg-slate-50 border-transparent rounded-lg text-sm focus:ring-slate-900 focus:bg-white transition-all outline-none"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-            />
-          </div>
         </div>
 
         <div className="flex items-center gap-2">
@@ -152,7 +141,18 @@ export default function Services() {
       </header>
 
       {/* Filters */}
-      <div className="bg-white border-b border-slate-200 px-6 py-2 flex items-center gap-4 overflow-x-auto no-scrollbar mt-[25px]">
+      <div className="bg-white border-b border-slate-200 px-6 py-2 flex items-center gap-4 overflow-x-auto no-scrollbar">
+        <div className="relative flex-1 min-w-[200px] max-w-xs shrink-0">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+          <input 
+            type="text" 
+            placeholder="Buscar serviços..."
+            className="w-full pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:ring-1 focus:ring-slate-900 focus:bg-white transition-all outline-none"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+          />
+        </div>
+        <div className="h-4 w-px bg-slate-200 shrink-0" />
         <div className="flex items-center gap-2 shrink-0">
           <Filter size={14} className="text-slate-400" />
           <select 
@@ -190,10 +190,10 @@ export default function Services() {
               <th className="px-4 py-2.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Margem %</th>
               <th className="px-4 py-2.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Veículos</th>
               <th className="px-4 py-2.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Status</th>
-              <th className="px-6 py-2.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider text-right">Ações</th>
+              <th className="px-6 py-2.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider sticky right-0 bg-slate-50 z-20 text-right shadow-[-12px_0_15px_-4px_rgba(0,0,0,0.05)]">Ações</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100">
+          <tbody className="divide-y divide-slate-100 bg-white">
             {loading ? (
               <tr>
                 <td colSpan={9} className="px-6 py-12 text-center text-slate-400 text-sm italic">Carregando catálogo...</td>
@@ -207,7 +207,7 @@ export default function Services() {
               return (
                 <tr 
                   key={service.id} 
-                  className="hover:bg-slate-50/80 transition-colors group cursor-pointer"
+                  className="hover:bg-slate-50 transition-colors group cursor-pointer"
                   onClick={() => {
                     setSelectedService(service);
                     setIsDetailDrawerOpen(true);
@@ -263,8 +263,8 @@ export default function Services() {
                       {service.status === 'ACTIVE' ? 'Ativo' : 'Inativo'}
                     </span>
                   </td>
-                  <td className="px-6 py-3 text-right">
-                    <div className="flex items-center justify-end gap-1" onClick={e => e.stopPropagation()}>
+                  <td className="px-6 py-3 text-right sticky right-0 bg-white group-hover:bg-slate-50 transition-colors shadow-[-12px_0_15px_-4px_rgba(0,0,0,0.02)] z-10">
+                    <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
                       <button className="p-1.5 text-slate-400 hover:text-slate-900 hover:bg-slate-200 rounded transition-all" title="Ver Detalhes">
                         <Eye size={14} />
                       </button>

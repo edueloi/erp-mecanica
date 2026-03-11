@@ -6,7 +6,7 @@ import {
   FileText, Paperclip, Clock, CheckCircle2, AlertCircle,
   MoreVertical, ExternalLink, Printer, Send, Trash2, Edit,
   X, Calendar, User, Building2, MessageCircle, AlertTriangle,
-  Wrench, Package
+  Wrench, Package, Upload
 } from 'lucide-react';
 import api from '../services/api';
 import { motion, AnimatePresence } from 'motion/react';
@@ -528,73 +528,265 @@ export default function ClientDetail() {
             {activeTab === 'TIMELINE' && (
               <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-8">
                 <div className="relative space-y-8 before:absolute before:inset-0 before:ml-5 before:-translate-x-px before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-slate-200 before:to-transparent">
-                  {client.workOrders && client.workOrders.length > 0 ? (
-                    client.workOrders.flatMap((wo: any) => 
-                      (wo.items || []).map((item: any) => ({
-                        ...item,
-                        woId: wo.id,
-                        woNumber: wo.number,
-                        date: wo.created_at,
-                        vehicleModel: wo.model,
-                        vehiclePlate: wo.plate
-                      }))
-                    )
-                    .sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime())
-                    .map((item: any, i: number) => (
-                      <div key={i} className="relative flex items-start gap-6 group">
+                  {(() => {
+                    const events: any[] = [];
+                    if (client.workOrders) {
+                      client.workOrders.forEach((wo: any) => {
+                         events.push({
+                           id: `wo-${wo.id}`, type: 'WORK_ORDER', title: `Ordem de Serviço #${wo.number} Iniciada`, 
+                           date: wo.created_at, description: `Valor Total: R$ ${wo.total_amount?.toLocaleString('pt-BR')} • Veículo: ${wo.model} (${wo.plate?.toUpperCase()})`,
+                           link: `/work-orders/${wo.id}`, icon: ClipboardList, colorClass: "bg-blue-50 text-blue-500"
+                         });
+                         if (wo.items) {
+                           wo.items.forEach((item: any) => {
+                             events.push({
+                               id: `item-${item.id}`, type: item.type, title: item.type === 'SERVICE' ? `Serviço Realizado` : `Peça Adicionada`,
+                               date: wo.created_at, description: item.description,
+                               link: `/work-orders/${wo.id}`, icon: item.type === 'SERVICE' ? Wrench : Package, colorClass: item.type === 'SERVICE' ? "bg-cyan-50 text-cyan-500" : "bg-purple-50 text-purple-500"
+                             });
+                           });
+                         }
+                      });
+                    }
+                    if (client.appointments) {
+                      client.appointments.forEach((apt: any) => {
+                        events.push({
+                           id: `apt-${apt.id}`, type: 'APPOINTMENT', title: `Visita Agendada`,
+                           date: apt.created_at || apt.date, description: `${apt.title} ${apt.description ? '- '+apt.description : ''}`,
+                           link: null, icon: Clock, colorClass: "bg-amber-50 text-amber-500"
+                        });
+                      });
+                    }
+                    if (client.financial_records) {
+                       client.financial_records.forEach((fin: any) => {
+                         if (fin.status === 'PAID') {
+                           events.push({
+                              id: `fin-${fin.id}`, type: 'FINANCIAL', title: `Pagamento Recebido`,
+                              date: fin.updated_at || fin.due_date, description: `Referente a: ${fin.description} • Valor: R$ ${fin.amount?.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
+                              link: fin.work_order_id ? `/work-orders/${fin.work_order_id}` : null, icon: DollarSign, colorClass: "bg-emerald-50 text-emerald-500"
+                           });
+                         }
+                       });
+                    }
+
+                    if (events.length === 0) {
+                      return (
+                        <div className="text-center py-12">
+                          <div className="w-16 h-16 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-300 mx-auto mb-4">
+                            <History size={32} />
+                          </div>
+                          <h3 className="text-lg font-bold text-slate-900 mb-2">Sem Histórico</h3>
+                          <p className="text-sm text-slate-500 max-w-sm mx-auto">Este cliente ainda não possui registros no histórico de interações.</p>
+                        </div>
+                      );
+                    }
+
+                    return events.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map(item => (
+                      <div key={item.id} className="relative flex items-start gap-6 group">
                         <div className={cn(
                           "w-10 h-10 rounded-xl flex items-center justify-center shrink-0 z-10 shadow-sm border border-white transition-transform group-hover:scale-110",
-                          item.type === 'SERVICE' ? "bg-blue-50 text-blue-500" : "bg-purple-50 text-purple-500"
+                          item.colorClass
                         )}>
-                          {item.type === 'SERVICE' ? <Wrench size={18} /> : <Package size={18} />}
+                          <item.icon size={18} />
                         </div>
                         <div className="flex-1 pt-1">
                           <div className="flex items-center justify-between mb-1">
                             <div>
-                              <h4 className="text-sm font-bold text-slate-900">{item.description}</h4>
-                              <p className="text-[10px] text-slate-400 font-bold uppercase">
-                                {item.vehicleModel} • {item.vehiclePlate?.toUpperCase()}
-                              </p>
+                               <h4 className="text-sm font-bold text-slate-900">{item.title}</h4>
                             </div>
                             <span className="text-[10px] font-bold text-slate-400 uppercase">
                               {format(new Date(item.date), "dd/MM/yyyy HH:mm", { locale: ptBR })}
                             </span>
                           </div>
-                          <div className="flex items-center justify-between">
-                            <p className="text-xs text-slate-500 leading-relaxed max-w-xl">
-                              {item.long_description || (item.type === 'PART' ? `Peça/Produto: ${item.description}` : 'Nenhuma descrição detalhada informada.')}
-                            </p>
-                            <button 
-                              onClick={() => navigate(`/work-orders/${item.woId}`)}
-                              className="text-[10px] font-black text-slate-400 hover:text-slate-900 flex items-center gap-1 transition-colors bg-slate-50 px-2 py-1 rounded border border-slate-100"
-                            >
-                              OS #{item.woNumber} <ExternalLink size={10} />
-                            </button>
+                           <div className="flex items-center justify-between">
+                             <p className="text-xs text-slate-500 leading-relaxed max-w-xl">
+                               {item.description}
+                             </p>
+                            {item.link && (
+                              <button 
+                                onClick={() => navigate(item.link)}
+                                className="text-[10px] font-black text-slate-400 hover:text-slate-900 flex items-center gap-1 transition-colors bg-slate-50 px-2 py-1 rounded border border-slate-100"
+                              >
+                                Ver Referência <ExternalLink size={10} />
+                              </button>
+                            )}
                           </div>
                         </div>
                       </div>
-                    ))
-                  ) : (
-                    <div className="text-center py-12">
-                      <div className="w-16 h-16 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-300 mx-auto mb-4">
-                        <History size={32} />
-                      </div>
-                      <h3 className="text-lg font-bold text-slate-900 mb-2">Sem Histórico</h3>
-                      <p className="text-sm text-slate-500 max-w-sm mx-auto">Este cliente ainda não possui serviços ou peças registradas em seu histórico.</p>
-                    </div>
-                  )}
+                    ));
+                  })()}
                 </div>
               </div>
             )}
 
-            {/* Other tabs placeholders */}
-            {['APPOINTMENTS', 'FINANCIAL', 'ATTACHMENTS'].includes(activeTab) && (
-              <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-12 text-center">
-                <div className="w-16 h-16 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-300 mx-auto mb-4">
-                  <Clock size={32} />
+            {activeTab === 'APPOINTMENTS' && (
+              <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-50">
+                  <h3 className="text-sm font-bold text-slate-900">Agendamentos do Cliente</h3>
+                  <button className="h-8 px-3 bg-slate-900 text-white rounded-lg text-[10px] font-bold flex items-center gap-2 hover:bg-slate-800 transition-colors">
+                    <Plus size={14} /> Novo Agendamento
+                  </button>
                 </div>
-                <h3 className="text-lg font-bold text-slate-900 mb-2">Em Desenvolvimento</h3>
-                <p className="text-sm text-slate-500 max-w-sm mx-auto">Esta aba está sendo preparada para trazer ainda mais controle sobre o histórico do seu cliente.</p>
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                     <tr className="bg-slate-50/50 border-b border-slate-100">
+                        <th className="px-6 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Data / Hora</th>
+                        <th className="px-6 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Veículo</th>
+                        <th className="px-6 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Serviço/Motivo</th>
+                        <th className="px-6 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Status</th>
+                        <th className="px-6 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider text-right">Ações</th>
+                     </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {client.appointments && client.appointments.length > 0 ? (
+                      client.appointments.map((apt: any) => (
+                        <tr key={apt.id} className="hover:bg-slate-50 transition-colors group">
+                           <td className="px-6 py-4">
+                             <div className="flex flex-col">
+                               <span className="text-sm font-bold text-slate-900">{format(new Date(apt.date), 'dd/MM/yyyy')}</span>
+                               <span className="text-xs text-slate-500">{apt.time} - {apt.end_time || '--:--'}</span>
+                             </div>
+                           </td>
+                           <td className="px-6 py-4">
+                             <p className="text-sm font-bold text-slate-900 max-w-[150px] truncate">{apt.vehicle_model || 'Não inf.'}</p>
+                             <p className="text-[10px] text-slate-400 font-mono tracking-wider">{apt.vehicle_plate?.toUpperCase() || '---'}</p>
+                           </td>
+                           <td className="px-6 py-4">
+                             <p className="text-sm text-slate-700 max-w-sm truncate">{apt.title}</p>
+                             <p className="text-[10px] text-slate-400 font-medium max-w-sm truncate">{apt.description}</p>
+                           </td>
+                           <td className="px-6 py-4">
+                             <span className={cn(
+                               "px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-widest border",
+                               apt.status === 'SCHEDULED' ? "bg-amber-50 text-amber-600 border-amber-100" :
+                               apt.status === 'COMPLETED' ? "bg-emerald-50 text-emerald-600 border-emerald-100" :
+                               apt.status === 'CANCELLED' ? "bg-red-50 text-red-600 border-red-100" :
+                               "bg-slate-50 text-slate-600 border-slate-200"
+                             )}>
+                               {apt.status === 'SCHEDULED' ? 'Agendado' :
+                                apt.status === 'COMPLETED' ? 'Concluído' :
+                                apt.status === 'CANCELLED' ? 'Cancelado' : apt.status}
+                             </span>
+                           </td>
+                           <td className="px-6 py-4 text-right">
+                             <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                               <button className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-slate-200 rounded transition-all cursor-pointer" title="Ver Detalhes">
+                                 <ExternalLink size={14} />
+                               </button>
+                               <button className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-slate-200 rounded transition-all cursor-pointer" title="Editar">
+                                 <Edit size={14} />
+                               </button>
+                             </div>
+                           </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan={5} className="px-6 py-12 text-center text-slate-400 text-sm italic">Nenhum agendamento encontrado para este cliente.</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {activeTab === 'FINANCIAL' && (
+              <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                <div className="px-6 py-4 border-b border-slate-200 flex flex-wrap items-center justify-between gap-4 bg-slate-50">
+                  <h3 className="text-sm font-bold text-slate-900">Histórico Financeiro</h3>
+                  <div className="flex gap-2 shrink-0">
+                     <span className="px-3 py-1 bg-emerald-50 text-emerald-700 font-bold text-xs rounded-lg border border-emerald-100">
+                        Pago: R$ {(client.total_spent || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                     </span>
+                     <span className="px-3 py-1 bg-red-50 text-red-700 font-bold text-xs rounded-lg border border-red-100">
+                        Em Aberto: R$ {(client.pending_amount || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                     </span>
+                  </div>
+                </div>
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                     <tr className="bg-slate-50/50 border-b border-slate-100">
+                        <th className="px-6 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Vencimento</th>
+                        <th className="px-6 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Descrição / Origem</th>
+                        <th className="px-6 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider text-right">Valor</th>
+                        <th className="px-6 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider text-center">Status</th>
+                     </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {client.financial_records && client.financial_records.length > 0 ? (
+                      client.financial_records.map((fin: any) => (
+                        <tr key={fin.id} className="hover:bg-slate-50 transition-colors group">
+                           <td className="px-6 py-4 text-xs font-bold text-slate-700">
+                             {format(new Date(fin.due_date), 'dd/MM/yyyy')}
+                           </td>
+                           <td className="px-6 py-4">
+                             <div className="flex items-center gap-2">
+                               <span className="text-sm font-bold text-slate-900">{fin.description}</span>
+                               {fin.work_order_id && (
+                                 <span className="px-1.5 py-0.5 bg-slate-100 text-slate-500 rounded text-[9px] font-bold uppercase cursor-pointer hover:bg-slate-200" onClick={() => navigate(`/work-orders/${fin.work_order_id}`)}>
+                                   OS Associada
+                                 </span>
+                               )}
+                             </div>
+                           </td>
+                           <td className="px-6 py-4 text-right">
+                             <span className="text-sm font-black text-slate-900">R$ {fin.amount?.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                           </td>
+                           <td className="px-6 py-4 text-center">
+                             <span className={cn(
+                               "px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-widest border",
+                               fin.status === 'PAID' ? "bg-emerald-50 text-emerald-600 border-emerald-100" :
+                               fin.status === 'OVERDUE' ? "bg-red-50 text-red-600 border-red-100" :
+                               "bg-amber-50 text-amber-600 border-amber-100"
+                             )}>
+                               {fin.status === 'PAID' ? 'Pago' :
+                                fin.status === 'OVERDUE' ? 'Atrasado' : 'Aberto'}
+                             </span>
+                           </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan={4} className="px-6 py-12 text-center text-slate-400 text-sm italic">Nenhuma movimentação financeira encontrada para este cliente.</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {activeTab === 'ATTACHMENTS' && (
+              <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 space-y-6">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-bold text-slate-900">Documentos e Anexos</h3>
+                  <button className="h-8 px-3 bg-slate-900 text-white rounded-lg text-[10px] font-bold flex items-center gap-2 hover:bg-slate-800 transition-colors">
+                    <Upload size={14} /> Enviar Arquivo
+                  </button>
+                </div>
+                {client.attachments && client.attachments.length > 0 ? (
+                  <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                    {client.attachments.map((file: any) => (
+                      <div key={file.id} className="p-4 border border-slate-200 rounded-xl bg-slate-50 hover:border-indigo-300 hover:shadow-sm transition-all group flex flex-col cursor-pointer shrink-0 min-w-0">
+                         <div className="flex-1 flex items-center justify-center mb-3 text-slate-400 group-hover:text-indigo-500 transition-colors pt-4 pb-2">
+                           <FileText size={32} />
+                         </div>
+                         <p className="text-xs font-bold text-slate-900 truncate" title={file.name}>{file.name}</p>
+                         <div className="flex items-center justify-between mt-1">
+                           <p className="text-[10px] text-slate-500 uppercase">{format(new Date(file.created_at), 'dd/MM/yyyy')}</p>
+                           <p className="text-[10px] text-slate-400 font-medium">{file.size}</p>
+                         </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-12 border-2 border-dashed border-slate-200 rounded-xl bg-slate-50">
+                    <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center text-slate-300 mx-auto mb-4 shadow-sm">
+                      <Paperclip size={24} />
+                    </div>
+                    <h3 className="text-sm font-bold text-slate-900 mb-1">Nenhum anexo</h3>
+                    <p className="text-xs text-slate-500">Faça o upload de documentos e arquivos do cliente aqui.</p>
+                  </div>
+                )}
               </div>
             )}
           </motion.div>
