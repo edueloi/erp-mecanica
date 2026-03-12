@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import * as XLSX from "xlsx";
 import {
   Wallet,
   TrendingUp,
@@ -17,6 +18,7 @@ import {
   X,
   Calendar,
   Search,
+  AlertCircle,
 } from "lucide-react";
 import api from "../services/api";
 
@@ -42,6 +44,7 @@ interface Transaction {
   status: "confirmed" | "pending";
   source_type: string;
   created_by_name: string;
+  created_at: string;
 }
 
 interface Summary {
@@ -58,6 +61,8 @@ interface Summary {
 export default function CashFlow() {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [transactionToDelete, setTransactionToDelete] = useState<Transaction | null>(null);
   const [summary, setSummary] = useState<Summary | null>(null);
   const [categories, setCategories] = useState<{ in: string[]; out: string[] }>({
     in: [],
@@ -292,12 +297,18 @@ export default function CashFlow() {
     }
   };
 
-  const handleDeleteTransaction = async (id: string) => {
-    if (!confirm("Confirma exclusão/estorno deste lançamento?")) return;
+  const handleDeleteTransaction = (transaction: Transaction) => {
+    setTransactionToDelete(transaction);
+    setDeleteConfirmOpen(true);
+  };
 
+  const confirmDelete = async () => {
+    if (!transactionToDelete) return;
     try {
-      await api.delete(`/cashflow/transactions/${id}`);
+      await api.delete(`/cashflow/transactions/${transactionToDelete.id}`);
       loadData();
+      setDeleteConfirmOpen(false);
+      setTransactionToDelete(null);
       alert("Operação realizada com sucesso!");
     } catch (error: any) {
       alert(error.response?.data?.message || "Erro ao excluir lançamento");
@@ -350,6 +361,39 @@ export default function CashFlow() {
       counted_balance: "",
       notes: "",
     });
+  };
+
+  const handleExportExcel = () => {
+    const dataToExport = transactions.map(transaction => ({
+      Data: formatDate(transaction.date),
+      Tipo: transaction.type === 'in' ? 'Entrada' : transaction.type === 'out' ? 'Saída' : 'Transferência',
+      Descrição: transaction.description,
+      Categoria: transaction.category,
+      Conta: transaction.account_name,
+      'Forma de Pagamento': transaction.payment_method || '-',
+      Valor: transaction.amount,
+      Status: transaction.status === 'confirmed' ? 'Confirmado' : 'Pendente',
+      'Data de Criação': new Date(transaction.created_at).toLocaleDateString('pt-BR')
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Fluxo de Caixa");
+
+    const wscols = [
+      { wch: 15 }, // Data
+      { wch: 15 }, // Tipo
+      { wch: 40 }, // Descrição
+      { wch: 20 }, // Categoria
+      { wch: 20 }, // Conta
+      { wch: 20 }, // Forma
+      { wch: 15 }, // Valor
+      { wch: 15 }, // Status
+      { wch: 15 }, // Criação
+    ];
+    worksheet['!cols'] = wscols;
+
+    XLSX.writeFile(workbook, `Fluxo_de_Caixa_${new Date().toISOString().split('T')[0]}.xlsx`);
   };
 
   const formatCurrency = (value: any) => {
@@ -429,7 +473,7 @@ export default function CashFlow() {
             Fechar Caixa
           </button>
           <button
-            onClick={() => alert("Exportar - Em desenvolvimento")}
+            onClick={handleExportExcel}
             className="flex items-center gap-2 px-4 py-2.5 bg-slate-200 text-slate-700 rounded-xl hover:bg-slate-300 transition-colors text-sm font-medium"
           >
             <Download className="w-4 h-4" />
@@ -782,7 +826,7 @@ export default function CashFlow() {
                           </button>
                         )}
                         <button
-                          onClick={() => handleDeleteTransaction(transaction.id)}
+                          onClick={() => handleDeleteTransaction(transaction)}
                           className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                           title={
                             transaction.source_type === "manual"
@@ -1265,6 +1309,52 @@ export default function CashFlow() {
               </form>
             </motion.div>
           </div>
+        )}
+      </AnimatePresence>
+      {/* Delete Confirmation Modal */}
+      <AnimatePresence>
+        {deleteConfirmOpen && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[110]"
+              onClick={() => setDeleteConfirmOpen(false)}
+            />
+            <div className="fixed inset-0 flex items-center justify-center z-[120] p-4 pointer-events-none">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden pointer-events-auto"
+              >
+                <div className="p-6">
+                  <div className="w-12 h-12 bg-rose-100 rounded-full flex items-center justify-center mb-4">
+                    <AlertCircle className="w-6 h-6 text-rose-600" />
+                  </div>
+                  <h3 className="text-lg font-bold text-slate-900 mb-2 italic tracking-tighter uppercase">Excluir Lançamento</h3>
+                  <p className="text-slate-600 text-sm mb-6 font-medium">
+                    Tem certeza que deseja excluir/estornar o lançamento de <span className="font-black text-slate-900">{transactionToDelete?.description}</span>? Esta ação não pode ser desfeita e afetará o saldo das contas.
+                  </p>
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => setDeleteConfirmOpen(false)}
+                      className="flex-1 px-4 py-2.5 border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-50 transition-all text-[10px] font-black uppercase tracking-widest italic"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      onClick={confirmDelete}
+                      className="flex-1 px-4 py-2.5 bg-rose-600 text-white rounded-xl hover:bg-rose-700 transition-all text-[10px] font-black uppercase tracking-widest italic shadow-lg shadow-rose-200"
+                    >
+                      Confirmar Exclusão
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            </div>
+          </>
         )}
       </AnimatePresence>
     </div>

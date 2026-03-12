@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import * as XLSX from "xlsx";
 import {
   Plus,
   Search,
@@ -292,6 +293,41 @@ export default function AccountsPayable() {
     });
   };
 
+  const handleExportExcel = () => {
+    const dataToExport = filteredAccounts.map(account => ({
+      Vencimento: formatDate(account.due_date),
+      Fornecedor: account.supplier_name || 'Despesa Geral',
+      Status: account.status === 'PAID' ? 'Pago' : account.status === 'OVERDUE' ? 'Atrasado' : account.status === 'PARTIAL' ? 'Parcial' : 'Aberto',
+      'Valor Original': account.original_amount,
+      'Valor Pago': account.amount_paid,
+      Saldo: account.balance,
+      Descrição: account.description,
+      'Forma de Pagamento': account.payment_method || '-',
+      Documento: account.document_number || '-',
+      'Data de Criação': new Date(account.created_at).toLocaleDateString('pt-BR')
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Contas a Pagar");
+
+    const wscols = [
+      { wch: 15 }, // Vencimento
+      { wch: 30 }, // Fornecedor
+      { wch: 15 }, // Status
+      { wch: 15 }, // Valor Original
+      { wch: 15 }, // Valor Pago
+      { wch: 15 }, // Saldo
+      { wch: 40 }, // Descrição
+      { wch: 20 }, // Forma
+      { wch: 15 }, // Documento
+      { wch: 15 }, // Criação
+    ];
+    worksheet['!cols'] = wscols;
+
+    XLSX.writeFile(workbook, `Contas_a_Pagar_${new Date().toISOString().split('T')[0]}.xlsx`);
+  };
+
   const formatCurrency = (value: any) => {
     const val = typeof value === 'string' ? parseFloat(value) : Number(value);
     return new Intl.NumberFormat("pt-BR", {
@@ -362,7 +398,7 @@ export default function AccountsPayable() {
             Nova Conta
           </button>
           <button
-            onClick={() => alert("Exportar - Em desenvolvimento")}
+            onClick={handleExportExcel}
             className="flex items-center gap-2 px-4 py-2.5 bg-slate-200 text-slate-700 rounded-xl hover:bg-slate-300 transition-colors text-sm font-medium"
           >
             <Download className="w-4 h-4" />

@@ -833,6 +833,70 @@ router.get("/status", async (req: any, res: any) => {
 });
 
 // ========================================
+// BOT MANAGEMENT
+// ========================================
+
+/**
+ * POST /api/whatsapp/bot/toggle-all
+ * Ativa/desativa o bot em TODAS as conversas do tenant
+ */
+router.post("/bot/toggle-all", (req: any, res: any) => {
+  try {
+    const { enabled } = req.body;
+    const botEnabled = enabled ? 1 : 0;
+
+    const result = db.prepare(
+      `UPDATE whatsapp_conversations SET bot_enabled = ? WHERE tenant_id = ?`
+    ).run(botEnabled, req.user.tenant_id);
+
+    console.log(`🤖 Bot ${enabled ? 'ativado' : 'desativado'} em ${result.changes} conversas do tenant ${req.user.tenant_id}`);
+
+    res.json({ 
+      message: `Bot ${enabled ? 'ativado' : 'desativado'} em ${result.changes} conversas`,
+      affected: result.changes 
+    });
+  } catch (error: any) {
+    console.error("Error toggling bot:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * GET /api/whatsapp/bot/status
+ * Retorna o status do bot para o tenant
+ */
+router.get("/bot/status", (req: any, res: any) => {
+  try {
+    // Verificar se bot está habilitado nas configurações do tenant
+    const setting = db.prepare(
+      `SELECT value FROM tenant_settings WHERE tenant_id = ? AND key = 'whatsapp_bot_enabled'`
+    ).get(req.user.tenant_id) as any;
+
+    const botEnabledGlobal = setting && (setting.value === '1' || setting.value === 'true');
+
+    // Contar conversas com bot ativo/inativo
+    const stats = db.prepare(`
+      SELECT 
+        COUNT(*) as total,
+        SUM(CASE WHEN bot_enabled = 1 THEN 1 ELSE 0 END) as bot_active,
+        SUM(CASE WHEN bot_enabled = 0 OR bot_enabled IS NULL THEN 1 ELSE 0 END) as bot_inactive
+      FROM whatsapp_conversations 
+      WHERE tenant_id = ?
+    `).get(req.user.tenant_id) as any;
+
+    res.json({
+      globalEnabled: botEnabledGlobal,
+      totalConversations: stats?.total || 0,
+      botActiveConversations: stats?.bot_active || 0,
+      botInactiveConversations: stats?.bot_inactive || 0,
+    });
+  } catch (error: any) {
+    console.error("Error getting bot status:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ========================================
 // CLIENT/VEHICLE LINKING (CRM Integration)
 // ========================================
 

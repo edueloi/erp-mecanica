@@ -188,6 +188,8 @@ class WPPConnectService extends EventEmitter {
   private sessions: Map<string, SessionData> = new Map();
   private reconnectAttempts: Map<string, number> = new Map();
   private maxReconnectAttempts = 5;
+  private initializingSessions: Set<string> = new Set();
+  private readonly qrTimeoutMs = 300000;
 
   constructor() {
     super();
@@ -205,22 +207,87 @@ class WPPConnectService extends EventEmitter {
     try {
       console.log('🧹 Verificando processos órfãos do WhatsApp...');
       
-      // Remover lockfile se existir
       const tokensPath = path.join(process.cwd(), 'tokens');
+      
+      // 1. Matar processos Chrome/Chromium órfãos que usam a pasta tokens/
+      if (os.platform() === 'win32') {
+        try {
+          // Matar processos Chrome que estejam usando a pasta tokens do projeto
+          const normalizedPath = tokensPath.replace(/\\/g, '\\\\');
+          try {
+            execSync(`wmic process where "name='chrome.exe' and commandline like '%${normalizedPath}%'" call terminate`, { 
+              stdio: 'pipe', timeout: 10000 
+            });
+            console.log('🔪 Processos Chrome órfãos terminados (via WMIC)');
+          } catch (e) {
+            // Tentar via taskkill como fallback - mas só Chromium da pasta WPPConnect
+            try {
+              execSync(`taskkill /F /FI "IMAGENAME eq chrome.exe" /FI "WINDOWTITLE eq *wppconnect*" 2>nul`, { 
+                stdio: 'pipe', timeout: 10000 
+              });
+            } catch (e2) {
+              // Ignorar erros se não encontrar processos
+            }
+          }
+        } catch (e) {
+          console.warn('⚠️ Não foi possível matar processos Chrome órfãos:', e);
+        }
+      } else {
+        // Linux/Mac
+        try {
+          execSync(`pkill -f "chromium.*tokens" 2>/dev/null || true`, { stdio: 'pipe', timeout: 5000 });
+          execSync(`pkill -f "chrome.*tokens" 2>/dev/null || true`, { stdio: 'pipe', timeout: 5000 });
+        } catch (e) {
+          // Ignorar
+        }
+      }
+
+      // 2. Remover lockfiles e outros arquivos de bloqueio
       if (fs.existsSync(tokensPath)) {
         const sessions = fs.readdirSync(tokensPath);
         sessions.forEach((session: string) => {
-          const lockfile = path.join(tokensPath, session, 'SingletonLock');
-          if (fs.existsSync(lockfile)) {
-            try {
-              fs.unlinkSync(lockfile);
-              console.log(`🔓 Lockfile removido para sessão ${session}`);
-            } catch (e) {
-              console.warn(`⚠️ Não foi possível remover lockfile de ${session}:`, e);
+          const sessionPath = path.join(tokensPath, session);
+          
+          // Lista de lockfiles possíveis
+          const lockfiles = [
+            'SingletonLock',
+            'SingletonSocket',
+            'SingletonCookie',
+          ];
+          
+          lockfiles.forEach(lockfile => {
+            const lockPath = path.join(sessionPath, lockfile);
+            if (fs.existsSync(lockPath)) {
+              try {
+                fs.unlinkSync(lockPath);
+                console.log(`🔓 ${lockfile} removido para sessão ${session}`);
+              } catch (e) {
+                // Se não conseguir deletar como arquivo, pode ser diretório
+                try {
+                  fs.rmdirSync(lockPath, { recursive: true } as any);
+                  console.log(`🔓 ${lockfile} (dir) removido para sessão ${session}`);
+                } catch (e2) {
+                  console.warn(`⚠️ Não foi possível remover ${lockfile} de ${session}`);
+                }
+              }
             }
+          });
+
+          // Também remover o lockfile do Default profile
+          const defaultPath = path.join(sessionPath, 'Default');
+          if (fs.existsSync(defaultPath)) {
+            lockfiles.forEach(lockfile => {
+              const lockPath = path.join(defaultPath, lockfile);
+              if (fs.existsSync(lockPath)) {
+                try { fs.unlinkSync(lockPath); } catch (e) {}
+              }
+            });
           }
         });
       }
+      
+      // Dar tempo para processos terminarem
+      console.log('⏳ Aguardando processos terminarem...');
       
       console.log('✅ Limpeza de processos concluída');
     } catch (error) {
@@ -297,6 +364,31 @@ class WPPConnectService extends EventEmitter {
    */
   async startSession(tenantId: string, sessionName: string = 'default'): Promise<{ success: boolean; qrCode?: string; error?: string }> {
     const sessionKey = `${tenantId}_${sessionName}`;
+    const currentStatus = this.getSessionStatus(tenantId, sessionName);
+
+    if (
+      currentStatus.status === 'connected' ||
+      currentStatus.status === 'connecting' ||
+      (currentStatus.status === 'qr_ready' && this.isQrStillValid(currentStatus.qrGeneratedAt))
+    ) {
+      console.log(`[whatsapp] Reusing session ${sessionKey} with status ${currentStatus.status}`);
+      return {
+        success: true,
+        qrCode: currentStatus.status === 'qr_ready' ? currentStatus.qrCode || undefined : undefined,
+      };
+    }
+
+
+    // Evitar iniciar a mesma sessão concorrentemente
+    if (this.initializingSessions.has(sessionKey)) {
+      console.log(`[whatsapp] Session ${sessionKey} is already initializing; reusing current state.`);
+      return {
+        success: true,
+        qrCode: currentStatus.status === 'qr_ready' ? currentStatus.qrCode || undefined : undefined,
+      };
+    }
+    
+    this.initializingSessions.add(sessionKey);
 
     try {
       // Verificar se sessão já existe
@@ -324,7 +416,14 @@ class WPPConnectService extends EventEmitter {
         session: sessionKey,
         puppeteerOptions: {
           headless: true,
-          args: ['--no-sandbox', '--disable-setuid-sandbox'],
+          args: [
+            '--no-sandbox', 
+            '--disable-setuid-sandbox',
+            '--disable-gpu',
+            '--disable-dev-shm-usage',
+            '--no-first-run',
+            '--no-zygote'
+          ],
         },
         autoClose: 300000, // 5 minutos (300 segundos)
         logQR: false,
@@ -393,23 +492,79 @@ class WPPConnectService extends EventEmitter {
       console.error(`❌ Erro ao iniciar sessão ${sessionKey}:`, error.message);
       this.updateSessionStatus(tenantId, sessionName, 'disconnected');
 
-      // Se for erro de browser já rodando, deletar sessão da memória e não reconectar
+      // Se for erro de browser já rodando, tentar limpar agressivamente e tentar de novo UMA VEZ
       if (error.message?.includes('browser is already running')) {
-        console.error(`🚫 Browser já está rodando para ${sessionKey}. Feche o browser existente ou delete a pasta 'tokens'.`);
+        console.error(`🚫 Browser já está rodando para ${sessionKey}. Tentando limpar agressivamente...`);
+        
+        // Registrar que estamos tentando recuperar desse erro para evitar loop infinito
+        const retryKey = `${sessionKey}_browser_retry`;
+        const retryCount = this.reconnectAttempts.get(retryKey) || 0;
+        
+        if (retryCount === 0) {
+          this.reconnectAttempts.set(retryKey, 1);
+          
+          try {
+            // Fechar cliente se existir
+            if (this.sessions.has(sessionKey)) {
+              const s = this.sessions.get(sessionKey);
+              if (s && s.client) await s.client.close().catch(() => {});
+            }
+            
+            // Remover lockfiles específicos desta sessão
+            const tokensPath = path.join(process.cwd(), 'tokens');
+            const sessionPath = path.join(tokensPath, sessionKey);
+            
+            if (fs.existsSync(sessionPath)) {
+              ['SingletonLock', 'SingletonSocket', 'SingletonCookie'].forEach(lockfile => {
+                const lockPath = path.join(sessionPath, lockfile);
+                if (fs.existsSync(lockPath)) {
+                  try { fs.unlinkSync(lockPath); } 
+                  catch (e) { try { fs.rmdirSync(lockPath, { recursive: true } as any); } catch(ex) {} }
+                }
+                
+                const defaultLockPath = path.join(sessionPath, 'Default', lockfile);
+                if (fs.existsSync(defaultLockPath)) {
+                  try { fs.unlinkSync(defaultLockPath); } catch (e) {}
+                }
+              });
+            }
+            
+            // Matar processos gerais também como garantia
+            this.cleanupOrphanedProcesses();
+            
+            console.log(`🔄 Limpeza concluída. Tentando iniciar sessão ${sessionKey} novamente em 3 segundos...`);
+            
+            return new Promise((resolve) => {
+              setTimeout(async () => {
+                const result = await this.startSession(tenantId, sessionName);
+                resolve(result);
+              }, 3000);
+            });
+            
+          } catch (cleanupError) {
+            console.error('❌ Erro durante limpeza agressiva:', cleanupError);
+          }
+        }
+        
+        // Se já tentou ou falhou na recuperação, reseta o contador e retorna erro
+        this.reconnectAttempts.delete(retryKey);
         this.sessions.delete(sessionKey);
         this.reconnectAttempts.delete(sessionKey);
-        return { success: false, error: 'Browser já está rodando. Feche processos existentes ou delete a pasta tokens/' };
+        return { success: false, error: 'Browser do WhatsApp travado. Por favor, reinicie o servidor ou apague a pasta tokens/' + sessionKey };
       }
 
       // Não reconectar automaticamente se for timeout do QR code (usuário não escaneou)
       if (error.message !== 'Auto Close Called') {
         await this.handleReconnect(tenantId, sessionName);
       } else {
-        console.log(`⏱️ Timeout do QR Code para sessão ${sessionKey}. Aguardando nova tentativa manual.`);
+        console.log(`?? Timeout do QR Code para sess?o ${sessionKey}. Aguardando nova tentativa manual.`);
+        this.sessions.delete(sessionKey);
         this.reconnectAttempts.delete(sessionKey);
       }
 
       return { success: false, error: error.message };
+    } finally {
+      this.initializingSessions.delete(sessionKey);
     }
   }
 
@@ -626,13 +781,26 @@ class WPPConnectService extends EventEmitter {
 
         // Criar nova conversa
         const conversationId = uuidv4();
+        
+        // Verificar se o tenant tem bot habilitado para ativar nas novas conversas
+        let botEnabledForNew = 0;
+        try {
+          const botSetting = db.prepare(
+            `SELECT value FROM tenant_settings WHERE tenant_id = ? AND key = 'whatsapp_bot_enabled'`
+          ).get(tenantId) as any;
+          if (botSetting && (botSetting.value === '1' || botSetting.value === 'true')) {
+            botEnabledForNew = 1;
+            console.log(`🤖 Bot habilitado para tenant ${tenantId} - nova conversa terá bot ativo`);
+          }
+        } catch (e) {}
+
         db.prepare(
           `INSERT INTO whatsapp_conversations 
-           (id, tenant_id, phone, phone_e164, display_name, contact_name, client_id, last_message_at, last_message_preview, unread_count, status)
-           VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?, 1, 'open')`
-        ).run(conversationId, tenantId, phone, phoneE164, displayName, contactName, clientId, body.substring(0, 100));
+           (id, tenant_id, phone, phone_e164, display_name, contact_name, client_id, last_message_at, last_message_preview, unread_count, status, bot_enabled)
+           VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?, 1, 'open', ?)`
+        ).run(conversationId, tenantId, phone, phoneE164, displayName, contactName, clientId, body.substring(0, 100), botEnabledForNew);
 
-        conversation = { id: conversationId, client_id: clientId };
+        conversation = { id: conversationId, client_id: clientId, bot_enabled: botEnabledForNew };
       } else {
         // Atualizar conversa existente
         db.prepare(
@@ -872,6 +1040,22 @@ class WPPConnectService extends EventEmitter {
 
   /**
    * Desconecta sessão
+   */
+  private isQrStillValid(qrGeneratedAt?: string | null) {
+    if (!qrGeneratedAt) {
+      return false;
+    }
+
+    const generatedAt = new Date(qrGeneratedAt).getTime();
+    if (Number.isNaN(generatedAt)) {
+      return false;
+    }
+
+    return Date.now() - generatedAt < this.qrTimeoutMs;
+  }
+
+  /**
+   * Desconecta sess?o
    */
   async disconnectSession(tenantId: string, sessionName: string = 'default') {
     const sessionKey = `${tenantId}_${sessionName}`;

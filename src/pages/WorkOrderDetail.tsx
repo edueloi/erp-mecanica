@@ -5,7 +5,7 @@ import {
   FileText, Wrench, Package, User, Car, ChevronRight, Clock,
   ShieldCheck, Camera, CreditCard, History, Info, CheckCircle,
   AlertTriangle, XCircle, HelpCircle, MoreVertical, Send, Check,
-  Search, ClipboardCheck, ClipboardList, X, Play
+  Search, ClipboardCheck, ClipboardList, X, Play, PanelRight
 } from 'lucide-react';
 import api from '../services/api';
 import { motion, AnimatePresence } from 'motion/react';
@@ -38,6 +38,7 @@ export default function WorkOrderDetail() {
   const [statusChangeModalOpen, setStatusChangeModalOpen] = useState(false);
   const [itemForm, setItemForm] = useState({ description: '', quantity: 1, unit_price: 0, mechanic_id: '', part_id: '', type: 'SERVICE' as 'SERVICE' | 'PART' });
   const [showNewItemModal, setShowNewItemModal] = useState<{ active: boolean, type: 'SERVICE' | 'PART' }>({ active: false, type: 'SERVICE' });
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const isDirty = initialWo && JSON.stringify(wo) !== JSON.stringify(initialWo);
 
@@ -694,7 +695,10 @@ export default function WorkOrderDetail() {
           </button>
           <div className="h-4 w-px bg-slate-200 mx-1" />
           <button onClick={handleSave} disabled={saving} className="h-8 px-3 bg-slate-900 text-white rounded font-bold text-xs hover:bg-slate-800 transition-all disabled:opacity-50 flex items-center gap-2">
-            <Save size={14} /> {saving ? 'Salvando...' : 'Salvar'}
+            <Save size={14} /> <span className="hidden sm:inline">{saving ? 'Salvando...' : 'Salvar'}</span>
+          </button>
+          <button onClick={() => setIsSidebarOpen(true)} className="2xl:hidden h-8 px-3 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded font-bold text-xs hover:bg-indigo-100 transition-all flex items-center gap-2 ml-1">
+            <PanelRight size={14} /> <span className="hidden sm:inline">Ações / Resumo</span>
           </button>
         </div>
       </header>
@@ -727,9 +731,9 @@ export default function WorkOrderDetail() {
       </div>
 
       {/* Main Content - Responsive Columns */}
-      <main className="flex-1 overflow-hidden flex flex-col lg:flex-row">
+      <main className="flex-1 overflow-hidden flex flex-col 2xl:flex-row relative">
         {/* Left Column - Tabs Content */}
-        <div className="flex-1 overflow-auto p-6">
+        <div className="flex-1 overflow-auto p-4 lg:p-6">
           <AnimatePresence mode="wait">
             <motion.div
               key={activeTab}
@@ -1231,9 +1235,37 @@ export default function WorkOrderDetail() {
         </AnimatePresence>
       </div>
 
+      {/* Backdrop for mobile drawer */}
+      <AnimatePresence>
+        {isSidebarOpen && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[60] 2xl:hidden"
+            onClick={() => setIsSidebarOpen(false)}
+          />
+        )}
+      </AnimatePresence>
+
       {/* Right Column - Financial Summary & Actions */}
-      <aside className="w-full lg:w-96 border-t lg:border-t-0 lg:border-l border-slate-200 bg-white overflow-auto p-4 lg:p-6 shrink-0">
-        <div className="space-y-6">
+      <aside className={cn(
+        "fixed inset-y-0 right-0 z-[70] w-80 lg:w-96 bg-white shadow-2xl transition-transform duration-300 flex flex-col",
+        "2xl:relative 2xl:z-0 2xl:w-96 2xl:shadow-none 2xl:border-l 2xl:border-slate-200 2xl:translate-x-0 shrink-0",
+        isSidebarOpen ? "translate-x-0" : "translate-x-full"
+      )}>
+        {/* Mobile Header */}
+        <div className="2xl:hidden flex items-center justify-between p-4 border-b border-slate-200 bg-slate-50 flex-shrink-0">
+          <h3 className="font-bold text-slate-900 text-sm flex items-center gap-2">
+            <PanelRight size={16} className="text-indigo-600" />
+            Resumo e Ações Rápidas
+          </h3>
+          <button onClick={() => setIsSidebarOpen(false)} className="p-2 text-slate-400 hover:text-slate-700 bg-white border border-slate-200 rounded-full transition-colors shadow-sm">
+            <X size={16} />
+          </button>
+        </div>
+        
+        <div className="flex-1 overflow-y-auto p-4 lg:p-6 space-y-6">
           {/* Quick Actions */}
           <div className="bg-slate-900 rounded-2xl p-5 text-white shadow-xl shadow-slate-200/50">
             <h3 className="text-[10px] font-black uppercase tracking-[0.2em] mb-4 opacity-50">Ações Rápidas</h3>

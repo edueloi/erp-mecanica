@@ -25,6 +25,7 @@ import entryRoutes from "./src/backend/routes/entries";
 import superadminRoutes from "./src/backend/routes/superadmin";
 import serviceRoutes from "./src/backend/routes/services";
 import warrantyRoutes from "./src/backend/routes/warranty";
+import { botEngine } from "./src/backend/whatsapp/bot-engine";
 
 dotenv.config();
 
@@ -37,6 +38,10 @@ async function startServer() {
   try {
     initDb();
     console.log("✅ Database initialized successfully");
+    
+    // Initialize WhatsApp Bot Engine
+    botEngine.init();
+    console.log("🤖 WhatsApp Bot Engine initialized");
   } catch (error: any) {
     console.error("❌ Error initializing database:", error);
     process.exit(1);

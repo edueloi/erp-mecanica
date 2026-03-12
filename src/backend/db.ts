@@ -331,6 +331,110 @@ export function initDb() {
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   )`);
 
+  // WhatsApp Tables
+  db.exec(`CREATE TABLE IF NOT EXISTS whatsapp_sessions (
+    id TEXT PRIMARY KEY,
+    tenant_id TEXT NOT NULL,
+    session_name TEXT DEFAULT 'default',
+    status TEXT DEFAULT 'disconnected',
+    phone_number TEXT,
+    qr_code TEXT,
+    is_active INTEGER DEFAULT 1,
+    last_connected_at DATETIME,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
+
+  db.exec(`CREATE TABLE IF NOT EXISTS whatsapp_conversations (
+    id TEXT PRIMARY KEY,
+    tenant_id TEXT NOT NULL,
+    phone TEXT,
+    phone_e164 TEXT,
+    display_name TEXT,
+    contact_name TEXT,
+    client_id TEXT,
+    vehicle_plate TEXT,
+    work_order_id TEXT,
+    assigned_to_user_id TEXT,
+    status TEXT DEFAULT 'open',
+    tags TEXT,
+    unread_count INTEGER DEFAULT 0,
+    last_message_at DATETIME,
+    last_message_preview TEXT,
+    bot_enabled INTEGER DEFAULT 0,
+    bot_topic TEXT,
+    bot_state TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
+
+  db.exec(`CREATE TABLE IF NOT EXISTS whatsapp_messages (
+    id TEXT PRIMARY KEY,
+    tenant_id TEXT NOT NULL,
+    conversation_id TEXT NOT NULL,
+    direction TEXT CHECK(direction IN ('in', 'out')) NOT NULL,
+    type TEXT DEFAULT 'text',
+    body TEXT,
+    media_url TEXT,
+    sent_status TEXT DEFAULT 'pending',
+    origin TEXT DEFAULT 'human',
+    related_type TEXT,
+    related_id TEXT,
+    template_id TEXT,
+    wpp_message_id TEXT,
+    error_message TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
+
+  db.exec(`CREATE TABLE IF NOT EXISTS whatsapp_templates (
+    id TEXT PRIMARY KEY,
+    tenant_id TEXT NOT NULL,
+    name TEXT NOT NULL,
+    category TEXT,
+    body TEXT NOT NULL,
+    variables_json TEXT,
+    enabled INTEGER DEFAULT 1,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
+
+  db.exec(`CREATE TABLE IF NOT EXISTS whatsapp_automation_rules (
+    id TEXT PRIMARY KEY,
+    tenant_id TEXT NOT NULL,
+    name TEXT NOT NULL,
+    trigger_event TEXT NOT NULL,
+    template_id TEXT,
+    conditions_json TEXT,
+    delay_minutes INTEGER DEFAULT 0,
+    business_hours_only INTEGER DEFAULT 1,
+    enabled INTEGER DEFAULT 1,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
+
+  db.exec(`CREATE TABLE IF NOT EXISTS whatsapp_automation_logs (
+    id TEXT PRIMARY KEY,
+    tenant_id TEXT NOT NULL,
+    rule_id TEXT,
+    message_id TEXT,
+    phone TEXT,
+    status TEXT,
+    error TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
+
+  db.exec(`CREATE TABLE IF NOT EXISTS wa_lid_map (
+    tenant_id TEXT NOT NULL,
+    lid TEXT NOT NULL,
+    phone TEXT NOT NULL,
+    PRIMARY KEY (tenant_id, lid)
+  )`);
+
+  // WhatsApp migrations (for existing databases)
+  try { db.exec('ALTER TABLE whatsapp_conversations ADD COLUMN bot_state TEXT'); } catch (e) {}
+  try { db.exec('ALTER TABLE whatsapp_conversations ADD COLUMN bot_enabled INTEGER DEFAULT 0'); } catch (e) {}
+  try { db.exec('ALTER TABLE whatsapp_conversations ADD COLUMN bot_topic TEXT'); } catch (e) {}
+  try { db.exec('ALTER TABLE whatsapp_conversations ADD COLUMN phone_e164 TEXT'); } catch (e) {}
+
   try {
     const superAdminEmail = 'admin@mecaerp.com.br';
     const existingAdmin = db.prepare('SELECT id FROM users WHERE email = ?').get(superAdminEmail);
