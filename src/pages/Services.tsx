@@ -360,7 +360,7 @@ export default function Services() {
       </header>
 
       {/* Filters */}
-      <div className="bg-white border-b border-slate-200 px-6 py-2 flex items-center gap-4 overflow-x-auto no-scrollbar">
+      <div className="bg-white border-b border-slate-200 px-6 py-2 flex flex-wrap items-center gap-x-4 gap-y-2 overflow-hidden">
         <div className="relative flex-1 min-w-[200px] max-w-xs shrink-0">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
           <input 
