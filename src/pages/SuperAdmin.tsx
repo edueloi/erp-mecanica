@@ -280,8 +280,25 @@ export default function SuperAdmin() {
           api.get("/superadmin/team"),
           api.get("/superadmin/permission-profiles")
         ]);
-        setTeam(Array.isArray(teamRes.data) ? teamRes.data : []);
+        const teamList = Array.isArray(teamRes.data) ? teamRes.data : [];
+        setTeam(teamList);
         setPermissionProfiles(Array.isArray(profilesRes.data) ? profilesRes.data : []);
+
+        // Atualiza o perfil do usuário atual com dados frescos do banco
+        const freshMe = teamList.find((m: any) => m.id === user?.id);
+        if (freshMe) {
+          const updatedUser = {
+            ...user,
+            surname: freshMe.surname || "",
+            biography: freshMe.biography || "",
+            education: freshMe.education || "",
+            phone: freshMe.phone || "",
+            cpf: freshMe.cpf || "",
+            profession: freshMe.profession || "",
+            photo_url: freshMe.photo_url || user?.photo_url || ""
+          } as any;
+          setUser(updatedUser);
+        }
       }
     } catch (err: any) {
       showToast("Erro ao carregar dados", "error");

@@ -51,12 +51,17 @@ router.post("/login", async (req, res) => {
       user: {
         id: user.id,
         name: user.name,
+        surname: user.surname || "",
         email: user.email,
         role: user.role,
         tenant_id: user.tenant_id,
         tenant_name: tenant.name,
         photo_url: user.photo_url,
-        profession: user.profession,
+        profession: user.profession || "",
+        biography: user.biography || "",
+        education: user.education || "",
+        phone: user.phone || "",
+        cpf: user.cpf || "",
         permissions: perms
       }
     });
