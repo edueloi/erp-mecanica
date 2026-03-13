@@ -42,6 +42,7 @@ import { useAuthStore } from "../services/authStore";
 import * as ibgeService from "../services/ibgeService";
 import api from "../services/api";
 import { cn } from "../utils/cn";
+import { maskPhone, maskCPF } from "../utils/maskUtils";
 
 type Tab = 
   | "overview"
@@ -137,6 +138,8 @@ export default function Settings() {
     email: "",
     password: "",
     role: "MECHANIC",
+    phone: "",
+    cpf: "",
     permissions: {
       dashboard: true,
       clients: true,
@@ -977,6 +980,8 @@ export default function Settings() {
                       email: "",
                       password: "",
                       role: "MECHANIC",
+                      phone: "",
+                      cpf: "",
                       permissions: {
                         dashboard: true,
                         clients: true,
@@ -1062,6 +1067,8 @@ export default function Settings() {
                                          email: user.email,
                                          password: "",
                                          role: user.role,
+                                         phone: user.phone ? maskPhone(user.phone) : "",
+                                         cpf: user.cpf ? maskCPF(user.cpf) : "",
                                          permissions: typeof user.permissions === 'string'
                                            ? JSON.parse(user.permissions)
                                            : (user.permissions || {
@@ -1269,7 +1276,7 @@ export default function Settings() {
                           <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider ml-1">
                             {editingUser ? "Nova Senha (opcional)" : "Senha de Acesso"}
                           </label>
-                          <input 
+                          <input
                             required={!editingUser}
                             type="password"
                             value={userForm.password}
@@ -1277,6 +1284,28 @@ export default function Settings() {
                             className="w-full px-4 py-2.5 bg-slate-50 border border-slate-100 rounded-xl focus:ring-4 focus:ring-slate-900/5 focus:bg-white focus:border-slate-900 outline-none transition-all font-bold text-slate-900"
                             placeholder="••••••"
                           />
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="space-y-2">
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider ml-1">Telefone</label>
+                            <input
+                              type="text"
+                              value={userForm.phone}
+                              onChange={(e) => setUserForm({...userForm, phone: maskPhone(e.target.value)})}
+                              className="w-full px-4 py-2.5 bg-slate-50 border border-slate-100 rounded-xl focus:ring-4 focus:ring-slate-900/5 focus:bg-white focus:border-slate-900 outline-none transition-all font-bold text-slate-900"
+                              placeholder="(00) 00000-0000"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider ml-1">CPF</label>
+                            <input
+                              type="text"
+                              value={userForm.cpf}
+                              onChange={(e) => setUserForm({...userForm, cpf: maskCPF(e.target.value)})}
+                              className="w-full px-4 py-2.5 bg-slate-50 border border-slate-100 rounded-xl focus:ring-4 focus:ring-slate-900/5 focus:bg-white focus:border-slate-900 outline-none transition-all font-bold text-slate-900"
+                              placeholder="000.000.000-00"
+                            />
+                          </div>
                         </div>
                       </div>
 
