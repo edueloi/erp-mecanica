@@ -1256,210 +1256,249 @@ export default function SuperAdmin() {
             )}
 
             {activeTab === 'profile' && (
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-xl font-black text-slate-900 uppercase">Meu Perfil</h2>
-                  {!isMasterRoot && (
-                    <button 
-                      onClick={handleProfileSubmit}
-                      disabled={saving}
-                      className="h-10 px-6 bg-emerald-600 text-white rounded-xl font-black text-[10px] uppercase shadow-lg shadow-emerald-500/20 hover:bg-emerald-700 transition-all flex items-center gap-2"
-                    >
-                      {saving ? 'Salvando...' : 'Salvar Alterações'}
-                    </button>
-                  )}
-                </div>
-                
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6 pb-10">
                 {isMasterRoot ? (
-                  <div className="bg-white p-12 rounded-3xl border border-slate-200 shadow-sm text-center space-y-4">
-                    <Shield size={48} className="mx-auto text-emerald-500" />
-                    <h3 className="text-lg font-black text-slate-900 uppercase">Acesso Master Administrador</h3>
-                    <p className="text-sm text-slate-500 max-w-md mx-auto">
-                      Este perfil ({user?.email}) é a conta raiz do sistema. Por segurança, seus dados são fixos e só podem ser alterados através das configurações de ambiente do servidor.
-                    </p>
-                    <div className="pt-6 grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-lg mx-auto">
-                        <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 italic text-[10px] text-slate-400 font-bold uppercase">Nome: {user?.name}</div>
-                        <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 italic text-[10px] text-slate-400 font-bold uppercase">Função: {user?.role}</div>
+                  <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden">
+                    <div className="h-32 bg-gradient-to-br from-slate-900 via-slate-800 to-emerald-900 relative overflow-hidden">
+                      <Activity className="absolute -right-8 -top-8 text-white/5 w-48 h-48" />
+                      <Shield className="absolute left-8 top-1/2 -translate-y-1/2 text-emerald-400/20 w-20 h-20" />
+                    </div>
+                    <div className="px-8 pb-8 -mt-10 text-center">
+                      <div className="w-20 h-20 rounded-[1.5rem] bg-white shadow-xl border-4 border-white mx-auto flex items-center justify-center">
+                        <div className="w-full h-full rounded-[1.25rem] bg-emerald-50 flex items-center justify-center">
+                          <Shield size={36} className="text-emerald-500" />
+                        </div>
+                      </div>
+                      <h3 className="text-xl font-black text-slate-900 uppercase italic mt-4">{user?.name}</h3>
+                      <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mt-1">Master Root Administrator</p>
+                      <div className="mt-6 inline-flex items-center gap-2 px-4 py-2 bg-amber-50 border border-amber-100 rounded-2xl">
+                        <Lock size={12} className="text-amber-500" />
+                        <p className="text-[10px] font-black text-amber-600 uppercase tracking-wide">Perfil protegido — alterações apenas via ambiente de servidor</p>
+                      </div>
+                      <div className="mt-6 grid grid-cols-2 gap-3 max-w-sm mx-auto">
+                        <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100">
+                          <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">E-mail</p>
+                          <p className="text-xs font-bold text-slate-700 truncate mt-1">{user?.email}</p>
+                        </div>
+                        <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100">
+                          <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Função</p>
+                          <p className="text-xs font-bold text-slate-700 mt-1">SUPER ADMIN</p>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 ) : (
-                  <form onSubmit={handleProfileSubmit} className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
-                    <div className="lg:col-span-1 space-y-4 sm:space-y-6">
-                      <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-sm text-center">
-                        <div className="relative inline-block mb-4">
-                          <div className="w-32 h-32 rounded-[2.5rem] bg-slate-100 border-4 border-white shadow-xl flex items-center justify-center overflow-hidden">
-                            {profileForm.photo_url ? (
-                              <img src={profileForm.photo_url} alt={user?.name} className="w-full h-full object-cover" />
-                            ) : (
-                              <UserCircle className="text-slate-300" size={64} />
-                            )}
-                          </div>
-                          <button 
-                            type="button"
-                            onClick={() => profileFileInputRef.current?.click()}
-                            className="absolute -bottom-2 -right-2 w-10 h-10 bg-slate-900 text-white rounded-2xl flex items-center justify-center shadow-lg hover:bg-emerald-600 transition-all border-4 border-white"
+                  <form onSubmit={handleProfileSubmit} className="space-y-5">
+                    {/* Profile Hero Card */}
+                    <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm overflow-hidden">
+                      {/* Banner */}
+                      <div className={cn("h-28 relative overflow-hidden", user?.role === 'SUPER_ADMIN' ? "bg-gradient-to-br from-emerald-600 to-teal-700" : "bg-gradient-to-br from-blue-600 to-indigo-700")}>
+                        <Activity className="absolute -right-6 -top-6 text-white/10 w-40 h-40 rotate-12" />
+                        <div className="absolute bottom-4 left-6 flex items-center gap-2">
+                          <span className={cn("px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest border backdrop-blur-sm",
+                            user?.role === 'SUPER_ADMIN' ? "bg-emerald-400/20 text-emerald-100 border-emerald-300/30" : "bg-blue-400/20 text-blue-100 border-blue-300/30"
+                          )}>
+                            {user?.role === 'SUPER_ADMIN' ? 'Super Admin' : 'Vendedor Comercial'}
+                          </span>
+                        </div>
+                        {/* Save button in banner */}
+                        <div className="absolute top-4 right-4">
+                          <button
+                            type="submit"
+                            disabled={saving}
+                            className="h-9 px-5 bg-white/20 hover:bg-white/30 backdrop-blur-md text-white border border-white/30 rounded-xl font-black text-[10px] uppercase tracking-wider transition-all flex items-center gap-2 shadow-lg"
                           >
-                            <Plus size={18} />
+                            {saving ? <div className="w-3 h-3 border-2 border-white/40 border-t-white rounded-full animate-spin" /> : <CheckCircle size={13} />}
+                            {saving ? 'Salvando...' : 'Salvar'}
                           </button>
-                          <input 
-                            ref={profileFileInputRef}
-                            type="file" 
-                            accept="image/*" 
-                            className="hidden" 
-                            onChange={handleProfilePhotoUpload} 
-                          />
-                        </div>
-                        <h3 className="text-lg font-black text-slate-900 uppercase leading-tight">{profileForm.name} {profileForm.surname}</h3>
-                        <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mt-1">{profileForm.profession || user?.role}</p>
-                        
-                        <div className="mt-6 pt-6 border-t border-slate-50 flex items-center justify-center gap-6">
-                            <div className="text-center">
-                                <p className="text-[10px] font-black text-slate-400 uppercase">Sistema</p>
-                                <p className="text-xs font-bold text-slate-700">{user?.role}</p>
-                            </div>
-                            <div className="w-px h-8 bg-slate-100" />
-                            <div className="text-center">
-                                <p className="text-[10px] font-black text-slate-400 uppercase">Cargo</p>
-                                <p className="text-xs font-bold text-slate-700 truncate max-w-[100px]">{profileForm.profession || '---'}</p>
-                            </div>
                         </div>
                       </div>
-                      
-                      <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
-                        <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                            <Lock size={12} className="text-blue-500" /> Segurança
-                        </h4>
-                        <div className="space-y-1">
-                            <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Nova Senha</label>
+
+                      {/* Photo + name row */}
+                      <div className="px-6 pb-6 flex flex-col sm:flex-row items-center sm:items-end gap-4 -mt-10">
+                        <div className="relative shrink-0">
+                          <div
+                            className="w-24 h-24 rounded-[1.75rem] bg-slate-100 border-4 border-white shadow-2xl overflow-hidden flex items-center justify-center cursor-pointer group"
+                            onClick={() => profileFileInputRef.current?.click()}
+                          >
+                            {profileForm.photo_url ? (
+                              <img src={profileForm.photo_url} alt={user?.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                            ) : (
+                              <UserCircle className="text-slate-300" size={48} />
+                            )}
+                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-all flex items-center justify-center rounded-[1.5rem]">
+                              <Plus size={20} className="text-white" />
+                            </div>
+                          </div>
+                          <input ref={profileFileInputRef} type="file" accept="image/*" className="hidden" onChange={handleProfilePhotoUpload} />
+                        </div>
+                        <div className="flex-1 text-center sm:text-left pb-1">
+                          <h3 className="text-xl font-black text-slate-900 uppercase italic leading-tight">{profileForm.name || user?.name} {profileForm.surname}</h3>
+                          <p className="text-[10px] font-black uppercase tracking-widest mt-0.5 text-emerald-600">{profileForm.profession || 'Defina seu cargo abaixo'}</p>
+                        </div>
+                        <div className="hidden sm:flex items-center gap-4 pb-1">
+                          <div className="text-right">
+                            <p className="text-[8px] font-black text-slate-300 uppercase tracking-widest">Membro desde</p>
+                            <p className="text-xs font-black text-slate-600 italic">{new Date().getFullYear()}</p>
+                          </div>
+                          <div className={cn("w-10 h-10 rounded-2xl flex items-center justify-center", user?.role === 'SUPER_ADMIN' ? 'bg-emerald-50 text-emerald-500' : 'bg-blue-50 text-blue-500')}>
+                            {user?.role === 'SUPER_ADMIN' ? <Shield size={20} /> : <TrendingUp size={20} />}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Form sections in a 2-col grid */}
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+                      {/* LEFT: security */}
+                      <div className="space-y-5">
+                        <div className="bg-white rounded-[1.75rem] border border-slate-100 shadow-sm p-5 space-y-4">
+                          <div className="flex items-center gap-2 pb-3 border-b border-slate-50">
+                            <div className="w-8 h-8 rounded-xl bg-blue-50 flex items-center justify-center">
+                              <Lock size={14} className="text-blue-500" />
+                            </div>
+                            <h4 className="text-[10px] font-black text-slate-600 uppercase tracking-widest">Segurança</h4>
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-0.5">Nova Senha</label>
                             <div className="relative">
-                                <input 
-                                    type={showProfilePassword ? "text" : "password"} 
-                                    placeholder="Deixe vazio para manter"
-                                    value={profileForm.password}
-                                    onChange={(e) => setProfileForm({...profileForm, password: e.target.value})}
-                                    className="w-full h-12 bg-slate-50 border border-slate-200 rounded-xl px-4 pr-10 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all" 
-                                />
-                                <button 
-                                    type="button"
-                                    onClick={() => setShowProfilePassword(!showProfilePassword)}
-                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                                >
-                                    {showProfilePassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                                </button>
+                              <input
+                                type={showProfilePassword ? "text" : "password"}
+                                placeholder="Deixe vazio para manter"
+                                value={profileForm.password}
+                                onChange={(e) => setProfileForm({...profileForm, password: e.target.value})}
+                                className="w-full h-11 bg-slate-50 border border-slate-200 rounded-xl px-4 pr-10 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none transition-all"
+                              />
+                              <button type="button" onClick={() => setShowProfilePassword(!showProfilePassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors">
+                                {showProfilePassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                              </button>
                             </div>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <div className="lg:col-span-2 space-y-6">
-                      <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm space-y-8">
-                        <div>
-                            <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2 mb-6">
-                                <UserIcon size={12} className="text-emerald-500" /> Identidade & Bio
-                            </h4>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div className="space-y-1">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Nome</label>
-                                    <input 
-                                        value={profileForm.name} 
-                                        onChange={(e) => setProfileForm({...profileForm, name: e.target.value})}
-                                        className="w-full h-12 bg-slate-50 border border-slate-200 rounded-xl px-4 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all" 
-                                    />
-                                </div>
-                                <div className="space-y-1">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Sobrenome</label>
-                                    <input 
-                                        value={profileForm.surname} 
-                                        onChange={(e) => setProfileForm({...profileForm, surname: e.target.value})}
-                                        placeholder="Seu sobrenome"
-                                        className="w-full h-12 bg-slate-50 border border-slate-200 rounded-xl px-4 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all" 
-                                    />
-                                </div>
-                                <div className="md:col-span-2 space-y-1">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Biografia / Resumo Profissional</label>
-                                    <textarea 
-                                        rows={3}
-                                        value={profileForm.biography} 
-                                        onChange={(e) => setProfileForm({...profileForm, biography: e.target.value})}
-                                        placeholder="Conte um pouco sobre você..."
-                                        className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-4 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all resize-none" 
-                                    />
-                                </div>
-                            </div>
+                          </div>
+                          <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                            <p className="text-[9px] font-bold text-slate-400 leading-relaxed">Use no mínimo 8 caracteres com letras e números para maior segurança.</p>
+                          </div>
                         </div>
 
-                        <div>
-                            <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2 mb-6">
-                                <Briefcase size={12} className="text-blue-500" /> Atuação & Carreira
-                            </h4>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div className="space-y-1">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Cargo no Sistema</label>
-                                    <select 
-                                        value={profileForm.profession} 
-                                        onChange={(e) => setProfileForm({...profileForm, profession: e.target.value})}
-                                        className="w-full h-12 bg-slate-50 border border-slate-200 rounded-xl px-4 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all appearance-none" 
-                                    >
-                                        <option value="">Selecione sua função</option>
-                                        <option value="Vendedor Externo">Vendedor Externo</option>
-                                        <option value="Vendedor Interno">Vendedor Interno</option>
-                                        <option value="Consultor de Vendas">Consultor de Vendas</option>
-                                        <option value="Marketing">Marketing</option>
-                                        <option value="Engenheiro de Software">Engenheiro de Software</option>
-                                        <option value="Analista de Sistema">Analista de Sistema</option>
-                                        <option value="Gerente de Projetos">Gerente de Projetos</option>
-                                        <option value="Gerente de Tecnologia">Gerente de Tecnologia</option>
-                                        <option value="Arquiteto de Dados">Arquiteto de Dados</option>
-                                        <option value="Engenheiro de Dados">Engenheiro de Dados</option>
-                                        <option value="Produtor">Produtor</option>
-                                        <option value="Outros / Tecnologia">Outros / Tecnologia</option>
-                                    </select>
-                                </div>
-                                <div className="space-y-1">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Escolaridade</label>
-                                    <input 
-                                        value={profileForm.education} 
-                                        onChange={(e) => setProfileForm({...profileForm, education: e.target.value})}
-                                        placeholder="Ex: Graduação em TI"
-                                        className="w-full h-12 bg-slate-50 border border-slate-200 rounded-xl px-4 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all" 
-                                    />
-                                </div>
+                        <div className="bg-white rounded-[1.75rem] border border-slate-100 shadow-sm p-5 space-y-3">
+                          <div className="flex items-center gap-2 pb-3 border-b border-slate-50">
+                            <div className="w-8 h-8 rounded-xl bg-slate-50 flex items-center justify-center">
+                              <Mail size={14} className="text-slate-400" />
                             </div>
-                        </div>
-
-                        <div>
-                            <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2 mb-6">
-                                <Mail size={12} className="text-purple-500" /> Contato Corporativo
-                            </h4>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div className="space-y-1">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase ml-1">E-mail</label>
-                                    <input 
-                                        disabled
-                                        value={profileForm.email} 
-                                        className="w-full h-12 bg-slate-100 border border-slate-200 rounded-xl px-4 text-sm font-bold text-slate-500 cursor-not-allowed" 
-                                    />
-                                </div>
-                                <div className="space-y-1">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase ml-1">Telefone</label>
-                                    <input 
-                                        value={profileForm.phone} 
-                                        onChange={(e) => setProfileForm({...profileForm, phone: e.target.value})}
-                                        className="w-full h-12 bg-slate-50 border border-slate-200 rounded-xl px-4 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all" 
-                                    />
-                                </div>
-                            </div>
+                            <h4 className="text-[10px] font-black text-slate-600 uppercase tracking-widest">Contato</h4>
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-0.5">E-mail</label>
+                            <input disabled value={profileForm.email} className="w-full h-11 bg-slate-100 border border-slate-200 rounded-xl px-4 text-sm font-bold text-slate-400 cursor-not-allowed" />
+                          </div>
+                          <div className="space-y-1">
+                            <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-0.5">Telefone</label>
+                            <input
+                              value={profileForm.phone}
+                              onChange={(e) => setProfileForm({...profileForm, phone: e.target.value})}
+                              placeholder="(00) 00000-0000"
+                              className="w-full h-11 bg-slate-50 border border-slate-200 rounded-xl px-4 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all"
+                            />
+                          </div>
                         </div>
                       </div>
-                    </div>
-                    <div className="lg:col-span-3 mt-8 flex justify-end">
-                      <button 
-                        type="submit"
-                        disabled={saving}
-                        className="w-full sm:w-auto h-14 px-10 bg-emerald-600 text-white rounded-2xl font-black text-sm uppercase shadow-xl shadow-emerald-500/20 hover:bg-emerald-700 transition-all flex items-center justify-center gap-2"
-                      >
-                        {saving ? 'Salvando...' : 'Salvar Alterações'}
-                      </button>
+
+                      {/* RIGHT: identity + career */}
+                      <div className="lg:col-span-2 bg-white rounded-[1.75rem] border border-slate-100 shadow-sm p-6 space-y-6">
+                        {/* Identity */}
+                        <div>
+                          <div className="flex items-center gap-2 mb-4">
+                            <div className="w-8 h-8 rounded-xl bg-emerald-50 flex items-center justify-center">
+                              <UserIcon size={14} className="text-emerald-500" />
+                            </div>
+                            <h4 className="text-[10px] font-black text-slate-600 uppercase tracking-widest">Identidade</h4>
+                          </div>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div className="space-y-1">
+                              <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-0.5">Nome</label>
+                              <input
+                                value={profileForm.name}
+                                onChange={(e) => setProfileForm({...profileForm, name: e.target.value})}
+                                className="w-full h-11 bg-slate-50 border border-slate-200 rounded-xl px-4 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all"
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-0.5">Sobrenome</label>
+                              <input
+                                value={profileForm.surname}
+                                onChange={(e) => setProfileForm({...profileForm, surname: e.target.value})}
+                                placeholder="Seu sobrenome"
+                                className="w-full h-11 bg-slate-50 border border-slate-200 rounded-xl px-4 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all"
+                              />
+                            </div>
+                            <div className="sm:col-span-2 space-y-1">
+                              <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-0.5">Biografia / Resumo</label>
+                              <textarea
+                                rows={3}
+                                value={profileForm.biography}
+                                onChange={(e) => setProfileForm({...profileForm, biography: e.target.value})}
+                                placeholder="Conte um pouco sobre você e sua trajetória..."
+                                className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all resize-none"
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="h-px bg-slate-50" />
+
+                        {/* Career */}
+                        <div>
+                          <div className="flex items-center gap-2 mb-4">
+                            <div className="w-8 h-8 rounded-xl bg-blue-50 flex items-center justify-center">
+                              <Briefcase size={14} className="text-blue-500" />
+                            </div>
+                            <h4 className="text-[10px] font-black text-slate-600 uppercase tracking-widest">Carreira</h4>
+                          </div>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div className="space-y-1">
+                              <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-0.5">Cargo / Função</label>
+                              <select
+                                value={profileForm.profession}
+                                onChange={(e) => setProfileForm({...profileForm, profession: e.target.value})}
+                                className="w-full h-11 bg-slate-50 border border-slate-200 rounded-xl px-4 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all appearance-none"
+                              >
+                                <option value="">Selecione sua função</option>
+                                <option value="Vendedor Externo">Vendedor Externo</option>
+                                <option value="Vendedor Interno">Vendedor Interno</option>
+                                <option value="Consultor de Vendas">Consultor de Vendas</option>
+                                <option value="Marketing">Marketing</option>
+                                <option value="Engenheiro de Software">Engenheiro de Software</option>
+                                <option value="Analista de Sistema">Analista de Sistema</option>
+                                <option value="Gerente de Projetos">Gerente de Projetos</option>
+                                <option value="Gerente de Tecnologia">Gerente de Tecnologia</option>
+                                <option value="Arquiteto de Dados">Arquiteto de Dados</option>
+                                <option value="Engenheiro de Dados">Engenheiro de Dados</option>
+                                <option value="Produtor">Produtor</option>
+                                <option value="Outros / Tecnologia">Outros / Tecnologia</option>
+                              </select>
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-0.5">Escolaridade</label>
+                              <input
+                                value={profileForm.education}
+                                onChange={(e) => setProfileForm({...profileForm, education: e.target.value})}
+                                placeholder="Ex: Graduação em TI"
+                                className="w-full h-11 bg-slate-50 border border-slate-200 rounded-xl px-4 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all"
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex justify-end pt-2 border-t border-slate-50">
+                          <button
+                            type="submit"
+                            disabled={saving}
+                            className="h-11 px-8 bg-slate-900 text-white rounded-2xl font-black text-[10px] uppercase tracking-wider shadow-lg hover:bg-emerald-600 transition-all flex items-center gap-2"
+                          >
+                            {saving ? <div className="w-3 h-3 border-2 border-white/40 border-t-white rounded-full animate-spin" /> : <CheckCircle size={14} />}
+                            {saving ? 'Salvando...' : 'Salvar Alterações'}
+                          </button>
+                        </div>
+                      </div>
                     </div>
                   </form>
                 )}
