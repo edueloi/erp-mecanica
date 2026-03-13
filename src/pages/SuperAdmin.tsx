@@ -321,7 +321,7 @@ export default function SuperAdmin() {
     const currentMonth = now.getMonth();
     const currentYear = now.getFullYear();
 
-    const totalMRR = tenants.reduce((acc, t) => acc + (t.subscription_value || 0), 0);
+    const totalMRR = tenants.reduce((acc, t) => acc + (Number(t.subscription_value) || 0), 0);
     const myEarnings = isVendedor ? totalMRR * 0.30 : 0;
     const activeTenantsCount = tenants.filter(t => t.status === 'ACTIVE').length;
     const totalUsers = tenants.reduce((acc, t) => acc + (t.user_count || 0), 0);
