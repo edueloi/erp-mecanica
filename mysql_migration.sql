@@ -51,7 +51,7 @@ CREATE TABLE IF NOT EXISTS tenants (
   status             VARCHAR(50)   DEFAULT 'ACTIVE',
   plan_id            VARCHAR(36),
   seller_id          VARCHAR(36),
-  logo_url           TEXT,
+  logo_url           MEDIUMTEXT,
   created_at         DATETIME      DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -69,7 +69,7 @@ CREATE TABLE IF NOT EXISTS users (
   cpf         VARCHAR(20),
   phone       VARCHAR(50),
   profession  VARCHAR(100),
-  photo_url   TEXT,
+  photo_url   MEDIUMTEXT,
   surname     VARCHAR(255),
   biography   TEXT,
   education   TEXT,
@@ -1008,7 +1008,7 @@ CREATE TABLE IF NOT EXISTS tenant_settings (
   ie VARCHAR(30), im VARCHAR(30), phone VARCHAR(20), whatsapp VARCHAR(20),
   email VARCHAR(255), website VARCHAR(255), instagram VARCHAR(100),
   address TEXT, city VARCHAR(100), state VARCHAR(2), zip_code VARCHAR(10),
-  logo_url TEXT, primary_color VARCHAR(10) DEFAULT '#10B981',
+  logo_url MEDIUMTEXT, primary_color VARCHAR(10) DEFAULT '#10B981',
   theme VARCHAR(20) DEFAULT 'light', short_name VARCHAR(50), slogan VARCHAR(255),
   weekday_open VARCHAR(5) DEFAULT '08:00', weekday_close VARCHAR(5) DEFAULT '18:00',
   saturday_open VARCHAR(5) DEFAULT '08:00', saturday_close VARCHAR(5) DEFAULT '13:00',
