@@ -909,7 +909,7 @@ export default function Suppliers() {
                     <th className="px-6 py-2.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider text-left">Data</th>
                     <th className="px-6 py-2.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider text-right">Total</th>
                     <th className="px-6 py-2.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider text-center">Status</th>
-                    <th className="px-6 py-2.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider text-right sticky right-0 bg-slate-50 shadow-[-12px_0_15px_-4px_rgba(0,0,0,0.05)] z-20">Ações</th>
+                    <th className="px-6 py-2.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider text-right">Ações</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 bg-white">
@@ -931,7 +931,7 @@ export default function Suppliers() {
                            po.status === 'DRAFT' ? 'RASCUNHO' : 'PENDENTE'}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-right sticky right-0 bg-white group-hover:bg-slate-50 transition-colors shadow-[-12px_0_15px_-4px_rgba(0,0,0,0.02)] z-10">
+                      <td className="px-6 py-4 text-right">
                         <div className="flex items-center justify-end gap-2" onClick={e => e.stopPropagation()}>
                           <button 
                             onClick={() => handleDownloadPOPDF(po)}
@@ -982,7 +982,7 @@ export default function Suppliers() {
                   <th className="px-6 py-2.5 text-left text-[10px] font-bold text-slate-400 uppercase tracking-wider">Status</th>
                   <th className="px-6 py-2.5 text-left text-[10px] font-bold text-slate-400 uppercase tracking-wider">Contato</th>
                   <th className="px-6 py-2.5 text-left text-[10px] font-bold text-slate-400 uppercase tracking-wider">Localização</th>
-                  <th className="px-6 py-2.5 text-right text-[10px] font-bold text-slate-400 uppercase tracking-wider sticky right-0 bg-white shadow-[-12px_0_15px_-4px_rgba(0,0,0,0.05)] z-20">Ações</th>
+                  <th className="px-6 py-2.5 text-right text-[10px] font-bold text-slate-400 uppercase tracking-wider">Ações</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 bg-white">
@@ -1048,7 +1048,7 @@ export default function Suppliers() {
                         {supplier.city} - {supplier.state}
                       </div>
                     </td>
-                    <td className="px-6 py-4 sticky right-0 bg-white group-hover:bg-indigo-50/30 transition-colors shadow-[-12px_0_15px_-4px_rgba(0,0,0,0.02)] z-10">
+                    <td className="px-6 py-4">
                       <div className="flex items-center justify-end gap-2" onClick={e => e.stopPropagation()}>
                         <button
                           onClick={() => handleCreateOrder(supplier)}
