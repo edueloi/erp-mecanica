@@ -54,6 +54,29 @@ router.patch("/public/:token/items/:itemId", async (req, res) => {
   }
 });
 
+// POST finish public checklist using TOKEN
+router.post("/public/:token/finish", async (req, res) => {
+  try {
+    const checklist = await db.queryOne(`
+      SELECT id FROM vehicle_checklists
+      WHERE public_token = ? AND token_expires_at > CURRENT_TIMESTAMP
+    `, [req.params.token]) as any;
+
+    if (!checklist) return res.status(404).json({ error: "Link expirado" });
+
+    // Invalidate the token
+    await db.execute(`
+      UPDATE vehicle_checklists
+      SET token_expires_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `, [checklist.id]);
+
+    res.json({ success: true });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 router.use(authenticateToken);
 
 // Default checklist template items

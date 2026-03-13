@@ -72,6 +72,17 @@ export default function ChecklistPublicUpload() {
     e.target.value = '';
   };
 
+  const handleFinish = async () => {
+    try {
+      await api.post(`/checklists/public/${token}/finish`);
+      setSuccess(true);
+    } catch (err) {
+      alert('Erro ao finalizar. Se o link expirou, solicite um novo.');
+      // Optionally reload data to show expiration state
+      fetchData();
+    }
+  };
+
   if (loading) return (
     <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6 text-center">
       <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}>
@@ -99,12 +110,12 @@ export default function ChecklistPublicUpload() {
           <CheckCircle size={48} className="text-white" />
         </div>
         <h2 className="text-3xl font-black tracking-tighter">Fotos Enviadas!</h2>
-        <p className="text-emerald-100 mt-4 text-lg font-medium opacity-90">O checklist foi atualizado no sistema da oficina com sucesso.</p>
+        <p className="text-emerald-100 mt-4 text-lg font-medium opacity-90">O checklist foi finalizado e salvo no sistema. O link foi expirado por segurança.</p>
         <button 
-          onClick={() => setSuccess(false)}
-          className="mt-12 bg-white text-emerald-700 h-14 px-8 rounded-2xl font-black text-sm uppercase tracking-widest shadow-xl shadow-black/10"
+          onClick={() => window.close()}
+          className="mt-12 bg-white text-emerald-700 h-14 px-8 rounded-2xl font-black text-sm uppercase tracking-widest shadow-xl shadow-black/10 transition-transform active:scale-95"
         >
-          Voltar para fotos
+          Fechar Página
         </button>
       </motion.div>
     </div>
@@ -198,8 +209,8 @@ export default function ChecklistPublicUpload() {
       <div className="fixed bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-slate-50 via-slate-50 to-transparent z-40">
          <motion.button 
           whileTap={{ scale: 0.97 }}
-          onClick={() => setSuccess(true)}
-          className="w-full h-18 bg-emerald-600 text-white rounded-3xl font-black text-sm uppercase tracking-[0.2em] flex items-center justify-center gap-4 shadow-2xl shadow-emerald-200 border-b-4 border-emerald-800"
+          onClick={handleFinish}
+          className="w-full h-18 py-4 bg-emerald-600 text-white rounded-3xl font-black text-sm uppercase tracking-[0.2em] flex items-center justify-center gap-4 shadow-2xl shadow-emerald-200 border-b-4 border-emerald-800"
          >
            <Send size={20} />
            FINALIZAR ENVIO

@@ -177,11 +177,15 @@ router.patch("/:id", async (req: AuthRequest, res) => {
     if (!oldVehicle) return res.status(404).json({ error: "Veículo não encontrado" });
 
     await db.transaction(async (conn) => {
+      const allowedFields = ['client_id', 'plate', 'brand', 'model', 'year', 'color', 'vin', 'fuel_type', 'km'];
       const updates: string[] = [];
       const params: any[] = [];
+      
       Object.entries(req.body).forEach(([key, val]) => {
-        updates.push(`${key} = ?`);
-        params.push(val);
+        if (allowedFields.includes(key)) {
+          updates.push(`${key} = ?`);
+          params.push(val);
+        }
       });
 
       if (updates.length > 0) {
