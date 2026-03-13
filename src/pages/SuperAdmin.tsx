@@ -1084,36 +1084,34 @@ export default function SuperAdmin() {
                       const canEdit = (isMasterRoot || (user?.permissions?.gerenciar_equipe && !isAdmin)) && m.email !== user?.email;
                       const displayName = [m.name, m.surname].filter(Boolean).join(' ');
                       return (
-                      <motion.div layout key={m.id} className="bg-white rounded-[1.75rem] border border-slate-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col overflow-hidden group">
-                        {/* Colored header */}
-                        <div className={cn("relative h-20 overflow-hidden shrink-0", isAdmin ? "bg-gradient-to-br from-emerald-600 to-teal-700" : "bg-gradient-to-br from-blue-600 to-indigo-700")}>
-                          <Activity className="absolute -right-4 -top-4 text-white/10 w-28 h-28 rotate-12" />
-                          <div className="absolute bottom-3 left-4 right-4 flex items-end justify-between">
-                            <span className={cn("px-2.5 py-0.5 rounded-lg text-[8px] font-black uppercase tracking-widest border backdrop-blur-sm",
+                      <motion.div layout key={m.id} className="bg-white rounded-[1.75rem] border border-slate-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col group">
+                        {/* Colored header — rounded top, no overflow-hidden on outer card */}
+                        <div className={cn("relative rounded-t-[1.75rem] h-16 shrink-0 overflow-hidden", isAdmin ? "bg-gradient-to-br from-emerald-600 to-teal-700" : "bg-gradient-to-br from-blue-600 to-indigo-700")}>
+                          <Activity className="absolute -right-4 -top-4 text-white/10 w-24 h-24 rotate-12" />
+                          <div className="absolute top-3 right-3 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-all duration-200">
+                            {canEdit && (<>
+                              <button onClick={() => handleEditTeamMember(m)} className="w-7 h-7 rounded-xl bg-white/20 hover:bg-white/40 text-white flex items-center justify-center transition-all"><Edit2 size={11} /></button>
+                              <button onClick={() => setDeleteTeamConfig({ isOpen: true, member: m })} className="w-7 h-7 rounded-xl bg-white/20 hover:bg-red-400/60 text-white flex items-center justify-center transition-all"><Trash2 size={11} /></button>
+                            </>)}
+                          </div>
+                          <div className="absolute bottom-2.5 left-4">
+                            <span className={cn("px-2.5 py-0.5 rounded-lg text-[8px] font-black uppercase tracking-widest border",
                               isAdmin ? "bg-emerald-400/20 text-emerald-100 border-emerald-300/20" : "bg-blue-400/20 text-blue-100 border-blue-300/20"
-                            )}>
-                              {isAdmin ? 'Super Admin' : 'Vendedor'}
-                            </span>
-                            {canEdit && (
-                              <div className="flex gap-1.5 opacity-0 group-hover:opacity-100 transition-all duration-200">
-                                <button onClick={() => handleEditTeamMember(m)} className="w-7 h-7 rounded-xl bg-white/20 hover:bg-white/40 backdrop-blur-sm text-white flex items-center justify-center transition-all"><Edit2 size={12} /></button>
-                                <button onClick={() => setDeleteTeamConfig({ isOpen: true, member: m })} className="w-7 h-7 rounded-xl bg-white/20 hover:bg-red-400/60 backdrop-blur-sm text-white flex items-center justify-center transition-all"><Trash2 size={12} /></button>
-                              </div>
-                            )}
+                            )}>{isAdmin ? 'Super Admin' : 'Vendedor'}</span>
                           </div>
                         </div>
 
-                        <div className="px-5 pb-5 -mt-7 flex flex-col gap-3">
+                        <div className="p-4 flex flex-col gap-3">
                           {/* Avatar + name */}
-                          <div className="flex items-end gap-3">
-                            <div className={cn("w-14 h-14 rounded-2xl overflow-hidden flex items-center justify-center shrink-0 border-3 border-white shadow-lg ring-2", isAdmin ? 'bg-emerald-50 ring-emerald-100' : 'bg-blue-50 ring-blue-100')}>
+                          <div className="flex items-center gap-3">
+                            <div className={cn("w-12 h-12 rounded-2xl overflow-hidden flex items-center justify-center shrink-0 shadow-sm", isAdmin ? 'bg-emerald-50' : 'bg-blue-50')}>
                               {m.photo_url ? (
                                 <img src={m.photo_url} className="w-full h-full object-cover" />
                               ) : (
-                                isAdmin ? <Shield size={26} className="text-emerald-400" /> : <TrendingUp size={26} className="text-blue-400" />
+                                isAdmin ? <Shield size={22} className="text-emerald-400" /> : <TrendingUp size={22} className="text-blue-400" />
                               )}
                             </div>
-                            <div className="min-w-0 pb-1">
+                            <div className="min-w-0 flex-1">
                               <h3 className="font-black text-slate-900 text-sm uppercase italic truncate leading-tight">{displayName || m.name}</h3>
                               <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-0.5 truncate">{m.profession || (isAdmin ? 'Administrador' : 'Vendedor Comercial')}</p>
                             </div>
@@ -1122,13 +1120,13 @@ export default function SuperAdmin() {
                           {/* Education badge */}
                           {m.education && (
                             <div className="flex items-center gap-2 px-3 py-2 bg-amber-50 rounded-xl border border-amber-100">
-                              <BookOpen size={11} className="text-amber-500 shrink-0" />
+                              <BookOpen size={10} className="text-amber-500 shrink-0" />
                               <span className="text-[10px] font-black text-amber-700 truncate">{m.education}</span>
                             </div>
                           )}
 
                           {/* Contact info */}
-                          <div className="space-y-1.5 bg-slate-50 rounded-2xl p-3 border border-slate-100">
+                          <div className="space-y-1.5 bg-slate-50 rounded-xl p-3 border border-slate-100">
                             <div className="flex items-center gap-2 min-w-0">
                               <Mail size={10} className="text-slate-400 shrink-0" />
                               <span className="text-[10px] font-bold text-slate-600 truncate">{m.email}</span>
