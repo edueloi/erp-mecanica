@@ -43,14 +43,18 @@ router.get("/tenants", requireAdminOrSeller, async (req: AuthRequest, res) => {
       LEFT JOIN users u ON u.tenant_id = t.id AND u.role = 'ADMIN'
     `;
 
+    // Excluir tenants internos do sistema
+    const systemTenantIds = ['superadmin-tenant-001', 'system-tenant-id'];
+    const excludeClause = `t.id NOT IN (${systemTenantIds.map(() => '?').join(',')})`;
+
     // Se for vendedor, vê apenas os dele
     if (req.user?.role === 'VENDEDOR') {
-      query += ` WHERE t.seller_id = ? GROUP BY t.id ORDER BY t.created_at DESC`;
-      const tenants = await db.query(query, [req.user.id]);
+      query += ` WHERE t.seller_id = ? AND ${excludeClause} GROUP BY t.id ORDER BY t.created_at DESC`;
+      const tenants = await db.query(query, [req.user.id, ...systemTenantIds]);
       return res.json(tenants);
     } else {
-      query += ` GROUP BY t.id ORDER BY t.created_at DESC`;
-      const tenants = await db.query(query, []);
+      query += ` WHERE ${excludeClause} GROUP BY t.id ORDER BY t.created_at DESC`;
+      const tenants = await db.query(query, [...systemTenantIds]);
       return res.json(tenants);
     }
   } catch (error: any) {
@@ -255,6 +259,7 @@ router.get("/team", requireSuperAdmin, async (req: AuthRequest, res) => {
       SELECT id, name, surname, email, role, phone, cpf, profession, photo_url, permissions, created_at
       FROM users
       WHERE role IN ('SUPER_ADMIN', 'VENDEDOR')
+        AND email != 'admin@mecaerp.com.br'
       ORDER BY created_at DESC
     `, []);
 

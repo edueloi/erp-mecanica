@@ -916,61 +916,88 @@ export default function SuperAdmin() {
                   </div>
                 </div>
                 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-                  {filteredTenants.map((t) => (
-                    <div key={t.id} className="bg-white p-5 sm:p-6 rounded-[2rem] border border-slate-200 shadow-sm relative group hover:border-emerald-200 transition-all flex flex-col h-full">
-                      <div className="flex items-start justify-between mb-6">
-                        <div className="flex items-center gap-4 min-w-0">
-                          <div className="w-14 h-14 bg-slate-50 rounded-2xl flex items-center justify-center shrink-0 border border-slate-100 shadow-inner overflow-hidden">
-                            {t.logo_url ? <img src={t.logo_url} className="w-full h-full object-cover" /> : <Building2 className="text-slate-300" size={24} />}
-                          </div>
-                          <div className="min-w-0">
-                            <h4 className="font-black text-slate-900 text-sm leading-tight truncate uppercase italic">{t.name}</h4>
-                            <div className="flex items-center gap-1.5 mt-1">
-                                <Package size={10} className="text-emerald-500" />
-                                <p className="text-[9px] font-black text-emerald-600 uppercase tracking-widest">{t.plan_name || 'Personalizado'}</p>
-                            </div>
-                          </div>
-                        </div>
-                        <select 
-                            value={t.status || 'ACTIVE'} 
-                            onChange={(e) => handleStatusChange(t, e.target.value)} 
-                            className={cn(
-                                "h-7 px-3 rounded-xl text-[9px] font-black uppercase border transition-all cursor-pointer outline-none", 
-                                STATUS_CONFIG[t.status || 'ACTIVE']?.bg || 'bg-slate-50', 
-                                STATUS_CONFIG[t.status || 'ACTIVE']?.color || 'text-slate-600',
-                                STATUS_CONFIG[t.status || 'ACTIVE']?.border || 'border-slate-100'
-                            )}
-                        >
-                          {Object.entries(STATUS_CONFIG).map(([val, cfg]) => (<option key={val} value={val}>{cfg.label}</option>))}
-                        </select>
-                      </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
+                  {filteredTenants.map((t) => {
+                    const statusCfg = STATUS_CONFIG[t.status || 'ACTIVE'] || STATUS_CONFIG.ACTIVE;
+                    const StatusIcon = statusCfg.icon;
+                    return (
+                    <div key={t.id} className="bg-white rounded-[1.75rem] border border-slate-100 shadow-sm hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300 flex flex-col overflow-hidden group">
+                      {/* Card Top Bar */}
+                      <div className="h-1.5 w-full bg-gradient-to-r from-emerald-400 to-teal-500 opacity-80" />
 
-                      <div className="space-y-3 mb-6">
-                        <div className="flex items-center justify-between p-3 bg-slate-50/50 rounded-2xl border border-slate-100/50">
-                            <div className="flex items-center gap-2">
-                                <Calendar size={12} className="text-slate-400" />
-                                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Início</span>
+                      <div className="p-5 flex flex-col flex-1 gap-4">
+                        {/* Header: logo + name + status */}
+                        <div className="flex items-center gap-3">
+                          <div className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center shrink-0 border border-slate-100 overflow-hidden shadow-sm">
+                            {t.logo_url ? <img src={t.logo_url} className="w-full h-full object-cover" /> : <Building2 className="text-slate-300" size={22} />}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <h4 className="font-black text-slate-900 text-sm leading-tight truncate uppercase italic">{t.name}</h4>
+                            <div className="flex items-center gap-1.5 mt-0.5">
+                              <Package size={9} className="text-emerald-500 shrink-0" />
+                              <p className="text-[9px] font-black text-emerald-600 uppercase tracking-widest truncate">{t.plan_name || 'Personalizado'}</p>
                             </div>
-                            <span className="text-[10px] font-bold text-slate-700">{new Date(t.created_at).toLocaleDateString('pt-BR')}</span>
+                          </div>
+                          <select
+                            value={t.status || 'ACTIVE'}
+                            onChange={(e) => handleStatusChange(t, e.target.value)}
+                            className={cn(
+                              "h-6 pl-2 pr-1 rounded-lg text-[8px] font-black uppercase border transition-all cursor-pointer outline-none shrink-0",
+                              statusCfg.bg, statusCfg.color, statusCfg.border
+                            )}
+                          >
+                            {Object.entries(STATUS_CONFIG).map(([val, cfg]) => (<option key={val} value={val}>{cfg.label}</option>))}
+                          </select>
                         </div>
-                        <div className="flex items-center justify-between p-3 bg-emerald-50/30 rounded-2xl border border-emerald-100/30">
-                            <div className="flex items-center gap-2">
-                                <Clock size={12} className="text-emerald-500" />
-                                <span className="text-[9px] font-black text-emerald-500 uppercase tracking-widest">Vencimento</span>
+
+                        {/* Admin info */}
+                        {t.admin_email && (
+                          <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 rounded-xl border border-slate-100">
+                            <div className="w-7 h-7 rounded-xl overflow-hidden bg-slate-200 shrink-0 flex items-center justify-center">
+                              {t.admin_photo ? <img src={t.admin_photo} className="w-full h-full object-cover" /> : <UserIcon size={12} className="text-slate-400" />}
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest leading-none">Responsável</p>
+                              <p className="text-[10px] font-bold text-slate-700 truncate">{t.admin_name || t.admin_email}</p>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Dates row */}
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="flex flex-col gap-0.5 p-2.5 bg-slate-50 rounded-xl border border-slate-100">
+                            <div className="flex items-center gap-1">
+                              <Calendar size={9} className="text-slate-400" />
+                              <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Cadastro</span>
+                            </div>
+                            <span className="text-[10px] font-black text-slate-700">{new Date(t.created_at).toLocaleDateString('pt-BR')}</span>
+                          </div>
+                          <div className="flex flex-col gap-0.5 p-2.5 bg-emerald-50 rounded-xl border border-emerald-100">
+                            <div className="flex items-center gap-1">
+                              <Clock size={9} className="text-emerald-500" />
+                              <span className="text-[8px] font-black text-emerald-500 uppercase tracking-widest">Vencimento</span>
                             </div>
                             <span className="text-[10px] font-black text-emerald-700">{calculateExpirationDate(t.last_payment_date, t.plan_duration)}</span>
+                          </div>
+                        </div>
+
+                        {/* Footer: stats + actions */}
+                        <div className="flex items-center justify-between pt-2 border-t border-slate-50 mt-auto">
+                          <div className="flex items-center gap-1 text-slate-400">
+                            <Users size={11} />
+                            <span className="text-[10px] font-black">{t.user_count || 0} usuários</span>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <button onClick={() => loadTenantLogs(t)} title="Histórico" className="w-8 h-8 bg-slate-50 text-slate-400 rounded-xl flex items-center justify-center hover:bg-slate-100 border border-slate-100 transition-all"><History size={13} /></button>
+                            <button onClick={() => setUsersModal({ isOpen: true, tenant: t })} title="Usuários" className="w-8 h-8 bg-slate-50 text-slate-400 rounded-xl flex items-center justify-center hover:bg-slate-100 border border-slate-100 transition-all"><Users size={13} /></button>
+                            <button onClick={() => { setEditingTenant(t); setShowModal(true); }} title="Editar" className="w-8 h-8 bg-slate-900 text-white rounded-xl flex items-center justify-center hover:bg-emerald-600 transition-all shadow-md"><Edit2 size={13} /></button>
+                            <button onClick={() => setDeleteModal({ isOpen: true, tenant: t })} title="Excluir" className="w-8 h-8 bg-red-50 text-red-400 rounded-xl flex items-center justify-center hover:bg-red-100 border border-red-100 transition-all"><Trash2 size={13} /></button>
+                          </div>
                         </div>
                       </div>
-
-                      <div className="mt-auto grid grid-cols-4 gap-2">
-                        <button onClick={() => loadTenantLogs(t)} title="Histórico" className="h-10 bg-slate-50 text-slate-500 rounded-xl flex items-center justify-center hover:bg-slate-100 border border-slate-100 transition-all"><History size={16} /></button>
-                        <button onClick={() => setUsersModal({ isOpen: true, tenant: t })} title="Usuários" className="h-10 bg-slate-50 text-slate-500 rounded-xl flex items-center justify-center hover:bg-slate-100 border border-slate-100 transition-all"><Users size={16} /></button>
-                        <button onClick={() => { setEditingTenant(t); setShowModal(true); }} className="col-span-1 h-10 bg-slate-900 text-white rounded-xl flex items-center justify-center hover:bg-emerald-600 transition-all shadow-lg shadow-slate-900/10"><Edit2 size={14} /></button>
-                        <button onClick={() => setDeleteModal({ isOpen: true, tenant: t })} title="Excluir" className="h-10 bg-red-50 text-red-500 rounded-xl flex items-center justify-center hover:bg-red-100 border border-red-100 transition-all"><Trash2 size={16} /></button>
-                      </div>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </motion.div>
             )}
@@ -1050,109 +1077,71 @@ export default function SuperAdmin() {
                     </div>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {team.map((m) => (
-                      <motion.div 
-                        layout
-                        key={m.id} 
-                        className="bg-white rounded-[2.5rem] border border-slate-200 shadow-sm relative group hover:shadow-2xl hover:-translate-y-1 transition-all duration-500 flex flex-col overflow-hidden"
-                      >
-                        {/* Member Card Header with Action Buttons */}
-                        <div className="absolute top-0 right-0 p-6 z-10 flex gap-2 opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0 transition-all duration-300">
-                            {(isMasterRoot || (user?.permissions?.gerenciar_equipe && m.role !== 'SUPER_ADMIN' && m.email !== 'admin@mecaerp.com.br')) && m.email !== user?.email && (
-                                <>
-                                    <button 
-                                        onClick={() => handleEditTeamMember(m)} 
-                                        className="w-10 h-10 rounded-2xl bg-white shadow-xl text-slate-400 hover:text-blue-600 flex items-center justify-center transition-all border border-slate-100 active:scale-90"
-                                    >
-                                        <Edit2 size={16} />
-                                    </button>
-                                    <button 
-                                        onClick={() => setDeleteTeamConfig({ isOpen: true, member: m })} 
-                                        className="w-10 h-10 rounded-2xl bg-white shadow-xl text-slate-400 hover:text-red-500 flex items-center justify-center transition-all border border-slate-100 active:scale-90"
-                                    >
-                                        <Trash2 size={16} />
-                                    </button>
-                                </>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {team.map((m) => {
+                      const isAdmin = m.role === 'SUPER_ADMIN';
+                      const canEdit = (isMasterRoot || (user?.permissions?.gerenciar_equipe && !isAdmin)) && m.email !== user?.email;
+                      return (
+                      <motion.div layout key={m.id} className="bg-white rounded-[1.75rem] border border-slate-100 shadow-sm hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 flex flex-col overflow-hidden group">
+                        {/* Top accent bar */}
+                        <div className={cn("h-1.5 w-full", isAdmin ? "bg-gradient-to-r from-emerald-400 to-teal-400" : "bg-gradient-to-r from-blue-400 to-indigo-400")} />
+
+                        <div className="p-5 flex flex-col gap-4">
+                          {/* Header row */}
+                          <div className="flex items-center gap-3">
+                            <div className={cn("w-14 h-14 rounded-2xl overflow-hidden flex items-center justify-center shrink-0 shadow-sm", isAdmin ? 'bg-emerald-50' : 'bg-blue-50')}>
+                              {m.photo_url ? (
+                                <img src={m.photo_url} className="w-full h-full object-cover" />
+                              ) : (
+                                isAdmin ? <Shield size={28} className="text-emerald-400" /> : <TrendingUp size={28} className="text-blue-400" />
+                              )}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <h3 className="font-black text-slate-900 text-sm uppercase italic truncate leading-tight">{m.name}</h3>
+                              <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-0.5">{m.profession || (isAdmin ? 'Administrador' : 'Vendedor Comercial')}</p>
+                              <span className={cn(
+                                "inline-block mt-1.5 px-2 py-0.5 rounded-lg text-[8px] font-black uppercase tracking-widest",
+                                isAdmin ? "bg-emerald-50 text-emerald-600" : "bg-blue-50 text-blue-600"
+                              )}>
+                                {isAdmin ? 'Super Admin' : 'Vendedor'}
+                              </span>
+                            </div>
+                            {canEdit && (
+                              <div className="flex flex-col gap-1.5 opacity-0 group-hover:opacity-100 transition-all duration-200">
+                                <button onClick={() => handleEditTeamMember(m)} className="w-8 h-8 rounded-xl bg-slate-50 text-slate-400 hover:text-blue-600 hover:bg-blue-50 flex items-center justify-center transition-all border border-slate-100"><Edit2 size={13} /></button>
+                                <button onClick={() => setDeleteTeamConfig({ isOpen: true, member: m })} className="w-8 h-8 rounded-xl bg-slate-50 text-slate-400 hover:text-red-500 hover:bg-red-50 flex items-center justify-center transition-all border border-slate-100"><Trash2 size={13} /></button>
+                              </div>
                             )}
-                        </div>
+                          </div>
 
-                        {/* Top Decorative Element */}
-                        <div className={cn("h-24 w-full relative overflow-hidden", m.role === 'SUPER_ADMIN' ? "bg-emerald-600" : "bg-blue-600")}>
-                            <Activity className="absolute -right-10 -top-10 text-white/10 w-40 h-40 rotate-12" />
-                            <div className="absolute bottom-4 left-8">
-                                <span className={cn(
-                                    "px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-[0.2em] border backdrop-blur-md",
-                                    m.role === 'SUPER_ADMIN' ? "bg-emerald-400/20 text-emerald-100 border-emerald-400/30" : "bg-blue-400/20 text-blue-100 border-blue-400/30"
-                                )}>
-                                    {m.role === 'SUPER_ADMIN' ? 'Administrador' : 'Vendedor Comercial'}
-                                </span>
+                          {/* Contact info */}
+                          <div className="space-y-2 bg-slate-50 rounded-2xl p-3 border border-slate-100">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <Mail size={11} className="text-slate-400 shrink-0" />
+                              <span className="text-[10px] font-bold text-slate-600 truncate">{m.email}</span>
                             </div>
-                        </div>
+                            {m.phone && (
+                              <div className="flex items-center gap-2">
+                                <Phone size={11} className="text-slate-400 shrink-0" />
+                                <span className="text-[10px] font-bold text-slate-600">{m.phone}</span>
+                              </div>
+                            )}
+                          </div>
 
-                        <div className="px-8 pb-8 -mt-10 relative z-10 flex flex-col items-center">
-                            <div className="relative mb-6">
-                                <div className="w-24 h-24 rounded-[2.5rem] p-1.5 bg-white shadow-2xl relative overflow-hidden">
-                                    <div className="w-full h-full rounded-[2rem] overflow-hidden bg-slate-100 flex items-center justify-center">
-                                        {m.photo_url ? (
-                                            <img src={m.photo_url} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
-                                        ) : (
-                                            <div className={cn("w-full h-full flex items-center justify-center", m.role === 'SUPER_ADMIN' ? 'bg-emerald-50 text-emerald-500' : 'bg-blue-50 text-blue-500')}>
-                                                {m.role === 'SUPER_ADMIN' ? <Shield size={40} /> : <TrendingUp size={40} />}
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                                <div className="absolute -bottom-1 -right-1 w-8 h-8 rounded-2xl bg-white border-4 border-white shadow-lg flex items-center justify-center">
-                                    <div className={cn("w-full h-full rounded-xl flex items-center justify-center", m.role === 'SUPER_ADMIN' ? 'bg-emerald-500' : 'bg-blue-500')}>
-                                        <CheckCircle size={12} className="text-white" />
-                                    </div>
-                                </div>
+                          {/* Footer */}
+                          <div className="flex items-center justify-between pt-1">
+                            <div className="flex items-center gap-1.5 text-slate-300">
+                              <Calendar size={10} />
+                              <span className="text-[9px] font-black uppercase tracking-widest">{new Date(m.created_at).toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' })}</span>
                             </div>
-                            
-                            <div className="text-center w-full">
-                                <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight italic truncate">{m.name}</h3>
-                                <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mt-1">{m.profession || 'Colaborador Corporativo'}</p>
+                            <div className={cn("flex items-center gap-1 px-2 py-1 rounded-lg text-[8px] font-black uppercase", isAdmin ? "bg-emerald-50 text-emerald-500" : "bg-blue-50 text-blue-500")}>
+                              <CheckCircle size={9} /> Ativo
                             </div>
-
-                            <div className="w-full mt-8 space-y-3 bg-slate-50/50 p-6 rounded-[2rem] border border-slate-100">
-                                <div className="flex items-center gap-3">
-                                    <div className="w-9 h-9 rounded-xl bg-white shadow-sm border border-slate-100 flex items-center justify-center shrink-0">
-                                        <Mail size={14} className="text-slate-400" />
-                                    </div>
-                                    <div className="min-w-0">
-                                        <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">E-mail</p>
-                                        <p className="text-xs font-bold text-slate-700 truncate">{m.email}</p>
-                                    </div>
-                                </div>
-                                {m.phone && (
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-9 h-9 rounded-xl bg-white shadow-sm border border-slate-100 flex items-center justify-center shrink-0">
-                                            <Phone size={14} className="text-slate-400" />
-                                        </div>
-                                        <div className="min-w-0">
-                                            <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Contato</p>
-                                            <p className="text-xs font-bold text-slate-700">{m.phone}</p>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-
-                            <div className="w-full mt-8 pt-6 border-t border-slate-50 flex items-center justify-between">
-                                <div className="flex flex-col">
-                                    <p className="text-[8px] font-black text-slate-300 uppercase tracking-[0.2em]">Engajamento</p>
-                                    <p className="text-[10px] font-black text-slate-600 mt-1 flex items-center gap-1.5 uppercase italic">
-                                        {new Date(m.created_at).toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' })}
-                                    </p>
-                                </div>
-                                <div className="flex -space-x-2">
-                                    <div className="w-8 h-8 rounded-full bg-slate-100 border-2 border-white flex items-center justify-center text-slate-400 shadow-sm"><ArrowUpRight size={12} /></div>
-                                    <div className={cn("w-8 h-8 rounded-full border-2 border-white flex items-center justify-center text-white shadow-sm", m.role === 'SUPER_ADMIN' ? 'bg-emerald-500' : 'bg-blue-500')}><Activity size={12} /></div>
-                                </div>
-                            </div>
+                          </div>
                         </div>
                       </motion.div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </motion.div>
