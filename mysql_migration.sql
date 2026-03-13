@@ -1001,6 +1001,38 @@ CREATE TABLE IF NOT EXISTS action_card_history (
   KEY idx_ach_board (board_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS tenant_settings (
+  id VARCHAR(36) NOT NULL,
+  tenant_id VARCHAR(36) NOT NULL UNIQUE,
+  company_name VARCHAR(255), trade_name VARCHAR(255), cnpj VARCHAR(20),
+  ie VARCHAR(30), im VARCHAR(30), phone VARCHAR(20), whatsapp VARCHAR(20),
+  email VARCHAR(255), website VARCHAR(255), instagram VARCHAR(100),
+  address TEXT, city VARCHAR(100), state VARCHAR(2), zip_code VARCHAR(10),
+  logo_url TEXT, primary_color VARCHAR(10) DEFAULT '#10B981',
+  theme VARCHAR(20) DEFAULT 'light', short_name VARCHAR(50), slogan VARCHAR(255),
+  weekday_open VARCHAR(5) DEFAULT '08:00', weekday_close VARCHAR(5) DEFAULT '18:00',
+  saturday_open VARCHAR(5) DEFAULT '08:00', saturday_close VARCHAR(5) DEFAULT '13:00',
+  sunday_open VARCHAR(5), sunday_close VARCHAR(5), lunch_start VARCHAR(5), lunch_end VARCHAR(5),
+  default_appointment_duration INT DEFAULT 60, tolerance_minutes INT DEFAULT 15,
+  blocked_dates TEXT, show_logo_pdf TINYINT(1) DEFAULT 1, show_company_data_pdf TINYINT(1) DEFAULT 1,
+  pdf_footer_address TEXT, pdf_footer_phone VARCHAR(20), pdf_footer_whatsapp VARCHAR(20),
+  pdf_footer_website VARCHAR(255), terms_and_conditions TEXT, default_warranty_text TEXT,
+  default_quote_text TEXT, receipt_text TEXT, os_prefix VARCHAR(10) DEFAULT 'OS',
+  os_format VARCHAR(20) DEFAULT 'sequential', os_reset_yearly TINYINT(1) DEFAULT 0,
+  signature TEXT, default_payment_terms VARCHAR(100), default_warranty_days INT DEFAULT 90,
+  late_fee_percentage DECIMAL(5,2) DEFAULT 2.00, fixed_penalty DECIMAL(10,2) DEFAULT 0.00,
+  default_due_days INT DEFAULT 30, max_installments INT DEFAULT 12,
+  card_fee_percentage DECIMAL(5,2) DEFAULT 0.00, pix_key VARCHAR(255), payment_methods TEXT,
+  allow_finish_os_without_payment TINYINT(1) DEFAULT 1,
+  allow_deliver_without_payment TINYINT(1) DEFAULT 1,
+  require_client_approval TINYINT(1) DEFAULT 0, auto_decrease_stock TINYINT(1) DEFAULT 1,
+  alert_stock_low TINYINT(1) DEFAULT 1, require_checklist TINYINT(1) DEFAULT 0,
+  whatsapp_bot_enabled TINYINT(1) DEFAULT 0, whatsapp_connected TINYINT(1) DEFAULT 0,
+  alert_os_stopped_days INT DEFAULT 3, alert_overdue_clients TINYINT(1) DEFAULT 1,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id), KEY idx_ts_tenant (tenant_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- ============================================================
 -- SUPER ADMIN PADRÃO
 -- Senha: Mec@123 (bcrypt hash)
