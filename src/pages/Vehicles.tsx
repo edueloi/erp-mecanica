@@ -49,6 +49,36 @@ export default function Vehicles() {
     km: ''
   });
 
+  // Edit form state (controlled)
+  const [editForm, setEditForm] = useState<any>({});
+
+  useEffect(() => {
+    if (selectedVehicle && isEditDrawerOpen) {
+      setEditForm({
+        client_id: selectedVehicle.client_id || '',
+        plate: selectedVehicle.plate || '',
+        status: selectedVehicle.status || 'ACTIVE',
+        brand: selectedVehicle.brand || '',
+        model: selectedVehicle.model || '',
+        year: selectedVehicle.year || '',
+        color: selectedVehicle.color || '',
+        km: selectedVehicle.km || '',
+        vin: selectedVehicle.vin || '',
+        fuel_type: selectedVehicle.fuel_type || 'FLEX',
+      });
+    }
+  }, [selectedVehicle, isEditDrawerOpen]);
+
+  const handleUpdate = async () => {
+    try {
+      await api.patch(`/vehicles/${selectedVehicle.id}`, editForm);
+      setIsEditDrawerOpen(false);
+      fetchData();
+    } catch (err) {
+      alert('Erro ao salvar veículo');
+    }
+  };
+
   // FIPE Integration State
   const [vehicleType, setVehicleType] = useState<'carros' | 'motos' | 'caminhoes'>('carros');
   const [fipeBrands, setFipeBrands] = useState<FipeItem[]>([]);
@@ -577,6 +607,18 @@ export default function Vehicles() {
                       <option value="">Selecione um cliente...</option>
                       {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                     </select>
+                    {/* Warning: this client already has a vehicle with same plate */}
+                    {newVehicle.client_id && newVehicle.plate && vehicles.some(v =>
+                      v.client_id === newVehicle.client_id &&
+                      v.plate?.toUpperCase() === newVehicle.plate?.toUpperCase()
+                    ) && (
+                      <div className="flex items-center gap-2 px-3 py-2 bg-amber-50 border border-amber-200 rounded-xl mt-1.5">
+                        <AlertTriangle size={13} className="text-amber-600 shrink-0" />
+                        <span className="text-[11px] font-medium text-amber-700">
+                          Este cliente já possui um veículo com esta placa cadastrado.
+                        </span>
+                      </div>
+                    )}
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
@@ -694,27 +736,40 @@ export default function Vehicles() {
                   
                   <div className="space-y-1">
                     <label className="block text-[10px] font-bold text-slate-500 uppercase px-1">Proprietário</label>
-                    <select 
-                      defaultValue={selectedVehicle?.client_id}
+                    <select
+                      value={editForm.client_id || ''}
+                      onChange={e => setEditForm({...editForm, client_id: e.target.value})}
                       className="w-full h-12 bg-slate-50 border border-slate-200 rounded-xl px-4 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-slate-900/5 focus:border-slate-900 transition-all appearance-none"
                     >
+                      <option value="">Sem proprietário</option>
                       {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                     </select>
+                    {/* Warning: client already is the owner */}
+                    {editForm.client_id && editForm.client_id === selectedVehicle?.client_id && (
+                      <div className="flex items-center gap-2 px-3 py-2 bg-emerald-50 border border-emerald-200 rounded-xl mt-1">
+                        <CheckCircle2 size={13} className="text-emerald-600 shrink-0" />
+                        <span className="text-[11px] font-medium text-emerald-700">
+                          {clients.find(c => c.id === editForm.client_id)?.name} já é o proprietário deste veículo.
+                        </span>
+                      </div>
+                    )}
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1">
                       <label className="block text-[10px] font-bold text-slate-500 uppercase px-1">Placa</label>
-                      <input 
-                        type="text" 
-                        defaultValue={selectedVehicle?.plate} 
-                        className="w-full h-12 bg-slate-50 border border-slate-200 rounded-xl px-4 text-sm font-bold text-slate-900 font-mono uppercase outline-none focus:ring-2 focus:ring-slate-900/5 focus:border-slate-900" 
+                      <input
+                        type="text"
+                        value={editForm.plate || ''}
+                        onChange={e => setEditForm({...editForm, plate: e.target.value.toUpperCase()})}
+                        className="w-full h-12 bg-slate-50 border border-slate-200 rounded-xl px-4 text-sm font-bold text-slate-900 font-mono uppercase outline-none focus:ring-2 focus:ring-slate-900/5 focus:border-slate-900"
                       />
                     </div>
                     <div className="space-y-1">
                       <label className="block text-[10px] font-bold text-slate-500 uppercase px-1">Status</label>
-                      <select 
-                        defaultValue={selectedVehicle?.status || 'ACTIVE'}
+                      <select
+                        value={editForm.status || 'ACTIVE'}
+                        onChange={e => setEditForm({...editForm, status: e.target.value})}
                         className="w-full h-12 bg-slate-50 border border-slate-200 rounded-xl px-4 text-sm font-bold text-slate-700 outline-none focus:ring-2 focus:ring-slate-900/5 focus:border-slate-900 transition-all"
                       >
                         <option value="ACTIVE">Ativo</option>
@@ -726,50 +781,62 @@ export default function Vehicles() {
 
                 <section className="space-y-4 pt-4 border-t border-slate-100">
                   <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mb-4">Dados Técnicos</h3>
-                  
+
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1">
                       <label className="block text-[10px] font-bold text-slate-500 uppercase px-1">Marca</label>
-                      <input type="text" defaultValue={selectedVehicle?.brand} className="w-full h-11 bg-slate-50 border border-slate-200 rounded-xl px-4 text-sm font-medium" />
+                      <input type="text" value={editForm.brand || ''} onChange={e => setEditForm({...editForm, brand: e.target.value})} className="w-full h-11 bg-slate-50 border border-slate-200 rounded-xl px-4 text-sm font-medium outline-none focus:ring-2 focus:ring-slate-900/5 focus:border-slate-900" />
                     </div>
                     <div className="space-y-1">
                       <label className="block text-[10px] font-bold text-slate-500 uppercase px-1">Modelo</label>
-                      <input type="text" defaultValue={selectedVehicle?.model} className="w-full h-11 bg-slate-50 border border-slate-200 rounded-xl px-4 text-sm font-medium" />
+                      <input type="text" value={editForm.model || ''} onChange={e => setEditForm({...editForm, model: e.target.value})} className="w-full h-11 bg-slate-50 border border-slate-200 rounded-xl px-4 text-sm font-medium outline-none focus:ring-2 focus:ring-slate-900/5 focus:border-slate-900" />
                     </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1">
                       <label className="block text-[10px] font-bold text-slate-500 uppercase px-1">Ano</label>
-                      <input type="number" defaultValue={selectedVehicle?.year} className="w-full h-11 bg-slate-50 border border-slate-200 rounded-xl px-4 text-sm font-medium" />
+                      <input type="text" value={editForm.year || ''} onChange={e => setEditForm({...editForm, year: e.target.value})} className="w-full h-11 bg-slate-50 border border-slate-200 rounded-xl px-4 text-sm font-medium outline-none focus:ring-2 focus:ring-slate-900/5 focus:border-slate-900" />
                     </div>
                     <div className="space-y-1">
                       <label className="block text-[10px] font-bold text-slate-500 uppercase px-1">Cor</label>
-                      <input type="text" defaultValue={selectedVehicle?.color} className="w-full h-11 bg-slate-50 border border-slate-200 rounded-xl px-4 text-sm font-medium" />
+                      <input type="text" value={editForm.color || ''} onChange={e => setEditForm({...editForm, color: e.target.value})} className="w-full h-11 bg-slate-50 border border-slate-200 rounded-xl px-4 text-sm font-medium outline-none focus:ring-2 focus:ring-slate-900/5 focus:border-slate-900" />
                     </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1">
                       <label className="block text-[10px] font-bold text-slate-500 uppercase px-1">KM Atual</label>
-                      <input type="number" defaultValue={selectedVehicle?.km} className="w-full h-11 bg-slate-50 border border-slate-200 rounded-xl px-4 text-sm font-medium" />
+                      <input type="number" value={editForm.km || ''} onChange={e => setEditForm({...editForm, km: e.target.value})} className="w-full h-11 bg-slate-50 border border-slate-200 rounded-xl px-4 text-sm font-medium outline-none focus:ring-2 focus:ring-slate-900/5 focus:border-slate-900" />
                     </div>
                     <div className="space-y-1">
                       <label className="block text-[10px] font-bold text-slate-500 uppercase px-1">Chassi (VIN)</label>
-                      <input type="text" defaultValue={selectedVehicle?.vin} className="w-full h-11 bg-slate-50 border border-slate-200 rounded-xl px-4 text-xs font-mono" />
+                      <input type="text" value={editForm.vin || ''} onChange={e => setEditForm({...editForm, vin: e.target.value})} className="w-full h-11 bg-slate-50 border border-slate-200 rounded-xl px-4 text-xs font-mono outline-none focus:ring-2 focus:ring-slate-900/5 focus:border-slate-900" />
                     </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="block text-[10px] font-bold text-slate-500 uppercase px-1">Combustível</label>
+                    <select value={editForm.fuel_type || 'FLEX'} onChange={e => setEditForm({...editForm, fuel_type: e.target.value})} className="w-full h-11 bg-slate-50 border border-slate-200 rounded-xl px-4 text-sm font-medium outline-none focus:ring-2 focus:ring-slate-900/5 focus:border-slate-900">
+                      <option value="FLEX">Flex</option>
+                      <option value="GASOLINE">Gasolina</option>
+                      <option value="ETHANOL">Etanol</option>
+                      <option value="DIESEL">Diesel</option>
+                      <option value="ELECTRIC">Elétrico</option>
+                      <option value="HYBRID">Híbrido</option>
+                    </select>
                   </div>
                 </section>
               </div>
 
               <div className="p-6 border-t border-slate-100 flex gap-3 bg-white shrink-0">
-                <button 
-                  onClick={() => setIsEditDrawerOpen(false)} 
+                <button
+                  onClick={() => setIsEditDrawerOpen(false)}
                   className="flex-1 py-3.5 border border-slate-200 rounded-xl text-xs font-bold text-slate-500 hover:bg-slate-50 transition-colors"
                 >
                   Cancelar
                 </button>
-                <button className="flex-[2] py-3.5 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-slate-800 shadow-xl shadow-slate-900/20 transition-all active:scale-95">
+                <button onClick={handleUpdate} className="flex-[2] py-3.5 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-slate-800 shadow-xl shadow-slate-900/20 transition-all active:scale-95">
                   Salvar Alterações
                 </button>
               </div>

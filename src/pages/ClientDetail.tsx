@@ -6,7 +6,7 @@ import {
   FileText, Paperclip, Clock, CheckCircle2, AlertCircle,
   MoreVertical, ExternalLink, Printer, Send, Trash2, Edit,
   X, Calendar, User, Building2, MessageCircle, AlertTriangle,
-  Wrench, Package, Upload
+  Wrench, Package, Upload, Link, Search
 } from 'lucide-react';
 import api from '../services/api';
 import { motion, AnimatePresence } from 'motion/react';
@@ -49,8 +49,16 @@ export default function ClientDetail() {
 
   const [isNewOSModalOpen, setIsNewOSModalOpen] = useState(false);
   const [isNewVehicleModalOpen, setIsNewVehicleModalOpen] = useState(false);
+  const [isLinkVehicleModalOpen, setIsLinkVehicleModalOpen] = useState(false);
   const [isEditClientModalOpen, setIsEditClientModalOpen] = useState(false);
   const [isWADropdownOpen, setIsWADropdownOpen] = useState(false);
+
+  // Link vehicle states
+  const [allVehicles, setAllVehicles] = useState<any[]>([]);
+  const [vehicleSearch, setVehicleSearch] = useState('');
+  const [selectedVehicleToLink, setSelectedVehicleToLink] = useState<any>(null);
+  const [linkWarning, setLinkWarning] = useState('');
+  const [isLinkingVehicle, setIsLinkingVehicle] = useState(false);
   const [isCepLoading, setIsCepLoading] = useState(false);
 
   const [editClient, setEditClient] = useState<any>(null);
@@ -185,6 +193,55 @@ export default function ClientDetail() {
       fetchClient();
     } catch (err) {
       alert('Erro ao cadastrar veículo');
+    }
+  };
+
+  const fetchAllVehicles = async () => {
+    try {
+      const res = await api.get('/vehicles');
+      setAllVehicles(res.data);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleOpenLinkVehicleModal = () => {
+    setVehicleSearch('');
+    setSelectedVehicleToLink(null);
+    setLinkWarning('');
+    fetchAllVehicles();
+    setIsLinkVehicleModalOpen(true);
+  };
+
+  const handleSelectVehicleToLink = (vehicle: any) => {
+    setSelectedVehicleToLink(vehicle);
+    // Check if this vehicle is already linked to this client
+    if (vehicle.client_id === id) {
+      setLinkWarning(`Este veículo já está vinculado a ${client?.name}.`);
+    } else if (vehicle.client_id && vehicle.client_name) {
+      setLinkWarning(`Atenção: este veículo já pertence ao cliente "${vehicle.client_name}". Ao vincular, ele será transferido para ${client?.name}.`);
+    } else {
+      setLinkWarning('');
+    }
+  };
+
+  const handleLinkVehicle = async () => {
+    if (!selectedVehicleToLink) return;
+    if (selectedVehicleToLink.client_id === id) {
+      // Already linked, just close
+      setIsLinkVehicleModalOpen(false);
+      return;
+    }
+    setIsLinkingVehicle(true);
+    try {
+      await api.patch(`/vehicles/${selectedVehicleToLink.id}`, { client_id: id });
+      setIsLinkVehicleModalOpen(false);
+      setSelectedVehicleToLink(null);
+      fetchClient();
+    } catch (err) {
+      alert('Erro ao vincular veículo');
+    } finally {
+      setIsLinkingVehicle(false);
     }
   };
 
@@ -402,12 +459,20 @@ export default function ClientDetail() {
               <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
                 <div className="px-6 py-4 border-b border-slate-200 flex items-center justify-between bg-slate-50">
                   <h3 className="text-sm font-bold text-slate-900">Veículos do Cliente</h3>
-                  <button 
-                    onClick={() => setIsNewVehicleModalOpen(true)}
-                    className="h-8 px-3 bg-slate-900 text-white rounded-lg text-[10px] font-bold flex items-center gap-2"
-                  >
-                    <Plus size={14} /> Novo Veículo
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button 
+                      onClick={handleOpenLinkVehicleModal}
+                      className="h-8 px-3 bg-white border border-slate-200 text-slate-700 rounded-lg text-[10px] font-bold flex items-center gap-2 hover:bg-slate-50 transition-colors"
+                    >
+                      <Link size={14} /> Vincular Existente
+                    </button>
+                    <button 
+                      onClick={() => setIsNewVehicleModalOpen(true)}
+                      className="h-8 px-3 bg-slate-900 text-white rounded-lg text-[10px] font-bold flex items-center gap-2 hover:bg-slate-800 transition-colors"
+                    >
+                      <Plus size={14} /> Novo Veículo
+                    </button>
+                  </div>
                 </div>
                 <table className="w-full text-left border-collapse">
                   <thead>
@@ -980,6 +1045,155 @@ export default function ClientDetail() {
                   <button type="submit" className="flex-1 py-2 bg-slate-900 text-white rounded-lg text-xs font-bold hover:bg-slate-800">Salvar Alterações</button>
                 </div>
               </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Link Vehicle Modal */}
+      <AnimatePresence>
+        {isLinkVehicleModalOpen && (
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white w-full max-w-lg rounded-xl shadow-2xl flex flex-col max-h-[85vh]"
+            >
+              <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between bg-slate-50 shrink-0">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 bg-slate-900 text-white rounded-lg flex items-center justify-center">
+                    <Link size={14} />
+                  </div>
+                  <div>
+                    <h2 className="text-sm font-bold text-slate-900">Vincular Veículo</h2>
+                    <p className="text-[10px] text-slate-500">Selecione um veículo para vincular a {client?.name}</p>
+                  </div>
+                </div>
+                <button onClick={() => setIsLinkVehicleModalOpen(false)} className="text-slate-400 hover:text-slate-900 p-1 hover:bg-slate-100 rounded-lg transition-colors">
+                  <X size={18} />
+                </button>
+              </div>
+
+              {/* Search */}
+              <div className="px-4 py-3 border-b border-slate-100 shrink-0">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+                  <input
+                    type="text"
+                    placeholder="Buscar por placa, marca, modelo..."
+                    className="w-full pl-8 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs outline-none focus:ring-1 focus:ring-slate-900 focus:bg-white transition-all"
+                    value={vehicleSearch}
+                    onChange={e => setVehicleSearch(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              {/* Vehicle List */}
+              <div className="flex-1 overflow-y-auto p-4 space-y-2">
+                {allVehicles
+                  .filter(v => {
+                    const q = vehicleSearch.toLowerCase();
+                    return !q || 
+                      v.plate?.toLowerCase().includes(q) ||
+                      v.brand?.toLowerCase().includes(q) ||
+                      v.model?.toLowerCase().includes(q);
+                  })
+                  .map(vehicle => {
+                    const isAlreadyLinkedHere = vehicle.client_id === id;
+                    const isLinkedElsewhere = vehicle.client_id && vehicle.client_id !== id;
+                    const isSelected = selectedVehicleToLink?.id === vehicle.id;
+
+                    return (
+                      <button
+                        key={vehicle.id}
+                        type="button"
+                        onClick={() => handleSelectVehicleToLink(vehicle)}
+                        className={cn(
+                          "w-full text-left p-3 rounded-xl border-2 transition-all flex items-center gap-3",
+                          isSelected
+                            ? "border-slate-900 bg-slate-50"
+                            : isAlreadyLinkedHere
+                            ? "border-emerald-200 bg-emerald-50"
+                            : "border-transparent bg-slate-50 hover:border-slate-200 hover:bg-white"
+                        )}
+                      >
+                        <div className={cn(
+                          "w-10 h-10 rounded-xl flex items-center justify-center shrink-0",
+                          isAlreadyLinkedHere ? "bg-emerald-100 text-emerald-600" : "bg-slate-200 text-slate-500"
+                        )}>
+                          <Car size={18} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-bold text-slate-900 truncate">{vehicle.brand} {vehicle.model}</span>
+                            <span className="px-1.5 py-0.5 bg-slate-200 text-slate-600 rounded text-[9px] font-black uppercase shrink-0">{vehicle.year}</span>
+                          </div>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            <span className="text-[10px] font-bold bg-slate-900 text-white px-1.5 py-0.5 rounded font-mono">{vehicle.plate?.toUpperCase() || '---'}</span>
+                            {vehicle.color && <span className="text-[10px] text-slate-400">{vehicle.color}</span>}
+                          </div>
+                        </div>
+                        <div className="shrink-0 text-right">
+                          {isAlreadyLinkedHere && (
+                            <span className="flex items-center gap-1 text-[10px] font-bold text-emerald-600">
+                              <CheckCircle2 size={12} /> Vinculado
+                            </span>
+                          )}
+                          {isLinkedElsewhere && (
+                            <span className="text-[10px] text-amber-600 font-bold">Outro cliente</span>
+                          )}
+                          {!vehicle.client_id && (
+                            <span className="text-[10px] text-slate-400">Sem dono</span>
+                          )}
+                        </div>
+                      </button>
+                    );
+                  })}
+                {allVehicles.filter(v => {
+                  const q = vehicleSearch.toLowerCase();
+                  return !q || v.plate?.toLowerCase().includes(q) || v.brand?.toLowerCase().includes(q) || v.model?.toLowerCase().includes(q);
+                }).length === 0 && (
+                  <div className="text-center py-10 text-slate-400">
+                    <Car size={32} className="mx-auto mb-2 opacity-30" />
+                    <p className="text-xs">Nenhum veículo encontrado.</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Warning */}
+              {linkWarning && selectedVehicleToLink && (
+                <div className={cn(
+                  "mx-4 mb-2 px-3 py-2.5 rounded-xl flex items-start gap-2 text-xs font-medium border shrink-0",
+                  selectedVehicleToLink.client_id === id
+                    ? "bg-emerald-50 border-emerald-200 text-emerald-700"
+                    : "bg-amber-50 border-amber-200 text-amber-700"
+                )}>
+                  {selectedVehicleToLink.client_id === id
+                    ? <CheckCircle2 size={14} className="shrink-0 mt-0.5" />
+                    : <AlertTriangle size={14} className="shrink-0 mt-0.5" />}
+                  <span>{linkWarning}</span>
+                </div>
+              )}
+
+              {/* Footer */}
+              <div className="p-4 border-t border-slate-100 flex gap-2 shrink-0">
+                <button 
+                  type="button"
+                  onClick={() => setIsLinkVehicleModalOpen(false)} 
+                  className="flex-1 py-2 border border-slate-200 rounded-lg text-xs font-bold text-slate-600 hover:bg-slate-50 transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button 
+                  type="button"
+                  onClick={handleLinkVehicle}
+                  disabled={!selectedVehicleToLink || selectedVehicleToLink.client_id === id || isLinkingVehicle}
+                  className="flex-1 py-2 bg-slate-900 text-white rounded-lg text-xs font-bold hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  {isLinkingVehicle ? 'Vinculando...' : selectedVehicleToLink?.client_id === id ? 'Já vinculado' : 'Vincular Veículo'}
+                </button>
+              </div>
             </motion.div>
           </div>
         )}
