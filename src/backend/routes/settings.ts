@@ -81,18 +81,18 @@ router.patch("/preferences", async (req: any, res) => {
            updated_at = CURRENT_TIMESTAMP
        WHERE user_id = ?`,
       [
-        theme_mode,
-        primary_color,
-        secondary_color,
-        sidebar_color,
-        sidebar_text_color,
-        header_color,
+        theme_mode ?? null,
+        primary_color ?? null,
+        secondary_color ?? null,
+        sidebar_color ?? null,
+        sidebar_text_color ?? null,
+        header_color ?? null,
         sidebar_collapsed !== undefined ? (sidebar_collapsed ? 1 : 0) : null,
         show_dashboard_cards !== undefined ? (show_dashboard_cards ? 1 : 0) : null,
-        default_rows_per_page,
-        filters_json,
-        table_preferences_json,
-        sidebar_display || null,
+        default_rows_per_page ?? null,
+        filters_json ?? null,
+        table_preferences_json ?? null,
+        sidebar_display ?? null,
         req.user.id
       ]
     );
