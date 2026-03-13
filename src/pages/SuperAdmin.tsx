@@ -58,6 +58,7 @@ import { useAuthStore } from "../services/authStore";
 import api from "../services/api";
 import { twMerge } from 'tailwind-merge';
 import SuperAdminModal from "../components/SuperAdminModal";
+import { maskPhone, maskCPF } from "../utils/maskUtils";
 import DeleteConfirmationModal from "../components/DeleteConfirmationModal";
 import TenantUsersModal from "../components/TenantUsersModal";
 import PricingPlansModal from "../components/PricingPlansModal";
@@ -1394,7 +1395,7 @@ export default function SuperAdmin() {
                             <label className="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-0.5">Telefone</label>
                             <input
                               value={profileForm.phone}
-                              onChange={(e) => setProfileForm({...profileForm, phone: e.target.value})}
+                              onChange={(e) => setProfileForm({...profileForm, phone: maskPhone(e.target.value)})}
                               placeholder="(00) 00000-0000"
                               className="w-full h-11 bg-slate-50 border border-slate-200 rounded-xl px-4 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition-all"
                             />
@@ -1706,6 +1707,32 @@ export default function SuperAdmin() {
                           {showTeamPassword ? <EyeOff size={20} /> : <Eye size={20} />}
                         </button>
                       </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-slate-400 uppercase ml-1 tracking-widest">Telefone</label>
+                      <div className="relative">
+                        <Phone className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-300" size={16} />
+                        <input
+                          type="tel"
+                          placeholder="(00) 00000-0000"
+                          value={teamForm.phone}
+                          onChange={e => setTeamForm({...teamForm, phone: maskPhone(e.target.value)})}
+                          className="w-full h-12 bg-slate-50 border border-slate-200 rounded-2xl pl-11 pr-4 text-sm font-bold text-slate-700 focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none transition-all"
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-slate-400 uppercase ml-1 tracking-widest">CPF</label>
+                      <input
+                        type="text"
+                        placeholder="000.000.000-00"
+                        value={teamForm.cpf}
+                        onChange={e => setTeamForm({...teamForm, cpf: maskCPF(e.target.value)})}
+                        className="w-full h-12 bg-slate-50 border border-slate-200 rounded-2xl px-4 text-sm font-bold text-slate-700 focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none transition-all"
+                      />
                     </div>
                   </div>
 
