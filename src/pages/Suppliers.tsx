@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Plus,
@@ -82,6 +82,11 @@ export default function Suppliers() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+
+  // Selection & pagination
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
   const [showOrderModal, setShowOrderModal] = useState(false);
   const [selectedSupplier, setSelectedSupplier] = useState<Supplier | null>(null);
   const [loading, setLoading] = useState(true);
@@ -158,7 +163,53 @@ export default function Suppliers() {
 
   useEffect(() => {
     filterSuppliers();
+    setSelectedIds(new Set());
+    setCurrentPage(1);
   }, [searchTerm, selectedCategory, selectedStatus, selectedCity, showPreferredOnly, suppliers]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredSuppliers.length / pageSize));
+  const paginatedSuppliers = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredSuppliers.slice(start, start + pageSize);
+  }, [filteredSuppliers, currentPage, pageSize]);
+
+  const allVisibleSelected = paginatedSuppliers.length > 0 && paginatedSuppliers.every(s => selectedIds.has(s.id));
+  const someVisibleSelected = paginatedSuppliers.some(s => selectedIds.has(s.id));
+
+  const toggleSelectAll = () => {
+    if (allVisibleSelected) {
+      const next = new Set(selectedIds);
+      paginatedSuppliers.forEach(s => next.delete(s.id));
+      setSelectedIds(next);
+    } else {
+      const next = new Set(selectedIds);
+      paginatedSuppliers.forEach(s => next.add(s.id));
+      setSelectedIds(next);
+    }
+  };
+
+  const toggleSelect = (id: string) => {
+    const next = new Set(selectedIds);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    setSelectedIds(next);
+  };
+
+  const handleBulkDelete = async () => {
+    if (!window.confirm(`Excluir ${selectedIds.size} fornecedor(es) selecionado(s)?`)) return;
+    try {
+      await Promise.all([...selectedIds].map(id => api.delete(`/suppliers/${id}`)));
+      setSelectedIds(new Set());
+      fetchSuppliers();
+      fetchStats();
+    } catch {
+      alert('Erro ao excluir fornecedores');
+    }
+  };
+
+  const selectedData = useMemo(
+    () => filteredSuppliers.filter(s => selectedIds.has(s.id)),
+    [filteredSuppliers, selectedIds]
+  );
 
   useEffect(() => {
     if (notification.show) {
@@ -829,6 +880,22 @@ export default function Suppliers() {
         </button>
       </div>
 
+      {/* Selection toolbar */}
+      {selectedIds.size > 0 && (
+        <div className="bg-slate-900 text-white px-6 py-2 flex items-center gap-4 text-xs font-bold shrink-0">
+          <span>{selectedIds.size} selecionado(s)</span>
+          <button onClick={() => setIsExportModalOpen(true)} className="flex items-center gap-1.5 px-3 py-1 bg-white/10 hover:bg-white/20 rounded-lg transition-all">
+            <Download size={13} /> Exportar selecionados
+          </button>
+          <button onClick={handleBulkDelete} className="flex items-center gap-1.5 px-3 py-1 bg-red-500/80 hover:bg-red-500 rounded-lg transition-all">
+            <Trash2 size={13} /> Excluir selecionados
+          </button>
+          <button onClick={() => setSelectedIds(new Set())} className="ml-auto text-white/60 hover:text-white transition-colors">
+            <X size={16} />
+          </button>
+        </div>
+      )}
+
         {showOrdersList ? (
           <div className="p-6">
             <h2 className="text-lg font-bold text-slate-800 mb-4">Lista de Pedidos de Compra</h2>
@@ -895,10 +962,20 @@ export default function Suppliers() {
             </div>
           </div>
         ) : (
+          <>
           <div className="flex-1 overflow-auto bg-slate-50/30 min-h-0 min-w-0 w-full relative pb-5">
             <table className="w-full min-w-[1200px]">
               <thead className="bg-white border-b border-slate-200 sticky top-0 z-10 shadow-sm">
                 <tr>
+                  <th className="pl-4 pr-2 py-2.5 w-8 sticky left-0 bg-white z-20">
+                    <input
+                      type="checkbox"
+                      className="rounded border-slate-300 cursor-pointer accent-slate-900"
+                      checked={allVisibleSelected}
+                      ref={el => { if (el) el.indeterminate = someVisibleSelected && !allVisibleSelected; }}
+                      onChange={toggleSelectAll}
+                    />
+                  </th>
                   <th className="px-6 py-2.5 text-left text-[10px] font-bold text-slate-400 uppercase tracking-wider">Fornecedor</th>
                   <th className="px-6 py-2.5 text-left text-[10px] font-bold text-slate-400 uppercase tracking-wider">Categoria</th>
                   <th className="px-6 py-2.5 text-left text-[10px] font-bold text-slate-400 uppercase tracking-wider">Status</th>
@@ -908,8 +985,16 @@ export default function Suppliers() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 bg-white">
-                {filteredSuppliers.map((supplier) => (
-                  <tr key={supplier.id} className="hover:bg-indigo-50/30 transition-colors group">
+                {paginatedSuppliers.map((supplier) => (
+                  <tr key={supplier.id} className={`hover:bg-indigo-50/30 transition-colors group${selectedIds.has(supplier.id) ? ' bg-slate-50' : ''}`}>
+                    <td className="pl-4 pr-2 py-4 w-8 sticky left-0 bg-white group-hover:bg-indigo-50/30 transition-colors z-10">
+                      <input
+                        type="checkbox"
+                        className="rounded border-slate-300 cursor-pointer accent-slate-900"
+                        checked={selectedIds.has(supplier.id)}
+                        onChange={() => toggleSelect(supplier.id)}
+                      />
+                    </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center text-slate-500 group-hover:bg-white transition-colors border border-slate-100">
@@ -996,9 +1081,9 @@ export default function Suppliers() {
                     </td>
                   </tr>
                 ))}
-                {filteredSuppliers.length === 0 && (
+                {paginatedSuppliers.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="px-6 py-20 text-center">
+                    <td colSpan={7} className="px-6 py-20 text-center">
                       <div className="flex flex-col items-center justify-center text-slate-400">
                         <Search className="w-12 h-12 mb-4 opacity-20" />
                         <p className="text-lg font-medium">Nenhum fornecedor encontrado</p>
@@ -1010,6 +1095,39 @@ export default function Suppliers() {
               </tbody>
             </table>
           </div>
+
+          {/* Pagination */}
+          <div className="bg-white border-t border-slate-200 px-6 py-2 flex items-center justify-between gap-4 shrink-0">
+            <div className="flex items-center gap-2 text-xs text-slate-500">
+              <span>Linhas por página:</span>
+              <select
+                value={pageSize}
+                onChange={e => { setPageSize(Number(e.target.value)); setCurrentPage(1); }}
+                className="border border-slate-200 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-slate-400"
+              >
+                {[10, 25, 50, 100].map(n => <option key={n} value={n}>{n}</option>)}
+              </select>
+              <span className="text-slate-400">
+                {filteredSuppliers.length === 0 ? '0' : `${(currentPage - 1) * pageSize + 1}–${Math.min(currentPage * pageSize, filteredSuppliers.length)}`} de {filteredSuppliers.length}
+              </span>
+            </div>
+            <div className="flex items-center gap-1">
+              <button onClick={() => setCurrentPage(1)} disabled={currentPage === 1} className="px-2 py-1 text-xs rounded hover:bg-slate-100 disabled:opacity-40 disabled:cursor-default">«</button>
+              <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="px-2 py-1 text-xs rounded hover:bg-slate-100 disabled:opacity-40 disabled:cursor-default">‹</button>
+              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                const offset = Math.max(0, Math.min(currentPage - 3, totalPages - 5));
+                const page = i + 1 + offset;
+                return (
+                  <button key={page} onClick={() => setCurrentPage(page)} className={`px-2.5 py-1 text-xs rounded ${currentPage === page ? 'bg-slate-900 text-white font-bold' : 'hover:bg-slate-100'}`}>
+                    {page}
+                  </button>
+                );
+              })}
+              <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="px-2 py-1 text-xs rounded hover:bg-slate-100 disabled:opacity-40 disabled:cursor-default">›</button>
+              <button onClick={() => setCurrentPage(totalPages)} disabled={currentPage === totalPages} className="px-2 py-1 text-xs rounded hover:bg-slate-100 disabled:opacity-40 disabled:cursor-default">»</button>
+            </div>
+          </div>
+          </>
         )}
 
         {/* ... existing modal logic ... */}
@@ -1956,8 +2074,8 @@ export default function Suppliers() {
         isOpen={isExportModalOpen}
         onClose={() => setIsExportModalOpen(false)}
         mode="export"
-        title="Exportar Fornecedores"
-        data={suppliers}
+        title={selectedIds.size > 0 ? `Exportar ${selectedIds.size} Fornecedor(es) Selecionado(s)` : "Exportar Fornecedores"}
+        data={selectedIds.size > 0 ? selectedData : filteredSuppliers}
         columns={supplierExportColumns}
         entityName="fornecedores"
       />

@@ -3,33 +3,109 @@ import XLSXStyle from 'xlsx-js-style';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
-/**
- * Export data to Excel file
- */
-export const exportToExcel = (data: any[], filename: string, sheetName: string = 'Sheet1') => {
-  const worksheet = XLSX.utils.json_to_sheet(data);
-  const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
-  
-  // Auto-size columns
-  const maxWidth = 50;
-  const columns = Object.keys(data[0] || {});
-  const colWidths = columns.map(col => {
-    const maxLength = Math.max(
-      col.length,
-      ...data.map(row => String(row[col] || '').length)
-    );
-    return { wch: Math.min(maxLength + 2, maxWidth) };
-  });
-  worksheet['!cols'] = colWidths;
-  
-  XLSX.writeFile(workbook, `${filename}.xlsx`);
-};
-
 const STATUS_LABELS: Record<string, string> = {
   ACTIVE: 'Ativo', INACTIVE: 'Inativo', BLOCKED: 'Bloqueado',
   TRIAL: 'Teste', OVERDUE: 'Atrasado', PENDING_PAYMENT: 'Pendente',
   PF: 'Pessoa Física', PJ: 'Pessoa Jurídica',
+  MOTOR: 'Motor', FREIO: 'Freio', SUSPENSAO: 'Suspensão',
+  ELETRICA: 'Elétrica', REVISAO: 'Revisão', OUTROS: 'Outros',
+  LABOR: 'Mão de Obra', WITH_PART: 'Com Peça', COMPOSITE: 'Composto',
+  FIXED: 'Fixo', HOURLY: 'Por Hora',
+  FLEX: 'Flex', GASOLINE: 'Gasolina', DIESEL: 'Diesel',
+  ELECTRIC: 'Elétrico', HYBRID: 'Híbrido',
+};
+
+const translateValue = (value: any): string => {
+  if (value === null || value === undefined) return '';
+  const str = String(value).trim();
+  return STATUS_LABELS[str] ?? str;
+};
+
+/**
+ * Export data to styled Excel file using xlsx-js-style.
+ * Only exports the columns specified — no internal IDs exposed to the user.
+ */
+export const exportToExcel = (
+  data: any[],
+  filename: string,
+  sheetName: string = 'Dados',
+  columns?: { header: string; dataKey: string }[]
+) => {
+  if (!data || data.length === 0) return;
+
+  // If columns provided, use them to map/filter; otherwise fall back to all keys (excluding id/uuid fields)
+  const cols = columns && columns.length > 0
+    ? columns
+    : Object.keys(data[0])
+        .filter(k => !/^(id|uuid|tenant_id|created_at|updated_at|deleted_at)$/i.test(k))
+        .map(k => ({ header: k, dataKey: k }));
+
+  const headers = cols.map(c => c.header);
+  const rows = data.map(row =>
+    cols.map(c => translateValue(row[c.dataKey]))
+  );
+
+  const wsData = [headers, ...rows];
+  const ws: any = XLSXStyle.utils.aoa_to_sheet(wsData);
+
+  // ── Header row styling ────────────────────────────────────────
+  headers.forEach((_, colIdx) => {
+    const addr = XLSXStyle.utils.encode_cell({ r: 0, c: colIdx });
+    ws[addr].s = {
+      font: { bold: true, color: { rgb: 'FFFFFF' }, sz: 11, name: 'Calibri' },
+      fill: { patternType: 'solid', fgColor: { rgb: '0F172A' } },
+      alignment: { horizontal: 'center', vertical: 'center' },
+      border: {
+        top:    { style: 'thin', color: { rgb: '334155' } },
+        bottom: { style: 'thin', color: { rgb: '334155' } },
+        left:   { style: 'thin', color: { rgb: '334155' } },
+        right:  { style: 'thin', color: { rgb: '334155' } },
+      },
+    };
+  });
+
+  // ── Data rows styling (zebra) ─────────────────────────────────
+  rows.forEach((_, rowIdx) => {
+    const isEven = rowIdx % 2 === 0;
+    headers.forEach((_, colIdx) => {
+      const addr = XLSXStyle.utils.encode_cell({ r: rowIdx + 1, c: colIdx });
+      if (!ws[addr]) ws[addr] = { t: 's', v: '' };
+      ws[addr].s = {
+        font: { sz: 10, color: { rgb: '1E293B' }, name: 'Calibri' },
+        fill: { patternType: 'solid', fgColor: { rgb: isEven ? 'F8FAFC' : 'FFFFFF' } },
+        alignment: { vertical: 'center' },
+        border: {
+          top:    { style: 'thin', color: { rgb: 'E2E8F0' } },
+          bottom: { style: 'thin', color: { rgb: 'E2E8F0' } },
+          left:   { style: 'thin', color: { rgb: 'E2E8F0' } },
+          right:  { style: 'thin', color: { rgb: 'E2E8F0' } },
+        },
+      };
+    });
+  });
+
+  // ── Column widths ─────────────────────────────────────────────
+  ws['!cols'] = headers.map((h, colIdx) => {
+    const maxDataLen = Math.max(
+      h.length,
+      ...rows.map(r => String(r[colIdx] || '').length)
+    );
+    return { wch: Math.min(maxDataLen + 4, 50) };
+  });
+
+  // ── Row heights ───────────────────────────────────────────────
+  ws['!rows'] = [{ hpx: 28 }, ...rows.map(() => ({ hpx: 20 }))];
+
+  // ── AutoFilter (dropdown arrows on header) ────────────────────
+  const lastCol = XLSXStyle.utils.encode_col(headers.length - 1);
+  ws['!autofilter'] = { ref: `A1:${lastCol}${rows.length + 1}` };
+
+  // ── Freeze top row ────────────────────────────────────────────
+  ws['!freeze'] = { xSplit: 0, ySplit: 1, topLeftCell: 'A2', activeCell: 'A2', sqref: 'A2' };
+
+  const wb = XLSXStyle.utils.book_new();
+  XLSXStyle.utils.book_append_sheet(wb, ws, sheetName);
+  XLSXStyle.writeFile(wb, `${filename}.xlsx`);
 };
 
 /**
@@ -53,7 +129,6 @@ export const exportToPDF = (
 
   let logoEndX = margin;
 
-  // Logo (base64 or URL — only base64 works in jsPDF)
   if (options?.tenantLogo && options.tenantLogo.startsWith('data:image')) {
     try {
       const ext = options.tenantLogo.includes('png') ? 'PNG' : 'JPEG';
@@ -62,13 +137,11 @@ export const exportToPDF = (
     } catch {}
   }
 
-  // Company name
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(13);
   doc.setFont('helvetica', 'bold');
   doc.text(options?.tenantName || 'MecaERP', logoEndX, 13);
 
-  // Report title (right side)
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
   doc.text(title, pageW - margin, 10, { align: 'right' });
@@ -76,15 +149,10 @@ export const exportToPDF = (
   doc.text(`Data: ${new Date().toLocaleDateString('pt-BR')}`, pageW - margin, 17, { align: 'right' });
 
   // ── Table ─────────────────────────────────────────────────────
-  const translateCell = (value: any) =>
-    value !== null && value !== undefined
-      ? (STATUS_LABELS[String(value)] ?? String(value))
-      : '';
-
   autoTable(doc, {
     startY: 28,
     head: [columns.map(col => col.header)],
-    body: data.map(row => columns.map(col => translateCell(row[col.dataKey]))),
+    body: data.map(row => columns.map(col => translateValue(row[col.dataKey]))),
     styles: { fontSize: 8, cellPadding: 3 },
     headStyles: { fillColor: [15, 23, 42], textColor: 255, fontStyle: 'bold' },
     alternateRowStyles: { fillColor: [241, 245, 249] },
@@ -107,16 +175,30 @@ export const exportToPDF = (
 };
 
 /**
- * Export data to CSV file
+ * Export data to CSV — filters by columns if provided
  */
-export const exportToCSV = (data: any[], filename: string) => {
-  const worksheet = XLSX.utils.json_to_sheet(data);
-  const csv = XLSX.utils.sheet_to_csv(worksheet);
-  
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+export const exportToCSV = (
+  data: any[],
+  filename: string,
+  columns?: { header: string; dataKey: string }[]
+) => {
+  let csvContent: string;
+
+  if (columns && columns.length > 0) {
+    const headers = columns.map(c => `"${c.header}"`).join(',');
+    const rows = data.map(row =>
+      columns.map(c => `"${translateValue(row[c.dataKey]).replace(/"/g, '""')}"`).join(',')
+    );
+    csvContent = [headers, ...rows].join('\r\n');
+  } else {
+    const ws = XLSX.utils.json_to_sheet(data);
+    csvContent = XLSX.utils.sheet_to_csv(ws);
+  }
+
+  const bom = '\uFEFF'; // UTF-8 BOM for Excel to open correctly
+  const blob = new Blob([bom + csvContent], { type: 'text/csv;charset=utf-8;' });
   const link = document.createElement('a');
   const url = URL.createObjectURL(blob);
-  
   link.setAttribute('href', url);
   link.setAttribute('download', `${filename}.csv`);
   link.style.visibility = 'hidden';
@@ -146,7 +228,6 @@ export const downloadTemplate = (
 
   const ws: any = XLSXStyle.utils.aoa_to_sheet(wsData);
 
-  // Style header row — slate-900 background, white bold text
   headers.forEach((_, colIdx) => {
     const addr = XLSXStyle.utils.encode_cell({ r: 0, c: colIdx });
     ws[addr].s = {
@@ -162,7 +243,6 @@ export const downloadTemplate = (
     };
   });
 
-  // Style example data rows — alternating light background
   templateData.forEach((row, rowIdx) => {
     headers.forEach((_, colIdx) => {
       const addr = XLSXStyle.utils.encode_cell({ r: rowIdx + 1, c: colIdx });
@@ -180,13 +260,9 @@ export const downloadTemplate = (
     });
   });
 
-  // Column widths
   ws['!cols'] = headers.map(h => ({ wch: Math.max(h.length + 6, 18) }));
-
-  // Row height for header
   ws['!rows'] = [{ hpx: 30 }];
 
-  // AutoFilter (dropdown arrows on each column header)
   const lastCol = XLSXStyle.utils.encode_col(headers.length - 1);
   const lastRow = templateData.length + 1;
   ws['!autofilter'] = { ref: `A1:${lastCol}${lastRow}` };
@@ -197,39 +273,32 @@ export const downloadTemplate = (
 };
 
 /**
- * Parse imported file (Excel, CSV, JSON)
+ * Parse imported file (Excel, CSV, JSON, XML)
  */
 export const parseImportFile = (file: File): Promise<any[]> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    
+
     reader.onload = (e) => {
       try {
         const content = e.target?.result;
-        
+
         if (file.name.endsWith('.json')) {
-          // Parse JSON
           const jsonData = JSON.parse(content as string);
           resolve(Array.isArray(jsonData) ? jsonData : [jsonData]);
         } else if (file.name.endsWith('.csv')) {
-          // Parse CSV
           const workbook = XLSX.read(content, { type: 'binary' });
           const sheetName = workbook.SheetNames[0];
           const worksheet = workbook.Sheets[sheetName];
-          const data = XLSX.utils.sheet_to_json(worksheet);
-          resolve(data);
+          resolve(XLSX.utils.sheet_to_json(worksheet));
         } else if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
-          // Parse Excel
           const workbook = XLSX.read(content, { type: 'binary' });
           const sheetName = workbook.SheetNames[0];
           const worksheet = workbook.Sheets[sheetName];
-          const data = XLSX.utils.sheet_to_json(worksheet);
-          resolve(data);
+          resolve(XLSX.utils.sheet_to_json(worksheet));
         } else if (file.name.endsWith('.xml')) {
-          // Parse XML (basic implementation)
           const parser = new DOMParser();
           const xmlDoc = parser.parseFromString(content as string, 'text/xml');
-          // This is a simple implementation - you may need to customize based on your XML structure
           const items = xmlDoc.getElementsByTagName('item');
           const data = Array.from(items).map(item => {
             const obj: any = {};
@@ -246,9 +315,9 @@ export const parseImportFile = (file: File): Promise<any[]> => {
         reject(error);
       }
     };
-    
+
     reader.onerror = () => reject(new Error('Erro ao ler arquivo'));
-    
+
     if (file.name.endsWith('.json') || file.name.endsWith('.xml')) {
       reader.readAsText(file);
     } else {

@@ -35,6 +35,11 @@ export default function Vehicles() {
   const [isHistoryDrawerOpen, setIsHistoryDrawerOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+
+  // Selection & pagination
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
   const [selectedVehicle, setSelectedVehicle] = useState<any>(null);
 
   const [newVehicle, setNewVehicle] = useState({
@@ -225,7 +230,7 @@ export default function Vehicles() {
       const matchStatus = !statusFilter || v.status === statusFilter;
       const matchBrand = !brandFilter || v.brand === brandFilter;
       const searchLower = search.toLowerCase();
-      const matchSearch = !search || 
+      const matchSearch = !search ||
         v.plate?.toLowerCase().includes(searchLower) ||
         v.brand?.toLowerCase().includes(searchLower) ||
         v.model?.toLowerCase().includes(searchLower) ||
@@ -234,6 +239,49 @@ export default function Vehicles() {
       return matchStatus && matchBrand && matchSearch;
     });
   }, [vehicles, statusFilter, brandFilter, search]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredVehicles.length / pageSize));
+  const paginatedVehicles = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredVehicles.slice(start, start + pageSize);
+  }, [filteredVehicles, currentPage, pageSize]);
+
+  const allVisibleSelected = paginatedVehicles.length > 0 && paginatedVehicles.every(v => selectedIds.has(v.id));
+  const someVisibleSelected = paginatedVehicles.some(v => selectedIds.has(v.id));
+
+  const toggleSelectAll = () => {
+    if (allVisibleSelected) {
+      const next = new Set(selectedIds);
+      paginatedVehicles.forEach(v => next.delete(v.id));
+      setSelectedIds(next);
+    } else {
+      const next = new Set(selectedIds);
+      paginatedVehicles.forEach(v => next.add(v.id));
+      setSelectedIds(next);
+    }
+  };
+
+  const toggleSelect = (id: string) => {
+    const next = new Set(selectedIds);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    setSelectedIds(next);
+  };
+
+  const handleBulkDelete = async () => {
+    if (!window.confirm(`Excluir ${selectedIds.size} veículo(s) selecionado(s)?`)) return;
+    try {
+      await Promise.all([...selectedIds].map(id => api.delete(`/vehicles/${id}`)));
+      setSelectedIds(new Set());
+      fetchData();
+    } catch {
+      alert('Erro ao excluir veículos');
+    }
+  };
+
+  const selectedData = useMemo(
+    () => filteredVehicles.filter(v => selectedIds.has(v.id)),
+    [filteredVehicles, selectedIds]
+  );
 
   const vehicleTemplateData = [
     { 'Placa': 'ABC1234', 'Marca': 'Toyota', 'Modelo': 'Corolla', 'Ano': '2020', 'Cor': 'Prata', 'Combustivel': 'FLEX', 'Chassi': '9BWZZZ377VT004251', 'KM': '50000' }
@@ -354,11 +402,36 @@ export default function Vehicles() {
         </div>
       </div>
 
+      {/* Selection toolbar */}
+      {selectedIds.size > 0 && (
+        <div className="bg-slate-900 text-white px-6 py-2 flex items-center gap-4 text-xs font-bold shrink-0">
+          <span>{selectedIds.size} selecionado(s)</span>
+          <button onClick={() => setIsExportModalOpen(true)} className="flex items-center gap-1.5 px-3 py-1 bg-white/10 hover:bg-white/20 rounded-lg transition-all">
+            <Download size={13} /> Exportar selecionados
+          </button>
+          <button onClick={handleBulkDelete} className="flex items-center gap-1.5 px-3 py-1 bg-red-500/80 hover:bg-red-500 rounded-lg transition-all">
+            <Trash2 size={13} /> Excluir selecionados
+          </button>
+          <button onClick={() => setSelectedIds(new Set())} className="ml-auto text-white/60 hover:text-white transition-colors">
+            <X size={16} />
+          </button>
+        </div>
+      )}
+
       {/* Table - Data Heavy */}
-      <div className="flex-1 overflow-auto bg-white">
+      <div className="flex-1 overflow-auto bg-white min-h-0">
         <table className="w-full text-left border-separate border-spacing-0">
           <thead className="sticky top-0 bg-slate-50 z-20 shadow-[inset_0_-1px_0_rgba(0,0,0,0.1)]">
             <tr>
+              <th className="pl-4 pr-2 py-2.5 w-8 sticky left-0 bg-slate-50 z-20">
+                <input
+                  type="checkbox"
+                  className="rounded border-slate-300 cursor-pointer accent-slate-900"
+                  checked={allVisibleSelected}
+                  ref={el => { if (el) el.indeterminate = someVisibleSelected && !allVisibleSelected; }}
+                  onChange={toggleSelectAll}
+                />
+              </th>
               <th className="px-6 py-2.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Veículo</th>
               <th className="px-4 py-2.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Placa</th>
               <th className="px-4 py-2.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Proprietário</th>
@@ -372,18 +445,26 @@ export default function Vehicles() {
           <tbody className="divide-y divide-slate-100 bg-white">
             {loading && !vehicles.length ? (
               <tr>
-                <td colSpan={8} className="px-6 py-12 text-center text-slate-400 text-sm italic">Carregando veículos...</td>
+                <td colSpan={9} className="px-6 py-12 text-center text-slate-400 text-sm italic">Carregando veículos...</td>
               </tr>
-            ) : filteredVehicles.length === 0 ? (
+            ) : paginatedVehicles.length === 0 ? (
               <tr>
-                <td colSpan={8} className="px-6 py-12 text-center text-slate-400 text-sm italic">Nenhum veículo encontrado.</td>
+                <td colSpan={9} className="px-6 py-12 text-center text-slate-400 text-sm italic">Nenhum veículo encontrado.</td>
               </tr>
-            ) : filteredVehicles.map((vehicle) => (
-              <tr 
-                key={vehicle.id} 
-                className="hover:bg-slate-50 transition-colors group cursor-pointer"
+            ) : paginatedVehicles.map((vehicle) => (
+              <tr
+                key={vehicle.id}
+                className={cn("hover:bg-slate-50 transition-colors group cursor-pointer", selectedIds.has(vehicle.id) && "bg-slate-50")}
                 onClick={() => navigate(`/vehicles/${vehicle.id}`)}
               >
+                <td className="pl-4 pr-2 py-2 w-8 sticky left-0 bg-white group-hover:bg-slate-50 transition-colors z-10" onClick={e => e.stopPropagation()}>
+                  <input
+                    type="checkbox"
+                    className="rounded border-slate-300 cursor-pointer accent-slate-900"
+                    checked={selectedIds.has(vehicle.id)}
+                    onChange={() => toggleSelect(vehicle.id)}
+                  />
+                </td>
                 <td className="px-6 py-2">
                   <div className="flex items-center gap-3">
                     <div className="w-8 h-8 bg-slate-100 rounded-lg flex items-center justify-center text-slate-400 shrink-0">
@@ -476,6 +557,38 @@ export default function Vehicles() {
             ))}
           </tbody>
         </table>
+      </div>
+
+      {/* Pagination */}
+      <div className="bg-white border-t border-slate-200 px-6 py-2 flex items-center justify-between gap-4 shrink-0">
+        <div className="flex items-center gap-2 text-xs text-slate-500">
+          <span>Linhas por página:</span>
+          <select
+            value={pageSize}
+            onChange={e => { setPageSize(Number(e.target.value)); setCurrentPage(1); }}
+            className="border border-slate-200 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-slate-400"
+          >
+            {[10, 25, 50, 100].map(n => <option key={n} value={n}>{n}</option>)}
+          </select>
+          <span className="text-slate-400">
+            {filteredVehicles.length === 0 ? '0' : `${(currentPage - 1) * pageSize + 1}–${Math.min(currentPage * pageSize, filteredVehicles.length)}`} de {filteredVehicles.length}
+          </span>
+        </div>
+        <div className="flex items-center gap-1">
+          <button onClick={() => setCurrentPage(1)} disabled={currentPage === 1} className="px-2 py-1 text-xs rounded hover:bg-slate-100 disabled:opacity-40 disabled:cursor-default">«</button>
+          <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="px-2 py-1 text-xs rounded hover:bg-slate-100 disabled:opacity-40 disabled:cursor-default">‹</button>
+          {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+            const offset = Math.max(0, Math.min(currentPage - 3, totalPages - 5));
+            const page = i + 1 + offset;
+            return (
+              <button key={page} onClick={() => setCurrentPage(page)} className={cn("px-2.5 py-1 text-xs rounded", currentPage === page ? "bg-slate-900 text-white font-bold" : "hover:bg-slate-100")}>
+                {page}
+              </button>
+            );
+          })}
+          <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="px-2 py-1 text-xs rounded hover:bg-slate-100 disabled:opacity-40 disabled:cursor-default">›</button>
+          <button onClick={() => setCurrentPage(totalPages)} disabled={currentPage === totalPages} className="px-2 py-1 text-xs rounded hover:bg-slate-100 disabled:opacity-40 disabled:cursor-default">»</button>
+        </div>
       </div>
 
       {/* New Vehicle Modal - Premium */}
@@ -1046,8 +1159,8 @@ export default function Vehicles() {
         isOpen={isExportModalOpen}
         onClose={() => setIsExportModalOpen(false)}
         mode="export"
-        title="Exportar Veículos"
-        data={vehicles}
+        title={selectedIds.size > 0 ? `Exportar ${selectedIds.size} Veículo(s) Selecionado(s)` : "Exportar Veículos"}
+        data={selectedIds.size > 0 ? selectedData : filteredVehicles}
         columns={vehicleExportColumns}
         entityName="veículos"
       />

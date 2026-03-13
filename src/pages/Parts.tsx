@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Package,
@@ -83,6 +83,11 @@ export default function Parts() {
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
 
+  // Selection & pagination
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
+
   // Modals
   const [showNewPartModal, setShowNewPartModal] = useState(false);
   const [showEntryModal, setShowEntryModal] = useState(false);
@@ -124,7 +129,52 @@ export default function Parts() {
 
   useEffect(() => {
     loadData();
+    setSelectedIds(new Set());
+    setCurrentPage(1);
   }, [searchTerm, selectedCategory, selectedBrand, selectedStatus]);
+
+  const totalPages = Math.max(1, Math.ceil(parts.length / pageSize));
+  const paginatedParts = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return parts.slice(start, start + pageSize);
+  }, [parts, currentPage, pageSize]);
+
+  const allVisibleSelected = paginatedParts.length > 0 && paginatedParts.every(p => selectedIds.has(p.id));
+  const someVisibleSelected = paginatedParts.some(p => selectedIds.has(p.id));
+
+  const toggleSelectAll = () => {
+    if (allVisibleSelected) {
+      const next = new Set(selectedIds);
+      paginatedParts.forEach(p => next.delete(p.id));
+      setSelectedIds(next);
+    } else {
+      const next = new Set(selectedIds);
+      paginatedParts.forEach(p => next.add(p.id));
+      setSelectedIds(next);
+    }
+  };
+
+  const toggleSelect = (id: string) => {
+    const next = new Set(selectedIds);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    setSelectedIds(next);
+  };
+
+  const handleBulkDelete = async () => {
+    if (!confirm(`Excluir ${selectedIds.size} peça(s) selecionada(s)?`)) return;
+    try {
+      await Promise.all([...selectedIds].map(id => api.delete(`/parts/${id}`)));
+      setSelectedIds(new Set());
+      loadData();
+    } catch {
+      alert('Erro ao excluir peças');
+    }
+  };
+
+  const selectedData = useMemo(
+    () => parts.filter(p => selectedIds.has(p.id)),
+    [parts, selectedIds]
+  );
 
   const loadData = async () => {
     try {
@@ -468,11 +518,36 @@ export default function Parts() {
         </div>
       </div>
 
+      {/* Selection toolbar */}
+      {selectedIds.size > 0 && (
+        <div className="bg-slate-900 text-white px-6 py-2 flex items-center gap-4 text-xs font-bold shrink-0">
+          <span>{selectedIds.size} selecionada(s)</span>
+          <button onClick={() => setIsExportModalOpen(true)} className="flex items-center gap-1.5 px-3 py-1 bg-white/10 hover:bg-white/20 rounded-lg transition-all">
+            <Download size={13} /> Exportar selecionadas
+          </button>
+          <button onClick={handleBulkDelete} className="flex items-center gap-1.5 px-3 py-1 bg-red-500/80 hover:bg-red-500 rounded-lg transition-all">
+            <Trash2 size={13} /> Excluir selecionadas
+          </button>
+          <button onClick={() => setSelectedIds(new Set())} className="ml-auto text-white/60 hover:text-white transition-colors">
+            <X size={16} />
+          </button>
+        </div>
+      )}
+
       {/* Table Content */}
-      <div className="flex-1 overflow-auto bg-white min-h-0 min-w-0 w-full relative pb-5">
+      <div className="flex-1 overflow-auto bg-white min-h-0 min-w-0 w-full relative">
         <table className="w-full text-left border-collapse min-w-[1200px]">
           <thead className="sticky top-0 bg-slate-50 z-20 shadow-[inset_0_-1px_0_rgba(0,0,0,0.1)]">
             <tr>
+              <th className="pl-4 pr-2 py-3 w-8 sticky left-0 bg-slate-50 z-20">
+                <input
+                  type="checkbox"
+                  className="rounded border-slate-300 cursor-pointer accent-slate-900"
+                  checked={allVisibleSelected}
+                  ref={el => { if (el) el.indeterminate = someVisibleSelected && !allVisibleSelected; }}
+                  onChange={toggleSelectAll}
+                />
+              </th>
               <th className="px-4 py-3 text-left text-[10px] font-bold text-slate-500 uppercase tracking-wider">Código</th>
               <th className="px-4 py-3 text-left text-[10px] font-bold text-slate-500 uppercase tracking-wider">Nome</th>
               <th className="px-4 py-3 text-left text-[10px] font-bold text-slate-500 uppercase tracking-wider">Categoria</th>
@@ -489,22 +564,30 @@ export default function Parts() {
           <tbody className="divide-y divide-slate-100">
             {loading ? (
               <tr>
-                <td colSpan={11} className="px-4 py-12 text-center text-slate-500 text-sm">
+                <td colSpan={12} className="px-4 py-12 text-center text-slate-500 text-sm">
                   Carregando...
                 </td>
               </tr>
-            ) : parts.length === 0 ? (
+            ) : paginatedParts.length === 0 ? (
               <tr>
-                <td colSpan={11} className="px-4 py-12 text-center text-slate-500 text-sm">
+                <td colSpan={12} className="px-4 py-12 text-center text-slate-500 text-sm">
                   Nenhuma peça encontrada
                 </td>
               </tr>
             ) : (
-              parts.map((part) => {
+              paginatedParts.map((part) => {
                 const status = getStockStatus(part);
                 const margin = part.sale_price > 0 ? ((part.sale_price - part.cost_price) / part.sale_price * 100) : 0;
                 return (
-                  <tr key={part.id} className="hover:bg-slate-50 transition-colors">
+                  <tr key={part.id} className={cn("hover:bg-slate-50 transition-colors group", selectedIds.has(part.id) && "bg-slate-50")}>
+                    <td className="pl-4 pr-2 py-3 w-8 sticky left-0 bg-white group-hover:bg-slate-50 transition-colors z-10">
+                      <input
+                        type="checkbox"
+                        className="rounded border-slate-300 cursor-pointer accent-slate-900"
+                        checked={selectedIds.has(part.id)}
+                        onChange={() => toggleSelect(part.id)}
+                      />
+                    </td>
                     <td className="px-4 py-3 text-xs font-mono text-slate-600">{part.code}</td>
                     <td className="px-4 py-3 text-sm font-medium text-slate-900">{part.name}</td>
                     <td className="px-4 py-3 text-xs text-slate-600">{part.category || "-"}</td>
@@ -575,6 +658,38 @@ export default function Parts() {
             )}
           </tbody>
         </table>
+      </div>
+
+      {/* Pagination */}
+      <div className="bg-white border-t border-slate-200 px-6 py-2 flex items-center justify-between gap-4 shrink-0">
+        <div className="flex items-center gap-2 text-xs text-slate-500">
+          <span>Linhas por página:</span>
+          <select
+            value={pageSize}
+            onChange={e => { setPageSize(Number(e.target.value)); setCurrentPage(1); }}
+            className="border border-slate-200 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-slate-400"
+          >
+            {[10, 25, 50, 100].map(n => <option key={n} value={n}>{n}</option>)}
+          </select>
+          <span className="text-slate-400">
+            {parts.length === 0 ? '0' : `${(currentPage - 1) * pageSize + 1}–${Math.min(currentPage * pageSize, parts.length)}`} de {parts.length}
+          </span>
+        </div>
+        <div className="flex items-center gap-1">
+          <button onClick={() => setCurrentPage(1)} disabled={currentPage === 1} className="px-2 py-1 text-xs rounded hover:bg-slate-100 disabled:opacity-40 disabled:cursor-default">«</button>
+          <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="px-2 py-1 text-xs rounded hover:bg-slate-100 disabled:opacity-40 disabled:cursor-default">‹</button>
+          {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+            const offset = Math.max(0, Math.min(currentPage - 3, totalPages - 5));
+            const page = i + 1 + offset;
+            return (
+              <button key={page} onClick={() => setCurrentPage(page)} className={cn("px-2.5 py-1 text-xs rounded", currentPage === page ? "bg-slate-900 text-white font-bold" : "hover:bg-slate-100")}>
+                {page}
+              </button>
+            );
+          })}
+          <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="px-2 py-1 text-xs rounded hover:bg-slate-100 disabled:opacity-40 disabled:cursor-default">›</button>
+          <button onClick={() => setCurrentPage(totalPages)} disabled={currentPage === totalPages} className="px-2 py-1 text-xs rounded hover:bg-slate-100 disabled:opacity-40 disabled:cursor-default">»</button>
+        </div>
       </div>
 
       {/* Part Detail Modal */}
@@ -1276,8 +1391,8 @@ export default function Parts() {
         isOpen={isExportModalOpen}
         onClose={() => setIsExportModalOpen(false)}
         mode="export"
-        title="Exportar Peças"
-        data={parts}
+        title={selectedIds.size > 0 ? `Exportar ${selectedIds.size} Peça(s) Selecionada(s)` : "Exportar Peças"}
+        data={selectedIds.size > 0 ? selectedData : parts}
         columns={partsExportColumns}
         entityName="peças"
       />

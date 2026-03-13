@@ -43,11 +43,11 @@ export default function ImportExportModal({
 
     try {
       if (selectedFormat === 'excel') {
-        exportToExcel(data, filename, title);
+        exportToExcel(data, filename, title, columns);
       } else if (selectedFormat === 'pdf') {
         exportToPDF(data, columns, filename, title, { tenantName, tenantLogo });
       } else if (selectedFormat === 'csv') {
-        exportToCSV(data, filename);
+        exportToCSV(data, filename, columns);
       }
       onClose();
     } catch (error) {

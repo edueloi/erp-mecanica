@@ -1,0 +1,54 @@
+﻿diff --git a/src/pages/Parts.tsx b/src/pages/Parts.tsx
+index 98869ec..c9b945b 100644
+--- a/src/pages/Parts.tsx
++++ b/src/pages/Parts.tsx
+@@ -144,7 +144,13 @@ export default function Parts() {
+         api.get("/suppliers?status=ACTIVE")
+       ]);
+ 
+-      setParts(Array.isArray(partsRes.data) ? partsRes.data : []);
++      setParts(Array.isArray(partsRes.data) ? partsRes.data.map(p => ({
++        ...p,
++        cost_price: Number(p.cost_price),
++        sale_price: Number(p.sale_price),
++        stock_quantity: Number(p.stock_quantity),
++        min_stock: Number(p.min_stock)
++      })) : []);
+       setStats(statsRes.data || { total: 0, low_stock: 0, zero_stock: 0, total_value: 0 });
+       setCategories(Array.isArray(categoriesRes.data) ? categoriesRes.data : []);
+       setBrands(Array.isArray(brandsRes.data) ? brandsRes.data : []);
+@@ -309,17 +315,29 @@ export default function Parts() {
+     { header: 'Localiza├º├úo', dataKey: 'location' },
+   ];
+ 
++  const parseNum = (val: any) => {
++    if (typeof val === 'number') return val;
++    if (!val) return 0;
++    let str = String(val).trim();
++    if (str.includes(',') && str.indexOf(',') > str.indexOf('.')) {
++      str = str.replace(/\./g, '').replace(',', '.');
++    } else if (str.includes(',') && !str.includes('.')) {
++      str = str.replace(',', '.');
++    }
++    return Number(str) || 0;
++  };
++
+   const handleImportParts = async (data: any[]) => {
+     try {
+       const validData = data.map(row => ({
+         name: row['Nome'] || row['name'] || '',
+-        code: row['Codigo'] || row['code'] || '',
++        code: String(row['Codigo'] || row['code'] || ''),
+         category: row['Categoria'] || row['category'] || '',
+         brand: row['Marca'] || row['brand'] || '',
+-        cost_price: parseFloat(row['Preco Custo'] || row['cost_price'] || 0),
+-        sale_price: parseFloat(row['Preco Venda'] || row['sale_price'] || 0),
+-        stock_quantity: parseInt(row['Estoque'] || row['stock_quantity'] || 0),
+-        min_stock: parseInt(row['Estoque Minimo'] || row['min_stock'] || 0),
++        cost_price: parseNum(row['Preco Custo'] || row['cost_price']),
++        sale_price: parseNum(row['Preco Venda'] || row['sale_price']),
++        stock_quantity: parseNum(row['Estoque'] || row['stock_quantity']),
++        min_stock: parseNum(row['Estoque Minimo'] || row['min_stock']),
+         location: row['Localizacao'] || row['location'] || '',
+         compatibility: row['Compatibilidade'] || row['compatibility'] || '',
+       })).filter(p => p.name);
