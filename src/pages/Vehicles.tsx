@@ -16,6 +16,7 @@ import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
 import { fipeService, FipeItem } from '../services/fipeService';
+import ImportExportModal from '../components/ImportExportModal';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -32,6 +33,8 @@ export default function Vehicles() {
   const [isNewModalOpen, setIsNewModalOpen] = useState(false);
   const [isEditDrawerOpen, setIsEditDrawerOpen] = useState(false);
   const [isHistoryDrawerOpen, setIsHistoryDrawerOpen] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [selectedVehicle, setSelectedVehicle] = useState<any>(null);
 
   const [newVehicle, setNewVehicle] = useState({
@@ -202,6 +205,41 @@ export default function Vehicles() {
     });
   }, [vehicles, statusFilter, brandFilter, search]);
 
+  const vehicleTemplateData = [
+    { 'Placa': 'ABC1234', 'Marca': 'Toyota', 'Modelo': 'Corolla', 'Ano': '2020', 'Cor': 'Prata', 'Combustivel': 'FLEX', 'Chassi': '9BWZZZ377VT004251', 'KM': '50000' }
+  ];
+
+  const vehicleExportColumns = [
+    { header: 'Placa', dataKey: 'plate' },
+    { header: 'Marca', dataKey: 'brand' },
+    { header: 'Modelo', dataKey: 'model' },
+    { header: 'Ano', dataKey: 'year' },
+    { header: 'Cor', dataKey: 'color' },
+    { header: 'Combustível', dataKey: 'fuel_type' },
+    { header: 'Chassi', dataKey: 'vin' },
+    { header: 'KM', dataKey: 'km' },
+    { header: 'Cliente', dataKey: 'client_name' },
+  ];
+
+  const handleImportVehicles = async (data: any[]) => {
+    try {
+      const validData = data.map(row => ({
+        plate: row['Placa'] || row['plate'] || '',
+        brand: row['Marca'] || row['brand'] || '',
+        model: row['Modelo'] || row['model'] || '',
+        year: row['Ano'] || row['year'] || '',
+        color: row['Cor'] || row['color'] || '',
+        fuel_type: row['Combustivel'] || row['fuel_type'] || 'FLEX',
+        vin: row['Chassi'] || row['vin'] || '',
+        km: row['KM'] || row['km'] || '',
+      })).filter(v => v.plate);
+      await api.post('/vehicles/bulk', validData);
+      fetchData();
+    } catch (err: any) {
+      throw new Error(err?.response?.data?.message || 'Erro ao importar veículos. Verifique os dados e tente novamente.');
+    }
+  };
+
   return (
     <div className="flex flex-col h-full -m-6 bg-[#F6F8FB]">
       {/* Header - Compact */}
@@ -214,10 +252,10 @@ export default function Vehicles() {
         </div>
 
         <div className="flex items-center gap-2">
-          <button className="h-9 px-3 text-slate-600 hover:bg-slate-100 rounded-lg text-xs font-bold flex items-center gap-2 transition-all">
+          <button onClick={() => setIsImportModalOpen(true)} className="h-9 px-3 text-slate-600 hover:bg-slate-100 rounded-lg text-xs font-bold flex items-center gap-2 transition-all">
             <Upload size={14} /> <span className="hidden sm:inline">Importar</span>
           </button>
-          <button className="h-9 px-3 text-slate-600 hover:bg-slate-100 rounded-lg text-xs font-bold flex items-center gap-2 transition-all">
+          <button onClick={() => setIsExportModalOpen(true)} className="h-9 px-3 text-slate-600 hover:bg-slate-100 rounded-lg text-xs font-bold flex items-center gap-2 transition-all">
             <Download size={14} /> <span className="hidden sm:inline">Exportar</span>
           </button>
           <button 
@@ -892,6 +930,26 @@ export default function Vehicles() {
           </div>
         )}
       </AnimatePresence>
+
+      <ImportExportModal
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        mode="import"
+        title="Importar Veículos"
+        templateData={vehicleTemplateData}
+        onImport={handleImportVehicles}
+        entityName="veículos"
+      />
+
+      <ImportExportModal
+        isOpen={isExportModalOpen}
+        onClose={() => setIsExportModalOpen(false)}
+        mode="export"
+        title="Exportar Veículos"
+        data={vehicles}
+        columns={vehicleExportColumns}
+        entityName="veículos"
+      />
     </div>
   );
 }

@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import api from "../services/api";
 import { cn } from "../utils/cn";
+import ImportExportModal from "../components/ImportExportModal";
 
 interface Part {
   id: string;
@@ -77,6 +78,10 @@ export default function Parts() {
   const [selectedBrand, setSelectedBrand] = useState("");
   const [selectedSupplier, setSelectedSupplier] = useState("");
   const [selectedStatus, setSelectedStatus] = useState("");
+
+  // Import/Export
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
 
   // Modals
   const [showNewPartModal, setShowNewPartModal] = useState(false);
@@ -288,6 +293,43 @@ export default function Parts() {
     LOSS: { label: "Perda", color: "text-red-600" }
   };
 
+  const partsTemplateData = [
+    { 'Nome': 'Filtro de Óleo', 'Codigo': 'PEC001', 'Categoria': 'Filtros', 'Marca': 'Bosch', 'Preco Custo': '25.00', 'Preco Venda': '50.00', 'Estoque': '10', 'Estoque Minimo': '3', 'Localizacao': 'A1-01', 'Compatibilidade': 'Toyota Corolla 2018-2022' }
+  ];
+
+  const partsExportColumns = [
+    { header: 'Nome', dataKey: 'name' },
+    { header: 'Código', dataKey: 'code' },
+    { header: 'Categoria', dataKey: 'category' },
+    { header: 'Marca', dataKey: 'brand' },
+    { header: 'Preço Custo', dataKey: 'cost_price' },
+    { header: 'Preço Venda', dataKey: 'sale_price' },
+    { header: 'Estoque', dataKey: 'stock_quantity' },
+    { header: 'Estoque Mín.', dataKey: 'min_stock' },
+    { header: 'Localização', dataKey: 'location' },
+  ];
+
+  const handleImportParts = async (data: any[]) => {
+    try {
+      const validData = data.map(row => ({
+        name: row['Nome'] || row['name'] || '',
+        code: row['Codigo'] || row['code'] || '',
+        category: row['Categoria'] || row['category'] || '',
+        brand: row['Marca'] || row['brand'] || '',
+        cost_price: parseFloat(row['Preco Custo'] || row['cost_price'] || 0),
+        sale_price: parseFloat(row['Preco Venda'] || row['sale_price'] || 0),
+        stock_quantity: parseInt(row['Estoque'] || row['stock_quantity'] || 0),
+        min_stock: parseInt(row['Estoque Minimo'] || row['min_stock'] || 0),
+        location: row['Localizacao'] || row['location'] || '',
+        compatibility: row['Compatibilidade'] || row['compatibility'] || '',
+      })).filter(p => p.name);
+      await api.post('/parts/bulk', validData);
+      loadData();
+    } catch (err: any) {
+      throw new Error(err?.response?.data?.message || 'Erro ao importar peças. Verifique os dados e tente novamente.');
+    }
+  };
+
   return (
     <div className="flex flex-col h-[calc(100vh-64px)] bg-slate-50 overflow-hidden lg:-mx-5 lg:mt-0 lg:mb-0 -mx-4 -mt-4 -mb-4 min-w-0">
       {/* Header */}
@@ -324,10 +366,10 @@ export default function Parts() {
         </div>
 
         <div className="flex items-center gap-2">
-          <button className="h-9 px-3 text-slate-600 hover:bg-slate-100 rounded-lg text-xs font-bold flex items-center gap-2 transition-all cursor-pointer">
+          <button onClick={() => setIsImportModalOpen(true)} className="h-9 px-3 text-slate-600 hover:bg-slate-100 rounded-lg text-xs font-bold flex items-center gap-2 transition-all cursor-pointer">
             <Upload size={14} /> <span className="hidden sm:inline">Importar</span>
           </button>
-          <button className="h-9 px-3 text-slate-600 hover:bg-slate-100 rounded-lg text-xs font-bold flex items-center gap-2 transition-all cursor-pointer">
+          <button onClick={() => setIsExportModalOpen(true)} className="h-9 px-3 text-slate-600 hover:bg-slate-100 rounded-lg text-xs font-bold flex items-center gap-2 transition-all cursor-pointer">
             <Download size={14} /> <span className="hidden sm:inline">Exportar</span>
           </button>
           <button
@@ -1201,6 +1243,26 @@ export default function Parts() {
             </div>
           )}
         </AnimatePresence>
+
+      <ImportExportModal
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        mode="import"
+        title="Importar Peças"
+        templateData={partsTemplateData}
+        onImport={handleImportParts}
+        entityName="peças"
+      />
+
+      <ImportExportModal
+        isOpen={isExportModalOpen}
+        onClose={() => setIsExportModalOpen(false)}
+        mode="export"
+        title="Exportar Peças"
+        data={parts}
+        columns={partsExportColumns}
+        entityName="peças"
+      />
     </div>
   );
 }

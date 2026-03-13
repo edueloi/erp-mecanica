@@ -28,7 +28,10 @@ import {
   ClipboardList,
   ShoppingCart,
   History,
+  Upload,
+  Download,
 } from "lucide-react";
+import ImportExportModal from "../components/ImportExportModal";
 import api from "../services/api";
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -77,6 +80,8 @@ export default function Suppliers() {
   const [cities, setCities] = useState<string[]>([]);
   const [showNewModal, setShowNewModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [showOrderModal, setShowOrderModal] = useState(false);
   const [selectedSupplier, setSelectedSupplier] = useState<Supplier | null>(null);
   const [loading, setLoading] = useState(true);
@@ -668,6 +673,43 @@ export default function Suppliers() {
     );
   }
 
+  const supplierTemplateData = [
+    { 'Nome': 'Distribuidora ABC', 'Nome Fantasia': 'ABC Auto Peças', 'CNPJ': '12.345.678/0001-90', 'Telefone': '(11) 99999-0000', 'WhatsApp': '(11) 99999-0000', 'Email': 'contato@abc.com.br', 'Categoria': 'Peças', 'Cidade': 'São Paulo', 'Estado': 'SP', 'Condicao Pagamento': '30 dias' }
+  ];
+
+  const supplierExportColumns = [
+    { header: 'Nome', dataKey: 'name' },
+    { header: 'Nome Fantasia', dataKey: 'trade_name' },
+    { header: 'CNPJ', dataKey: 'cnpj' },
+    { header: 'Telefone', dataKey: 'phone' },
+    { header: 'Email', dataKey: 'email' },
+    { header: 'Categoria', dataKey: 'category' },
+    { header: 'Cidade', dataKey: 'city' },
+    { header: 'Estado', dataKey: 'state' },
+    { header: 'Status', dataKey: 'status' },
+  ];
+
+  const handleImportSuppliers = async (data: any[]) => {
+    try {
+      const validData = data.map(row => ({
+        name: row['Nome'] || row['name'] || '',
+        trade_name: row['Nome Fantasia'] || row['trade_name'] || '',
+        cnpj: row['CNPJ'] || row['cnpj'] || '',
+        phone: row['Telefone'] || row['phone'] || '',
+        whatsapp: row['WhatsApp'] || row['whatsapp'] || '',
+        email: row['Email'] || row['email'] || '',
+        category: row['Categoria'] || row['category'] || '',
+        city: row['Cidade'] || row['city'] || '',
+        state: row['Estado'] || row['state'] || '',
+        payment_terms: row['Condicao Pagamento'] || row['payment_terms'] || '',
+      })).filter(s => s.name);
+      await api.post('/suppliers/bulk', validData);
+      fetchSuppliers();
+    } catch (err: any) {
+      throw new Error(err?.response?.data?.message || 'Erro ao importar fornecedores. Verifique os dados e tente novamente.');
+    }
+  };
+
   return (
     <div className="flex flex-col h-[calc(100vh-64px)] bg-slate-50 overflow-hidden lg:-mx-5 lg:mt-0 lg:mb-0 -mx-4 -mt-4 -mb-4 min-w-0">
       {/* Header */}
@@ -699,6 +741,12 @@ export default function Suppliers() {
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
+          <button onClick={() => setIsImportModalOpen(true)} className="flex items-center gap-1.5 px-3 py-2 bg-slate-100 text-slate-600 rounded-lg text-xs font-bold hover:bg-slate-200 transition-all cursor-pointer">
+            <Upload size={14} /> <span>Importar</span>
+          </button>
+          <button onClick={() => setIsExportModalOpen(true)} className="flex items-center gap-1.5 px-3 py-2 bg-slate-100 text-slate-600 rounded-lg text-xs font-bold hover:bg-slate-200 transition-all cursor-pointer">
+            <Download size={14} /> <span>Exportar</span>
+          </button>
           <button
             onClick={() => setShowOrdersList(!showOrdersList)}
             className="h-9 px-3 text-slate-600 hover:bg-slate-100 rounded-lg text-xs font-bold flex items-center gap-2 transition-all cursor-pointer"
@@ -1893,6 +1941,26 @@ export default function Suppliers() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      <ImportExportModal
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        mode="import"
+        title="Importar Fornecedores"
+        templateData={supplierTemplateData}
+        onImport={handleImportSuppliers}
+        entityName="fornecedores"
+      />
+
+      <ImportExportModal
+        isOpen={isExportModalOpen}
+        onClose={() => setIsExportModalOpen(false)}
+        mode="export"
+        title="Exportar Fornecedores"
+        data={suppliers}
+        columns={supplierExportColumns}
+        entityName="fornecedores"
+      />
     </div>
   );
 }

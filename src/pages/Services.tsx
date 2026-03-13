@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import api from '../services/api';
+import ImportExportModal from '../components/ImportExportModal';
 
 type ServiceCategory = 'MOTOR' | 'FREIO' | 'SUSPENSAO' | 'ELETRICA' | 'REVISAO' | 'OUTROS';
 type ServiceStatus = 'ACTIVE' | 'INACTIVE';
@@ -64,6 +65,8 @@ export default function Services() {
   const [categoryFilter, setCategoryFilter] = useState('');
   const [isNewModalOpen, setIsNewModalOpen] = useState(false);
   const [isDetailDrawerOpen, setIsDetailDrawerOpen] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [selectedService, setSelectedService] = useState<Service | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [activeDetailTab, setActiveDetailTab] = useState<'SUMMARY' | 'PARTS' | 'HISTORY' | 'COMPATIBILITY'>('SUMMARY');
@@ -243,6 +246,42 @@ export default function Services() {
     (categoryFilter === '' || s.category === categoryFilter)
   );
 
+  const serviceTemplateData = [
+    { 'Nome': 'Troca de Óleo', 'Codigo': 'SRV001', 'Categoria': 'REVISAO', 'Descricao': 'Troca de óleo do motor', 'Tempo Estimado': '01:00', 'Preco Padrao': '150.00', 'Custo Estimado': '50.00', 'Tipo': 'LABOR', 'Cobrança': 'FIXED', 'Garantia (dias)': '30' }
+  ];
+
+  const serviceExportColumns = [
+    { header: 'Nome', dataKey: 'name' },
+    { header: 'Código', dataKey: 'code' },
+    { header: 'Categoria', dataKey: 'category' },
+    { header: 'Preço', dataKey: 'default_price' },
+    { header: 'Custo', dataKey: 'estimated_cost' },
+    { header: 'Tipo', dataKey: 'type' },
+    { header: 'Cobrança', dataKey: 'charging_type' },
+    { header: 'Status', dataKey: 'status' },
+  ];
+
+  const handleImportServices = async (data: any[]) => {
+    try {
+      const validData = data.map(row => ({
+        name: row['Nome'] || row['name'] || '',
+        code: row['Codigo'] || row['code'] || '',
+        category: row['Categoria'] || row['category'] || 'OUTROS',
+        description: row['Descricao'] || row['description'] || '',
+        estimated_time: row['Tempo Estimado'] || row['estimated_time'] || '01:00',
+        default_price: parseFloat(row['Preco Padrao'] || row['default_price'] || 0),
+        estimated_cost: parseFloat(row['Custo Estimado'] || row['estimated_cost'] || 0),
+        type: row['Tipo'] || row['type'] || 'LABOR',
+        charging_type: row['Cobrança'] || row['charging_type'] || 'FIXED',
+        warranty_days: parseInt(row['Garantia (dias)'] || row['warranty_days'] || 90),
+      })).filter(s => s.name);
+      await api.post('/services/bulk', validData);
+      fetchServices();
+    } catch (err: any) {
+      throw new Error(err?.response?.data?.message || 'Erro ao importar serviços. Verifique os dados e tente novamente.');
+    }
+  };
+
   return (
     <div className="flex flex-col h-full -m-6">
       {/* Header */}
@@ -255,10 +294,10 @@ export default function Services() {
         </div>
 
         <div className="flex items-center gap-2">
-          <button className="h-9 px-3 text-slate-600 hover:bg-slate-100 rounded-lg text-xs font-bold flex items-center gap-2 transition-all">
+          <button onClick={() => setIsImportModalOpen(true)} className="h-9 px-3 text-slate-600 hover:bg-slate-100 rounded-lg text-xs font-bold flex items-center gap-2 transition-all">
             <Upload size={14} /> <span className="hidden sm:inline">Importar</span>
           </button>
-          <button className="h-9 px-3 text-slate-600 hover:bg-slate-100 rounded-lg text-xs font-bold flex items-center gap-2 transition-all">
+          <button onClick={() => setIsExportModalOpen(true)} className="h-9 px-3 text-slate-600 hover:bg-slate-100 rounded-lg text-xs font-bold flex items-center gap-2 transition-all">
             <Download size={14} /> <span className="hidden sm:inline">Exportar</span>
           </button>
           <button 
@@ -1000,6 +1039,26 @@ export default function Services() {
           </div>
         )}
       </AnimatePresence>
+
+      <ImportExportModal
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        mode="import"
+        title="Importar Serviços"
+        templateData={serviceTemplateData}
+        onImport={handleImportServices}
+        entityName="serviços"
+      />
+
+      <ImportExportModal
+        isOpen={isExportModalOpen}
+        onClose={() => setIsExportModalOpen(false)}
+        mode="export"
+        title="Exportar Serviços"
+        data={services}
+        columns={serviceExportColumns}
+        entityName="serviços"
+      />
     </div>
   );
 }
