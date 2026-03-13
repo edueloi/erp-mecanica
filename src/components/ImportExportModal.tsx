@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { X, Download, Upload, FileSpreadsheet, FileType, FileJson, FileCode } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { exportToExcel, exportToPDF, exportToCSV, downloadTemplate, parseImportFile } from '../utils/exportUtils';
+import { useSettings } from '../contexts/SettingsContext';
 
 interface ImportExportModalProps {
   isOpen: boolean;
@@ -13,8 +14,6 @@ interface ImportExportModalProps {
   templateData?: any[];
   onImport?: (data: any[]) => Promise<void>;
   entityName: string;
-  tenantName?: string;
-  tenantLogo?: string;
 }
 
 export default function ImportExportModal({
@@ -27,13 +26,15 @@ export default function ImportExportModal({
   templateData = [],
   onImport,
   entityName,
-  tenantName,
-  tenantLogo
 }: ImportExportModalProps) {
+  const { tenantSettings } = useSettings();
   const [selectedFormat, setSelectedFormat] = useState<'excel' | 'pdf' | 'csv'>('excel');
   const [importing, setImporting] = useState(false);
   const [importError, setImportError] = useState('');
   const [importSuccess, setImportSuccess] = useState('');
+
+  const tenantName = tenantSettings?.company_name || tenantSettings?.trade_name || '';
+  const tenantLogo = tenantSettings?.logo_url || '';
 
   const handleExport = () => {
     const timestamp = new Date().toISOString().split('T')[0];
