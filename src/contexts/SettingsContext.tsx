@@ -15,6 +15,7 @@ interface UserPreferences {
   default_rows_per_page: number;
   filters_json: string;
   table_preferences_json: string;
+  sidebar_display: "name_and_logo" | "logo_only" | "name_only";
 }
 
 interface TenantSettings {
@@ -124,6 +125,7 @@ const defaultPreferences: UserPreferences = {
   default_rows_per_page: 20,
   filters_json: "{}",
   table_preferences_json: "{}",
+  sidebar_display: "name_and_logo",
 };
 
 const SettingsContext = createContext<SettingsContextType>({
@@ -173,7 +175,8 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
       setPreferences({
         ...prefs,
         sidebar_collapsed: !!prefs.sidebar_collapsed,
-        show_dashboard_cards: !!prefs.show_dashboard_cards
+        show_dashboard_cards: !!prefs.show_dashboard_cards,
+        sidebar_display: prefs.sidebar_display || 'name_and_logo',
       });
       setTenantSettings(tenantResponse.data);
     } catch (error) {
@@ -190,7 +193,8 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
       setPreferences({
         ...updatedPrefs,
         sidebar_collapsed: !!updatedPrefs.sidebar_collapsed,
-        show_dashboard_cards: !!updatedPrefs.show_dashboard_cards
+        show_dashboard_cards: !!updatedPrefs.show_dashboard_cards,
+        sidebar_display: updatedPrefs.sidebar_display || 'name_and_logo',
       });
     } catch (error) {
       console.error("Error updating preferences:", error);

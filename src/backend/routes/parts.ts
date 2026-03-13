@@ -321,4 +321,47 @@ router.post("/:id/exit", async (req: AuthRequest, res) => {
   }
 });
 
+// Bulk import
+router.post("/bulk", async (req: AuthRequest, res) => {
+  const parts = req.body;
+  if (!Array.isArray(parts)) return res.status(400).json({ error: "Request body must be an array" });
+
+  const results = { success: 0, errors: [] as any[], inserted: [] as any[] };
+
+  for (let index = 0; index < parts.length; index++) {
+    const p = parts[index];
+    try {
+      const { name, code, supplier_code, category, brand, supplier_id, cost_price, sale_price, stock_quantity, min_stock, location, compatibility, notes } = p;
+      if (!name) {
+        results.errors.push({ index, data: p, error: "Nome é obrigatório" });
+        continue;
+      }
+      const id = uuidv4();
+      await db.execute(`
+        INSERT INTO parts (
+          id, tenant_id, name, code, supplier_code, category, brand, supplier_id,
+          cost_price, sale_price, stock_quantity, min_stock, location, compatibility, notes
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `, [
+        id, req.user!.tenant_id, name, code || '', supplier_code || '', category || '', brand || '', supplier_id || null,
+        cost_price || 0, sale_price || 0, stock_quantity || 0, min_stock || 0,
+        location || '', compatibility || '', notes || ''
+      ]);
+      if (stock_quantity && stock_quantity > 0) {
+        await db.execute(`
+          INSERT INTO stock_movements (id, tenant_id, part_id, type, quantity, unit_cost, user_id, reason)
+          VALUES (?, ?, ?, 'ENTRY', ?, ?, ?, 'Importação em massa')
+        `, [uuidv4(), req.user!.tenant_id, id, stock_quantity, cost_price || 0, req.user!.id]);
+      }
+      const inserted = await db.queryOne("SELECT * FROM parts WHERE id = ?", [id]);
+      results.success++;
+      results.inserted.push(inserted);
+    } catch (error: any) {
+      results.errors.push({ index, data: p, error: error.message });
+    }
+  }
+
+  res.json(results);
+});
+
 export default router;

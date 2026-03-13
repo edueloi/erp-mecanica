@@ -157,4 +157,42 @@ router.delete("/:id/parts/:part_id", async (req: AuthRequest, res) => {
   }
 });
 
+// Bulk import
+router.post("/bulk", async (req: AuthRequest, res) => {
+  const services = req.body;
+  if (!Array.isArray(services)) return res.status(400).json({ error: "Request body must be an array" });
+
+  const results = { success: 0, errors: [] as any[], inserted: [] as any[] };
+
+  for (let index = 0; index < services.length; index++) {
+    const s = services[index];
+    try {
+      const { name, code, category, description, estimated_time, default_price, estimated_cost, status, type, charging_type, warranty_days, allow_discount, requires_diagnosis, compatible_vehicles } = s;
+      if (!name) {
+        results.errors.push({ index, data: s, error: "Nome é obrigatório" });
+        continue;
+      }
+      const id = uuidv4();
+      await db.execute(`
+        INSERT INTO services (
+          id, tenant_id, name, code, category, description, estimated_time,
+          default_price, estimated_cost, status, type, charging_type, warranty_days,
+          allow_discount, requires_diagnosis, compatible_vehicles
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `, [
+        id, req.user!.tenant_id, name, code || '', category || '', description || '', estimated_time || null,
+        default_price || 0, estimated_cost || 0, status || 'ACTIVE', type || 'LABOR', charging_type || 'FIXED',
+        warranty_days || 90, allow_discount ? 1 : 0, requires_diagnosis ? 1 : 0, compatible_vehicles || null
+      ]);
+      const inserted = await db.queryOne("SELECT * FROM services WHERE id = ?", [id]);
+      results.success++;
+      results.inserted.push(inserted);
+    } catch (error: any) {
+      results.errors.push({ index, data: s, error: error.message });
+    }
+  }
+
+  res.json(results);
+});
+
 export default router;

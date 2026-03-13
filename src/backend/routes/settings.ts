@@ -48,6 +48,7 @@ router.patch("/preferences", async (req: any, res) => {
     default_rows_per_page,
     filters_json,
     table_preferences_json,
+    sidebar_display,
   } = req.body;
 
   try {
@@ -76,6 +77,7 @@ router.patch("/preferences", async (req: any, res) => {
            default_rows_per_page = COALESCE(?, default_rows_per_page),
            filters_json = COALESCE(?, filters_json),
            table_preferences_json = COALESCE(?, table_preferences_json),
+           sidebar_display = COALESCE(?, sidebar_display),
            updated_at = CURRENT_TIMESTAMP
        WHERE user_id = ?`,
       [
@@ -90,6 +92,7 @@ router.patch("/preferences", async (req: any, res) => {
         default_rows_per_page,
         filters_json,
         table_preferences_json,
+        sidebar_display || null,
         req.user.id
       ]
     );

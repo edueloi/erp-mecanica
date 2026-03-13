@@ -341,4 +341,44 @@ router.post("/generate-order-low-stock", async (req: AuthRequest, res) => {
   }
 });
 
+// Bulk import
+router.post("/bulk", async (req: AuthRequest, res) => {
+  const suppliers = req.body;
+  if (!Array.isArray(suppliers)) return res.status(400).json({ error: "Request body must be an array" });
+
+  const results = { success: 0, errors: [] as any[], inserted: [] as any[] };
+
+  for (let index = 0; index < suppliers.length; index++) {
+    const s = suppliers[index];
+    try {
+      const { name, trade_name, cnpj, ie, category, status, phone, whatsapp, email, website, contact_name, sales_rep, sales_rep_phone, zip_code, street, number, complement, neighborhood, city, state, payment_terms, payment_methods, notes, is_preferred } = s;
+      if (!name) {
+        results.errors.push({ index, data: s, error: "Nome é obrigatório" });
+        continue;
+      }
+      const id = uuidv4();
+      await db.execute(`
+        INSERT INTO suppliers (
+          id, tenant_id, name, trade_name, cnpj, ie, category, status, phone, whatsapp,
+          email, website, contact_name, sales_rep, sales_rep_phone, zip_code, street,
+          number, complement, neighborhood, city, state, payment_terms, payment_methods,
+          notes, is_preferred
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `, [
+        id, req.user!.tenant_id, name, trade_name || '', cnpj || '', ie || '', category || '', status || 'ACTIVE',
+        phone || '', whatsapp || '', email || '', website || '', contact_name || '', sales_rep || '', sales_rep_phone || '',
+        zip_code || '', street || '', number || '', complement || '', neighborhood || '', city || '', state || '',
+        payment_terms || '', payment_methods || '', notes || '', is_preferred ? 1 : 0
+      ]);
+      const inserted = await db.queryOne("SELECT * FROM suppliers WHERE id = ?", [id]);
+      results.success++;
+      results.inserted.push(inserted);
+    } catch (error: any) {
+      results.errors.push({ index, data: s, error: error.message });
+    }
+  }
+
+  res.json(results);
+});
+
 export default router;

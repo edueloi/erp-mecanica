@@ -403,6 +403,7 @@ CREATE TABLE IF NOT EXISTS user_preferences (
   default_rows_per_page  INT          DEFAULT 20,
   filters_json           LONGTEXT,
   table_preferences_json LONGTEXT,
+  sidebar_display        VARCHAR(30)  DEFAULT 'name_and_logo',
   created_at             DATETIME     DEFAULT CURRENT_TIMESTAMP,
   updated_at             DATETIME     DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
@@ -1052,6 +1053,11 @@ VALUES (
 
 -- Reabilita verificação de FK
 SET FOREIGN_KEY_CHECKS = 1;
+
+-- ============================================================
+-- PATCHES (rodar em banco existente)
+-- ============================================================
+ALTER TABLE user_preferences ADD COLUMN IF NOT EXISTS sidebar_display VARCHAR(30) DEFAULT 'name_and_logo';
 
 -- ============================================================
 -- FIM DA MIGRAÇÃO

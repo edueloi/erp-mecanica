@@ -2252,6 +2252,34 @@ export default function Settings() {
                 </div>
               </div>
 
+              {/* Sidebar Display */}
+              <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
+                <h3 className="text-sm font-black text-slate-700 uppercase tracking-wider mb-1 flex items-center gap-2">
+                  <LayoutGrid className="w-4 h-4" /> Exibição no Menu & PDFs
+                </h3>
+                <p className="text-[10px] text-slate-400 font-bold uppercase mb-3">O que aparece no cabeçalho do menu lateral e nos documentos exportados</p>
+                <div className="grid grid-cols-3 gap-3">
+                  {[
+                    { id: 'name_and_logo', label: 'Nome e Logo', desc: 'Exibe ambos' },
+                    { id: 'logo_only',     label: 'Somente Logo', desc: 'Apenas a imagem' },
+                    { id: 'name_only',     label: 'Somente Nome', desc: 'Apenas o texto' },
+                  ].map((opt) => (
+                    <button
+                      key={opt.id}
+                      onClick={() => updatePreferences({ sidebar_display: opt.id as any })}
+                      className={`flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all cursor-pointer ${
+                        (preferences.sidebar_display || 'name_and_logo') === opt.id
+                          ? 'border-slate-900 bg-slate-50 shadow-md'
+                          : 'border-slate-100 hover:border-slate-200 hover:bg-slate-50/50'
+                      }`}
+                    >
+                      <div className={`font-black text-xs uppercase tracking-wider ${(preferences.sidebar_display || 'name_and_logo') === opt.id ? 'text-slate-900' : 'text-slate-400'}`}>{opt.label}</div>
+                      <div className="text-[10px] text-slate-400 font-medium">{opt.desc}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               {/* Display Preferences */}
               <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
                 <h3 className="text-sm font-black text-slate-700 uppercase tracking-wider mb-3 flex items-center gap-2">

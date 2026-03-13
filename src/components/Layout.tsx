@@ -155,14 +155,16 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           isCollapsed && "lg:px-4 lg:justify-center"
         )}>
           <div className="flex items-center gap-3 overflow-hidden">
-            <div className="w-9 h-9 bg-white rounded-xl flex items-center justify-center font-bold text-slate-900 overflow-hidden shrink-0 shadow-lg shadow-black/20">
-              {tenantSettings?.logo_url ? (
-                <img src={tenantSettings.logo_url} alt="Logo" className="w-full h-full object-contain p-1" />
-              ) : (
-                <Shield size={20} style={{ color: preferences.primary_color }} />
-              )}
-            </div>
-            {!isCollapsed && (
+            {(preferences.sidebar_display === 'name_and_logo' || preferences.sidebar_display === 'logo_only' || !preferences.sidebar_display) && (
+              <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center font-bold text-slate-900 overflow-hidden shrink-0 shadow-lg shadow-black/20">
+                {tenantSettings?.logo_url ? (
+                  <img src={tenantSettings.logo_url} alt="Logo" className="w-full h-full object-contain p-0.5" />
+                ) : (
+                  <Shield size={24} style={{ color: preferences.primary_color }} />
+                )}
+              </div>
+            )}
+            {!isCollapsed && preferences.sidebar_display !== 'logo_only' && (
               <span className="text-lg font-black tracking-tight truncate text-white">
                 {tenantSettings?.trade_name || tenantSettings?.company_name || 'MecaERP'}
               </span>

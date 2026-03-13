@@ -213,4 +213,35 @@ router.patch("/:id", async (req: AuthRequest, res) => {
   }
 });
 
+// Bulk import
+router.post("/bulk", async (req: AuthRequest, res) => {
+  const vehicles = req.body;
+  if (!Array.isArray(vehicles)) return res.status(400).json({ error: "Request body must be an array" });
+
+  const results = { success: 0, errors: [] as any[], inserted: [] as any[] };
+
+  for (let index = 0; index < vehicles.length; index++) {
+    const v = vehicles[index];
+    try {
+      const { plate, brand, model, year, color, vin, fuel_type, km, client_id } = v;
+      if (!plate && !brand && !model) {
+        results.errors.push({ index, data: v, error: "Placa, marca ou modelo são obrigatórios" });
+        continue;
+      }
+      const id = uuidv4();
+      await db.execute(`
+        INSERT INTO vehicles (id, tenant_id, client_id, plate, brand, model, year, color, vin, fuel_type, km)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `, [id, req.user!.tenant_id, client_id || null, plate || '', brand || '', model || '', year || null, color || '', vin || '', fuel_type || '', km || 0]);
+      const inserted = await db.queryOne("SELECT * FROM vehicles WHERE id = ?", [id]);
+      results.success++;
+      results.inserted.push(inserted);
+    } catch (error: any) {
+      results.errors.push({ index, data: v, error: error.message });
+    }
+  }
+
+  res.json(results);
+});
+
 export default router;

@@ -27,14 +27,15 @@ export default function ImportExportModal({
   onImport,
   entityName,
 }: ImportExportModalProps) {
-  const { tenantSettings } = useSettings();
+  const { tenantSettings, preferences } = useSettings();
   const [selectedFormat, setSelectedFormat] = useState<'excel' | 'pdf' | 'csv'>('excel');
   const [importing, setImporting] = useState(false);
   const [importError, setImportError] = useState('');
   const [importSuccess, setImportSuccess] = useState('');
 
-  const tenantName = tenantSettings?.company_name || tenantSettings?.trade_name || '';
-  const tenantLogo = tenantSettings?.logo_url || '';
+  const display = preferences.sidebar_display || 'name_and_logo';
+  const tenantName = display !== 'logo_only' ? (tenantSettings?.trade_name || tenantSettings?.company_name || '') : '';
+  const tenantLogo = display !== 'name_only' ? (tenantSettings?.logo_url || '') : '';
 
   const handleExport = () => {
     const timestamp = new Date().toISOString().split('T')[0];
