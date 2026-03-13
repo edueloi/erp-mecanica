@@ -763,7 +763,7 @@ export default function Suppliers() {
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-64px)] bg-slate-50 overflow-hidden lg:-mx-5 lg:mt-0 lg:mb-0 -mx-4 -mt-4 -mb-4 min-w-0">
+    <div className="flex flex-col flex-1 min-h-0 bg-slate-50 overflow-hidden">
       {/* Header */}
       <header className="bg-white border-b border-slate-200 px-6 py-3 flex items-center justify-between sticky top-0 z-30 shrink-0">
         <div className="flex items-center gap-4 flex-1">

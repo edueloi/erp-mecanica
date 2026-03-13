@@ -287,7 +287,7 @@ export default function Clients() {
   ];
 
   return (
-    <div className="flex flex-col h-full -m-6">
+    <div className="flex flex-col flex-1 min-h-0">
       {/* Header - Compact */}
       <header className="bg-white border-b border-slate-200 px-6 py-3 flex items-center justify-between sticky top-0 z-30">
         <div className="flex items-center gap-4 flex-1">

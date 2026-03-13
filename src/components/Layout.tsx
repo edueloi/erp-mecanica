@@ -312,11 +312,17 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         </header>
 
         {/* Page Content */}
-        <div className="flex-1 overflow-y-auto bg-[#f8fafc] custom-scrollbar">
-          <div className={location.pathname.startsWith('/settings') || location.pathname === '/finance/cashflow' ? '' : 'px-4 py-4'}>
+        {['/clients', '/parts', '/suppliers', '/services', '/vehicles'].includes(location.pathname) ? (
+          <div className="flex-1 overflow-hidden flex flex-col min-h-0 bg-[#f8fafc]">
             {children}
           </div>
-        </div>
+        ) : (
+          <div className="flex-1 overflow-y-auto bg-[#f8fafc] custom-scrollbar">
+            <div className={location.pathname.startsWith('/settings') || location.pathname === '/finance/cashflow' ? '' : 'px-4 py-4'}>
+              {children}
+            </div>
+          </div>
+        )}
       </main>
     </div>
   );
