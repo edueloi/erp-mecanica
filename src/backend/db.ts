@@ -55,10 +55,13 @@ export const db = {
   pool,
 };
 
-// Called from server.ts on startup — tests the connection
+// Called from server.ts on startup — tests the connection and sets SQL mode
 export async function initDb(): Promise<void> {
   try {
     const conn = await pool.getConnection();
+    // Disable ONLY_FULL_GROUP_BY to allow GROUP BY pk with SELECT *
+    await conn.query("SET SESSION sql_mode = 'STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION'");
+    await conn.query("SET GLOBAL sql_mode = 'STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION'");
     console.log('✅ MySQL connected to database:', process.env.DB_NAME || 'mecaerp');
     conn.release();
   } catch (err: any) {
