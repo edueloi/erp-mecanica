@@ -8,26 +8,24 @@ const router = express.Router();
 router.use(authenticateToken);
 
 // Get user preferences
-router.get("/preferences", (req: any, res) => {
+router.get("/preferences", async (req: any, res) => {
   try {
-    let preferences = db
-      .prepare(
-        `SELECT * FROM user_preferences 
-         WHERE user_id = ? AND tenant_id = ?`
-      )
-      .get(req.user.id, req.user.tenant_id);
+    let preferences = await db.queryOne(
+      `SELECT * FROM user_preferences
+       WHERE user_id = ? AND tenant_id = ?`,
+      [req.user.id, req.user.tenant_id]
+    );
 
     // Create default preferences if not exists
     if (!preferences) {
       const id = uuidv4();
-      db.prepare(
+      await db.execute(
         `INSERT INTO user_preferences (id, tenant_id, user_id)
-         VALUES (?, ?, ?)`
-      ).run(id, req.user.tenant_id, req.user.id);
+         VALUES (?, ?, ?)`,
+        [id, req.user.tenant_id, req.user.id]
+      );
 
-      preferences = db
-        .prepare("SELECT * FROM user_preferences WHERE id = ?")
-        .get(id);
+      preferences = await db.queryOne("SELECT * FROM user_preferences WHERE id = ?", [id]);
     }
 
     res.json(preferences);
@@ -37,7 +35,7 @@ router.get("/preferences", (req: any, res) => {
 });
 
 // Update user preferences
-router.patch("/preferences", (req: any, res) => {
+router.patch("/preferences", async (req: any, res) => {
   const {
     theme_mode,
     primary_color,
@@ -54,20 +52,19 @@ router.patch("/preferences", (req: any, res) => {
 
   try {
     // Ensure preference exists
-    let preferences = db
-      .prepare("SELECT id FROM user_preferences WHERE user_id = ?")
-      .get(req.user.id) as any;
+    let preferences = await db.queryOne("SELECT id FROM user_preferences WHERE user_id = ?", [req.user.id]) as any;
 
     if (!preferences) {
       const id = uuidv4();
-      db.prepare(
+      await db.execute(
         `INSERT INTO user_preferences (id, tenant_id, user_id)
-         VALUES (?, ?, ?)`
-      ).run(id, req.user.tenant_id, req.user.id);
+         VALUES (?, ?, ?)`,
+        [id, req.user.tenant_id, req.user.id]
+      );
     }
 
-    db.prepare(
-      `UPDATE user_preferences 
+    await db.execute(
+      `UPDATE user_preferences
        SET theme_mode = COALESCE(?, theme_mode),
            primary_color = COALESCE(?, primary_color),
            secondary_color = COALESCE(?, secondary_color),
@@ -80,26 +77,25 @@ router.patch("/preferences", (req: any, res) => {
            filters_json = COALESCE(?, filters_json),
            table_preferences_json = COALESCE(?, table_preferences_json),
            updated_at = CURRENT_TIMESTAMP
-       WHERE user_id = ?`
-    ).run(
-      theme_mode,
-      primary_color,
-      secondary_color,
-      sidebar_color,
-      sidebar_text_color,
-      header_color,
-      sidebar_collapsed !== undefined ? (sidebar_collapsed ? 1 : 0) : null,
-      show_dashboard_cards !== undefined ? (show_dashboard_cards ? 1 : 0) : null,
-      default_rows_per_page,
-      filters_json,
-      table_preferences_json,
-      req.user.id
+       WHERE user_id = ?`,
+      [
+        theme_mode,
+        primary_color,
+        secondary_color,
+        sidebar_color,
+        sidebar_text_color,
+        header_color,
+        sidebar_collapsed !== undefined ? (sidebar_collapsed ? 1 : 0) : null,
+        show_dashboard_cards !== undefined ? (show_dashboard_cards ? 1 : 0) : null,
+        default_rows_per_page,
+        filters_json,
+        table_preferences_json,
+        req.user.id
+      ]
     );
 
-    const updated = db
-      .prepare("SELECT * FROM user_preferences WHERE user_id = ?")
-      .get(req.user.id);
-    
+    const updated = await db.queryOne("SELECT * FROM user_preferences WHERE user_id = ?", [req.user.id]);
+
     res.json(updated);
   } catch (error: any) {
     console.error("Error updating preferences:", error);
@@ -108,33 +104,32 @@ router.patch("/preferences", (req: any, res) => {
 });
 
 // Get tenant settings
-router.get("/tenant", (req: any, res) => {
+router.get("/tenant", async (req: any, res) => {
   try {
-    let settings = db
-      .prepare(
-        `SELECT ts.*, t.user_limit 
-         FROM tenant_settings ts
-         JOIN tenants t ON t.id = ts.tenant_id
-         WHERE ts.tenant_id = ?`
-      )
-      .get(req.user.tenant_id);
+    let settings = await db.queryOne(
+      `SELECT ts.*, t.user_limit
+       FROM tenant_settings ts
+       JOIN tenants t ON t.id = ts.tenant_id
+       WHERE ts.tenant_id = ?`,
+      [req.user.tenant_id]
+    );
 
     // Create default settings if not exists
     if (!settings) {
       const id = uuidv4();
-      db.prepare(
+      await db.execute(
         `INSERT INTO tenant_settings (id, tenant_id)
-         VALUES (?, ?)`
-      ).run(id, req.user.tenant_id);
+         VALUES (?, ?)`,
+        [id, req.user.tenant_id]
+      );
 
-      settings = db
-        .prepare(`
-          SELECT ts.*, t.user_limit 
+      settings = await db.queryOne(
+        `SELECT ts.*, t.user_limit
           FROM tenant_settings ts
           JOIN tenants t ON t.id = ts.tenant_id
-          WHERE ts.id = ?
-        `)
-        .get(id);
+          WHERE ts.id = ?`,
+        [id]
+      );
     }
 
     res.json(settings);
@@ -144,11 +139,9 @@ router.get("/tenant", (req: any, res) => {
 });
 
 // Update tenant settings (requires ADMIN role)
-router.patch("/tenant", (req: any, res) => {
+router.patch("/tenant", async (req: any, res) => {
   // Check if user is admin
-  const user = db
-    .prepare("SELECT role FROM users WHERE id = ?")
-    .get(req.user.id) as any;
+  const user = await db.queryOne("SELECT role FROM users WHERE id = ?", [req.user.id]) as any;
 
   if (user.role !== "ADMIN") {
     return res.status(403).json({ error: "Apenas administradores podem alterar configurações da oficina" });
@@ -158,16 +151,15 @@ router.patch("/tenant", (req: any, res) => {
 
   try {
     // Ensure settings exists
-    let settings = db
-      .prepare("SELECT id FROM tenant_settings WHERE tenant_id = ?")
-      .get(req.user.tenant_id) as any;
+    let settings = await db.queryOne("SELECT id FROM tenant_settings WHERE tenant_id = ?", [req.user.tenant_id]) as any;
 
     if (!settings) {
       const id = uuidv4();
-      db.prepare(
+      await db.execute(
         `INSERT INTO tenant_settings (id, tenant_id)
-         VALUES (?, ?)`
-      ).run(id, req.user.tenant_id);
+         VALUES (?, ?)`,
+        [id, req.user.tenant_id]
+      );
     }
 
     // Build dynamic UPDATE query based on provided fields
@@ -207,7 +199,7 @@ router.patch("/tenant", (req: any, res) => {
       values.push(tenantId);
 
       const query = `UPDATE tenant_settings SET ${updates.join(', ')} WHERE tenant_id = ?`;
-      db.prepare(query).run(...values);
+      await db.execute(query, values);
 
       // Sincronizar campos compartilhados com a tabela principal 'tenants'
       const syncUpdates: string[] = [];
@@ -215,7 +207,7 @@ router.patch("/tenant", (req: any, res) => {
 
       if (settingsData.hasOwnProperty('trade_name')) { syncUpdates.push("name = ?"); syncValues.push(settingsData.trade_name); }
       else if (settingsData.hasOwnProperty('company_name')) { syncUpdates.push("name = ?"); syncValues.push(settingsData.company_name); }
-      
+
       if (settingsData.hasOwnProperty('cnpj')) { syncUpdates.push("document = ?"); syncValues.push(settingsData.cnpj); }
       if (settingsData.hasOwnProperty('phone')) { syncUpdates.push("phone = ?"); syncValues.push(settingsData.phone); }
       if (settingsData.hasOwnProperty('address')) { syncUpdates.push("address = ?"); syncValues.push(settingsData.address); }
@@ -223,14 +215,12 @@ router.patch("/tenant", (req: any, res) => {
 
       if (syncUpdates.length > 0) {
         syncValues.push(tenantId);
-        db.prepare(`UPDATE tenants SET ${syncUpdates.join(', ')} WHERE id = ?`).run(...syncValues);
+        await db.execute(`UPDATE tenants SET ${syncUpdates.join(', ')} WHERE id = ?`, syncValues);
       }
     }
 
-    const updated = db
-      .prepare("SELECT * FROM tenant_settings WHERE tenant_id = ?")
-      .get(req.user.tenant_id);
-    
+    const updated = await db.queryOne("SELECT * FROM tenant_settings WHERE tenant_id = ?", [req.user.tenant_id]);
+
     res.json(updated);
   } catch (error: any) {
     console.error("Error updating tenant settings:", error);
@@ -239,13 +229,11 @@ router.patch("/tenant", (req: any, res) => {
 });
 
 // Change password
-router.post("/change-password", (req: any, res) => {
+router.post("/change-password", async (req: any, res) => {
   const { current_password, new_password } = req.body;
 
   try {
-    const user = db
-      .prepare("SELECT password FROM users WHERE id = ?")
-      .get(req.user.id) as any;
+    const user = await db.queryOne("SELECT password FROM users WHERE id = ?", [req.user.id]) as any;
 
     // In production, use bcrypt to compare
     if (user.password !== current_password) {
@@ -253,10 +241,7 @@ router.post("/change-password", (req: any, res) => {
     }
 
     // In production, hash the password with bcrypt
-    db.prepare("UPDATE users SET password = ? WHERE id = ?").run(
-      new_password,
-      req.user.id
-    );
+    await db.execute("UPDATE users SET password = ? WHERE id = ?", [new_password, req.user.id]);
 
     res.json({ message: "Senha alterada com sucesso" });
   } catch (error: any) {

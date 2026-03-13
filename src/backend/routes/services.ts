@@ -8,9 +8,9 @@ const router = express.Router();
 router.use(authenticateToken);
 
 // List all services for the tenant
-router.get("/", (req: AuthRequest, res) => {
+router.get("/", async (req: AuthRequest, res) => {
   try {
-    const services = db.prepare("SELECT * FROM services WHERE tenant_id = ? ORDER BY name ASC").all(req.user!.tenant_id);
+    const services = await db.query("SELECT * FROM services WHERE tenant_id = ? ORDER BY name ASC", [req.user!.tenant_id]);
     res.json(services);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -18,29 +18,29 @@ router.get("/", (req: AuthRequest, res) => {
 });
 
 // Create a new service
-router.post("/", (req: AuthRequest, res) => {
-  const { 
-    name, code, category, description, estimated_time, 
+router.post("/", async (req: AuthRequest, res) => {
+  const {
+    name, code, category, description, estimated_time,
     default_price, estimated_cost, status, type, charging_type,
-    warranty_days, allow_discount, requires_diagnosis, compatible_vehicles 
+    warranty_days, allow_discount, requires_diagnosis, compatible_vehicles
   } = req.body;
 
   try {
     const id = uuidv4();
-    db.prepare(`
+    await db.execute(`
       INSERT INTO services (
         id, tenant_id, name, code, category, description, estimated_time,
         default_price, estimated_cost, status, type, charging_type, warranty_days,
         allow_discount, requires_diagnosis, compatible_vehicles
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(
+    `, [
       id, req.user!.tenant_id, name, code, category, description, estimated_time,
       default_price || 0, estimated_cost || 0, status || 'ACTIVE', type || 'LABOR', charging_type || 'FIXED',
-      warranty_days || 90, allow_discount ? 1 : 0, requires_diagnosis ? 1 : 0, 
+      warranty_days || 90, allow_discount ? 1 : 0, requires_diagnosis ? 1 : 0,
       compatible_vehicles
-    );
+    ]);
 
-    const newService = db.prepare("SELECT * FROM services WHERE id = ?").get(id);
+    const newService = await db.queryOne("SELECT * FROM services WHERE id = ?", [id]);
     res.status(201).json(newService);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -48,7 +48,7 @@ router.post("/", (req: AuthRequest, res) => {
 });
 
 // Update a service
-router.patch("/:id", (req: AuthRequest, res) => {
+router.patch("/:id", async (req: AuthRequest, res) => {
   const data = req.body;
   const allowedFields = [
     'name', 'code', 'category', 'description', 'estimated_time',
@@ -72,10 +72,10 @@ router.patch("/:id", (req: AuthRequest, res) => {
       values.push(req.params.id, req.user!.tenant_id);
 
       const query = `UPDATE services SET ${updates.join(', ')} WHERE id = ? AND tenant_id = ?`;
-      db.prepare(query).run(...values);
+      await db.execute(query, values);
     }
 
-    const updated = db.prepare("SELECT * FROM services WHERE id = ?").get(req.params.id);
+    const updated = await db.queryOne("SELECT * FROM services WHERE id = ?", [req.params.id]);
     res.json(updated);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -83,10 +83,10 @@ router.patch("/:id", (req: AuthRequest, res) => {
 });
 
 // Delete a service
-router.delete("/:id", (req: AuthRequest, res) => {
+router.delete("/:id", async (req: AuthRequest, res) => {
   try {
-    const result = db.prepare("DELETE FROM services WHERE id = ? AND tenant_id = ?").run(req.params.id, req.user!.tenant_id);
-    if (result.changes === 0) {
+    const result = await db.execute("DELETE FROM services WHERE id = ? AND tenant_id = ?", [req.params.id, req.user!.tenant_id]);
+    if ((result as any).affectedRows === 0) {
       return res.status(404).json({ error: "Service not found" });
     }
     res.json({ message: "Service deleted successfully" });
@@ -96,29 +96,29 @@ router.delete("/:id", (req: AuthRequest, res) => {
 });
 
 // Create/Link part to a service
-router.post("/:id/parts", (req: AuthRequest, res) => {
+router.post("/:id/parts", async (req: AuthRequest, res) => {
   const { part_id, quantity } = req.body;
   const service_id = req.params.id;
   const tenant_id = req.user!.tenant_id;
 
   try {
-    const existing = db.prepare("SELECT id FROM service_parts WHERE service_id = ? AND part_id = ? AND tenant_id = ?").get(service_id, part_id, tenant_id);
+    const existing = await db.queryOne("SELECT id FROM service_parts WHERE service_id = ? AND part_id = ? AND tenant_id = ?", [service_id, part_id, tenant_id]);
     if (existing) {
       return res.status(400).json({ error: "Part already linked to this service" });
     }
 
     const id = uuidv4();
-    db.prepare(`
+    await db.execute(`
       INSERT INTO service_parts (id, tenant_id, service_id, part_id, quantity)
       VALUES (?, ?, ?, ?, ?)
-    `).run(id, tenant_id, service_id, part_id, quantity || 1);
+    `, [id, tenant_id, service_id, part_id, quantity || 1]);
 
-    const newLink = db.prepare(`
-      SELECT sp.*, p.name as part_name, p.code as part_code, p.sale_price 
-      FROM service_parts sp 
-      JOIN parts p ON p.id = sp.part_id 
+    const newLink = await db.queryOne(`
+      SELECT sp.*, p.name as part_name, p.code as part_code, p.sale_price
+      FROM service_parts sp
+      JOIN parts p ON p.id = sp.part_id
       WHERE sp.id = ?
-    `).get(id);
+    `, [id]);
 
     res.status(201).json(newLink);
   } catch (error: any) {
@@ -127,17 +127,17 @@ router.post("/:id/parts", (req: AuthRequest, res) => {
 });
 
 // Get all parts linked to a service
-router.get("/:id/parts", (req: AuthRequest, res) => {
+router.get("/:id/parts", async (req: AuthRequest, res) => {
   const service_id = req.params.id;
   const tenant_id = req.user!.tenant_id;
 
   try {
-    const parts = db.prepare(`
-      SELECT sp.*, p.name as part_name, p.code as part_code, p.sale_price, p.stock_quantity as current_stock 
+    const parts = await db.query(`
+      SELECT sp.*, p.name as part_name, p.code as part_code, p.sale_price, p.stock_quantity as current_stock
       FROM service_parts sp
       JOIN parts p ON p.id = sp.part_id
       WHERE sp.service_id = ? AND sp.tenant_id = ?
-    `).all(service_id, tenant_id);
+    `, [service_id, tenant_id]);
     res.json(parts);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -145,12 +145,12 @@ router.get("/:id/parts", (req: AuthRequest, res) => {
 });
 
 // Remove part link from a service
-router.delete("/:id/parts/:part_id", (req: AuthRequest, res) => {
+router.delete("/:id/parts/:part_id", async (req: AuthRequest, res) => {
   const { id: service_id, part_id } = req.params;
   const tenant_id = req.user!.tenant_id;
 
   try {
-    db.prepare("DELETE FROM service_parts WHERE service_id = ? AND part_id = ? AND tenant_id = ?").run(service_id, part_id, tenant_id);
+    await db.execute("DELETE FROM service_parts WHERE service_id = ? AND part_id = ? AND tenant_id = ?", [service_id, part_id, tenant_id]);
     res.json({ message: "Part link removed" });
   } catch (error: any) {
     res.status(500).json({ error: error.message });

@@ -1,10 +1,10 @@
 /**
  * Bot Engine - WhatsApp Chatbot para MecaERP
- * 
+ *
  * Processa mensagens automaticamente quando:
  * 1. O tenant tem `whatsapp_bot_enabled = true` nas configurações
  * 2. A conversa específica tem `bot_enabled = true`
- * 
+ *
  * Fluxos implementados:
  * - Saudação/Menu principal
  * - Agendamento de serviço (state machine)
@@ -57,7 +57,7 @@ class BotEngine {
    */
   init() {
     if (this.initialized) return;
-    
+
     console.log('🤖 Bot Engine inicializado');
 
     // Escutar evento bot_process emitido pelo wppconnect-service
@@ -78,9 +78,10 @@ class BotEngine {
   private async processMessage(tenantId: string, conversationId: string, message: string) {
     try {
       // 1. Verificar se o tenant tem bot habilitado nas configurações
-      const tenantSettings = db.prepare(
-        `SELECT value FROM tenant_settings WHERE tenant_id = ? AND key = 'whatsapp_bot_enabled'`
-      ).get(tenantId) as any;
+      const tenantSettings = await db.queryOne(
+        `SELECT value FROM tenant_settings WHERE tenant_id = ? AND \`key\` = 'whatsapp_bot_enabled'`,
+        [tenantId]
+      );
 
       if (!tenantSettings || tenantSettings.value !== '1' && tenantSettings.value !== 'true') {
         console.log(`🤖 [Bot] Bot desabilitado para tenant ${tenantId}`);
@@ -88,9 +89,10 @@ class BotEngine {
       }
 
       // 2. Buscar dados da conversa
-      const conversation = db.prepare(
-        `SELECT * FROM whatsapp_conversations WHERE id = ? AND tenant_id = ?`
-      ).get(conversationId, tenantId) as ConversationData;
+      const conversation = await db.queryOne(
+        `SELECT * FROM whatsapp_conversations WHERE id = ? AND tenant_id = ?`,
+        [conversationId, tenantId]
+      ) as ConversationData;
 
       if (!conversation) {
         console.error(`❌ [Bot] Conversa não encontrada: ${conversationId}`);
@@ -135,7 +137,7 @@ class BotEngine {
 
       // 7. Salvar estado atualizado
       botState.lastInteraction = new Date().toISOString();
-      this.saveBotState(conversationId, botState);
+      await this.saveBotState(conversationId, botState);
 
       // 8. Enviar resposta
       if (response) {
@@ -144,13 +146,16 @@ class BotEngine {
 
     } catch (error: any) {
       console.error('❌ [Bot] Erro no processamento:', error.message);
-      
+
       // Enviar mensagem de erro genérica
       try {
-        const conv = db.prepare(`SELECT phone, phone_e164 FROM whatsapp_conversations WHERE id = ?`).get(conversationId) as any;
+        const conv = await db.queryOne(
+          `SELECT phone, phone_e164 FROM whatsapp_conversations WHERE id = ?`,
+          [conversationId]
+        );
         if (conv) {
           await this.sendBotMessage(
-            tenantId, conversationId, 
+            tenantId, conversationId,
             conv.phone_e164 || conv.phone,
             '⚠️ Desculpe, ocorreu um erro no meu processamento. Um atendente será notificado. Por favor, aguarde.'
           );
@@ -187,11 +192,11 @@ class BotEngine {
     }
 
     if (this.matchesIntent(msg, ['oi', 'olá', 'ola', 'bom dia', 'boa tarde', 'boa noite', 'hey', 'hi', 'hello', 'ei', 'eai', 'e aí', 'menu'])) {
-      return this.getMenuMessage(tenantId);
+      return await this.getMenuMessage(tenantId);
     }
 
     // Mensagem não reconhecida - mostrar menu
-    return '🤔 Não entendi sua mensagem.\n\n' + this.getMenuMessage(tenantId);
+    return '🤔 Não entendi sua mensagem.\n\n' + await this.getMenuMessage(tenantId);
   }
 
   // ========================================
@@ -204,22 +209,22 @@ class BotEngine {
       state.topic = 'menu';
       state.step = 0;
       state.data = {};
-      return '↩️ Agendamento cancelado.\n\n' + this.getMenuMessage(tenantId);
+      return '↩️ Agendamento cancelado.\n\n' + await this.getMenuMessage(tenantId);
     }
 
     switch (state.step) {
       case 1: // Perguntar serviço
         return this.handleAgendamentoStep1(msg, state);
-      
+
       case 2: // Perguntar placa
         return this.handleAgendamentoStep2(msg, state);
-      
+
       case 3: // Perguntar data/horário
         return this.handleAgendamentoStep3(msg, state, tenantId);
-      
+
       case 4: // Confirmar
         return await this.handleAgendamentoStep4(msg, state, tenantId, conversationId);
-      
+
       default:
         state.step = 1;
         return this.getAgendamentoStep1();
@@ -271,7 +276,7 @@ class BotEngine {
   private handleAgendamentoStep2(msg: string, state: BotState): string {
     // Validar formato da placa (brasileira)
     const plate = msg.toUpperCase().replace(/[^A-Z0-9]/g, '');
-    
+
     if (plate.length < 6 || plate.length > 7) {
       return '⚠️ Placa inválida. Informe no formato:\n• *ABC-1234* (antigo)\n• *ABC1D23* (Mercosul)\n\nTente novamente:';
     }
@@ -306,12 +311,13 @@ class BotEngine {
       // Registrar agendamento no log/notificação
       try {
         // Marcar conversa com tag de agendamento pendente
-        db.prepare(
-          `UPDATE whatsapp_conversations 
+        await db.execute(
+          `UPDATE whatsapp_conversations
            SET tags = '["agendamento_pendente"]',
                bot_topic = 'agendamento_confirmado'
-           WHERE id = ?`
-        ).run(conversationId);
+           WHERE id = ?`,
+          [conversationId]
+        );
       } catch (e) {}
 
       // Resetar estado do bot
@@ -333,7 +339,7 @@ class BotEngine {
       state.topic = 'menu';
       state.step = 0;
       state.data = {};
-      return '❌ Agendamento cancelado.\n\n' + this.getMenuMessage(tenantId);
+      return '❌ Agendamento cancelado.\n\n' + await this.getMenuMessage(tenantId);
     }
 
     if (this.matchesIntent(msg, ['alterar', 'mudar', 'recomeçar', 'recomecar', 'editar'])) {
@@ -353,33 +359,35 @@ class BotEngine {
     if (this.matchesIntent(msg, ['cancelar', 'voltar', 'menu', 'sair'])) {
       state.topic = 'menu';
       state.step = 0;
-      return '↩️ Consulta cancelada.\n\n' + this.getMenuMessage(tenantId);
+      return '↩️ Consulta cancelada.\n\n' + await this.getMenuMessage(tenantId);
     }
 
     // Tentar buscar OS pelo número ou placa
     const searchTerm = msg.toUpperCase().replace(/[^A-Z0-9-]/g, '');
-    
+
     try {
       // Buscar por número da OS
-      let workOrder = db.prepare(
+      let workOrder = await db.queryOne(
         `SELECT wo.*, v.plate, v.model as vehicle_model, c.name as client_name
          FROM work_orders wo
          LEFT JOIN vehicles v ON wo.vehicle_id = v.id
          LEFT JOIN clients c ON wo.client_id = c.id
          WHERE wo.tenant_id = ? AND (wo.order_number LIKE ? OR wo.id LIKE ?)
-         ORDER BY wo.created_at DESC LIMIT 1`
-      ).get(tenantId, `%${searchTerm}%`, `%${searchTerm}%`) as any;
+         ORDER BY wo.created_at DESC LIMIT 1`,
+        [tenantId, `%${searchTerm}%`, `%${searchTerm}%`]
+      );
 
       // Se não encontrou por número, buscar por placa
       if (!workOrder) {
-        workOrder = db.prepare(
+        workOrder = await db.queryOne(
           `SELECT wo.*, v.plate, v.model as vehicle_model, c.name as client_name
            FROM work_orders wo
            LEFT JOIN vehicles v ON wo.vehicle_id = v.id
            LEFT JOIN clients c ON wo.client_id = c.id
            WHERE wo.tenant_id = ? AND v.plate LIKE ?
-           ORDER BY wo.created_at DESC LIMIT 1`
-        ).get(tenantId, `%${searchTerm}%`) as any;
+           ORDER BY wo.created_at DESC LIMIT 1`,
+          [tenantId, `%${searchTerm}%`]
+        );
       }
 
       if (workOrder) {
@@ -429,14 +437,15 @@ class BotEngine {
     };
   }
 
-  private getMenuMessage(tenantId?: string): string {
+  private async getMenuMessage(tenantId?: string): Promise<string> {
     let shopName = 'nossa oficina';
-    
+
     if (tenantId) {
       try {
-        const tenant = db.prepare(
-          `SELECT value FROM tenant_settings WHERE tenant_id = ? AND key = 'shop_name'`
-        ).get(tenantId) as any;
+        const tenant = await db.queryOne(
+          `SELECT value FROM tenant_settings WHERE tenant_id = ? AND \`key\` = 'shop_name'`,
+          [tenantId]
+        );
         if (tenant?.value) shopName = tenant.value;
       } catch (e) {}
     }
@@ -453,7 +462,7 @@ class BotEngine {
   private getGreeting(conversation: ConversationData): string {
     const name = conversation.display_name || conversation.contact_name || '';
     const greeting = name ? `Olá *${name}*! ` : 'Olá! ';
-    return greeting + 'Bem-vindo(a)! 😊\n\n' + this.getMenuMessage(conversation.tenant_id);
+    return greeting + 'Bem-vindo(a)! 😊\n\n' + '(menu será exibido em seguida)';
   }
 
   private matchesIntent(msg: string, keywords: string[]): boolean {
@@ -461,7 +470,7 @@ class BotEngine {
   }
 
   private isHumanRequest(msg: string): boolean {
-    const keywords = ['atendente', 'humano', 'pessoa', 'falar com alguem', 'falar com alguém', 
+    const keywords = ['atendente', 'humano', 'pessoa', 'falar com alguem', 'falar com alguém',
                       'operador', 'ajuda humana', 'suporte', '4'];
     return keywords.some(kw => msg.includes(kw) || msg === kw);
   }
@@ -469,11 +478,12 @@ class BotEngine {
   private async transferToHuman(tenantId: string, conversationId: string, conversation: ConversationData) {
     try {
       // Desativar bot para esta conversa
-      db.prepare(
-        `UPDATE whatsapp_conversations 
+      await db.execute(
+        `UPDATE whatsapp_conversations
          SET bot_enabled = 0, bot_topic = 'transferred_to_human'
-         WHERE id = ?`
-      ).run(conversationId);
+         WHERE id = ?`,
+        [conversationId]
+      );
 
       // Enviar mensagem de transferência
       await this.sendBotMessage(
@@ -491,11 +501,12 @@ class BotEngine {
     }
   }
 
-  private saveBotState(conversationId: string, state: BotState) {
+  private async saveBotState(conversationId: string, state: BotState) {
     try {
-      db.prepare(
-        `UPDATE whatsapp_conversations SET bot_state = ?, bot_topic = ? WHERE id = ?`
-      ).run(JSON.stringify(state), state.topic, conversationId);
+      await db.execute(
+        `UPDATE whatsapp_conversations SET bot_state = ?, bot_topic = ? WHERE id = ?`,
+        [JSON.stringify(state), state.topic, conversationId]
+      );
     } catch (error: any) {
       console.error('❌ [Bot] Erro ao salvar estado:', error.message);
     }

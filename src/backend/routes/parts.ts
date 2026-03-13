@@ -8,11 +8,11 @@ const router = express.Router();
 router.use(authenticateToken);
 
 // Get all parts with filters
-router.get("/", (req: AuthRequest, res) => {
+router.get("/", async (req: AuthRequest, res) => {
   const { q, category, brand, status } = req.query;
-  
+
   let query = `
-    SELECT p.*, s.name as supplier_name 
+    SELECT p.*, s.name as supplier_name
     FROM parts p
     LEFT JOIN suppliers s ON p.supplier_id = s.id
     WHERE p.tenant_id = ?
@@ -46,9 +46,9 @@ router.get("/", (req: AuthRequest, res) => {
   }
 
   query += " ORDER BY p.name ASC";
-  
+
   try {
-    const parts = db.prepare(query).all(...params);
+    const parts = await db.query(query, params);
     res.json(parts);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -56,18 +56,18 @@ router.get("/", (req: AuthRequest, res) => {
 });
 
 // Get stats
-router.get("/stats", (req: AuthRequest, res) => {
+router.get("/stats", async (req: AuthRequest, res) => {
   try {
-    const stats = db.prepare(`
-      SELECT 
+    const stats = await db.queryOne(`
+      SELECT
         COUNT(*) as total,
         SUM(CASE WHEN stock_quantity <= min_stock AND stock_quantity > 0 THEN 1 ELSE 0 END) as low_stock,
         SUM(CASE WHEN stock_quantity = 0 THEN 1 ELSE 0 END) as zero_stock,
         SUM(stock_quantity * cost_price) as total_value
-      FROM parts 
+      FROM parts
       WHERE tenant_id = ?
-    `).get(req.user!.tenant_id);
-    
+    `, [req.user!.tenant_id]);
+
     res.json(stats);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -75,15 +75,15 @@ router.get("/stats", (req: AuthRequest, res) => {
 });
 
 // Get categories
-router.get("/categories", (req: AuthRequest, res) => {
+router.get("/categories", async (req: AuthRequest, res) => {
   try {
-    const categories = db.prepare(`
-      SELECT DISTINCT category 
-      FROM parts 
-      WHERE tenant_id = ? AND category IS NOT NULL 
+    const categories = await db.query(`
+      SELECT DISTINCT category
+      FROM parts
+      WHERE tenant_id = ? AND category IS NOT NULL
       ORDER BY category
-    `).all(req.user!.tenant_id);
-    
+    `, [req.user!.tenant_id]);
+
     res.json(categories.map((c: any) => c.category));
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -91,15 +91,15 @@ router.get("/categories", (req: AuthRequest, res) => {
 });
 
 // Get brands
-router.get("/brands", (req: AuthRequest, res) => {
+router.get("/brands", async (req: AuthRequest, res) => {
   try {
-    const brands = db.prepare(`
-      SELECT DISTINCT brand 
-      FROM parts 
-      WHERE tenant_id = ? AND brand IS NOT NULL 
+    const brands = await db.query(`
+      SELECT DISTINCT brand
+      FROM parts
+      WHERE tenant_id = ? AND brand IS NOT NULL
       ORDER BY brand
-    `).all(req.user!.tenant_id);
-    
+    `, [req.user!.tenant_id]);
+
     res.json(brands.map((b: any) => b.brand));
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -107,15 +107,15 @@ router.get("/brands", (req: AuthRequest, res) => {
 });
 
 // Get single part
-router.get("/:id", (req: AuthRequest, res) => {
+router.get("/:id", async (req: AuthRequest, res) => {
   try {
-    const part = db.prepare(`
+    const part = await db.queryOne(`
       SELECT p.*, s.name as supplier_name, s.phone as supplier_phone, sp.last_purchase_date, sp.last_cost
       FROM parts p
       LEFT JOIN suppliers s ON p.supplier_id = s.id
       LEFT JOIN supplier_parts sp ON p.id = sp.part_id AND s.id = sp.supplier_id
       WHERE p.id = ? AND p.tenant_id = ?
-    `).get(req.params.id, req.user!.tenant_id);
+    `, [req.params.id, req.user!.tenant_id]);
 
     if (!part) return res.status(404).json({ error: "Part not found" });
 
@@ -126,9 +126,9 @@ router.get("/:id", (req: AuthRequest, res) => {
 });
 
 // Get stock movements for a part
-router.get("/:id/movements", (req: AuthRequest, res) => {
+router.get("/:id/movements", async (req: AuthRequest, res) => {
   try {
-    const movements = db.prepare(`
+    const movements = await db.query(`
       SELECT sm.*, u.name as user_name, p.name as part_name
       FROM stock_movements sm
       LEFT JOIN users u ON sm.user_id = u.id
@@ -136,7 +136,7 @@ router.get("/:id/movements", (req: AuthRequest, res) => {
       WHERE sm.part_id = ? AND sm.tenant_id = ?
       ORDER BY sm.created_at DESC
       LIMIT 100
-    `).all(req.params.id, req.user!.tenant_id);
+    `, [req.params.id, req.user!.tenant_id]);
 
     res.json(movements);
   } catch (error: any) {
@@ -145,47 +145,47 @@ router.get("/:id/movements", (req: AuthRequest, res) => {
 });
 
 // Create part
-router.post("/", (req: AuthRequest, res) => {
-  const { 
+router.post("/", async (req: AuthRequest, res) => {
+  const {
     name, code, supplier_code, category, brand, supplier_id,
-    cost_price, sale_price, stock_quantity, min_stock, 
-    location, compatibility, notes 
+    cost_price, sale_price, stock_quantity, min_stock,
+    location, compatibility, notes
   } = req.body;
 
   const id = uuidv4();
 
   try {
-    db.prepare(`
+    await db.execute(`
       INSERT INTO parts (
         id, tenant_id, name, code, supplier_code, category, brand, supplier_id,
         cost_price, sale_price, stock_quantity, min_stock, location, compatibility, notes
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(
+    `, [
       id, req.user!.tenant_id, name, code, supplier_code, category, brand, supplier_id,
       cost_price || 0, sale_price || 0, stock_quantity || 0, min_stock || 0,
       location, compatibility, notes
-    );
+    ]);
 
     // Register initial stock movement if stock > 0
     if (stock_quantity && stock_quantity > 0) {
-      db.prepare(`
+      await db.execute(`
         INSERT INTO stock_movements (
           id, tenant_id, part_id, type, quantity, unit_cost, user_id, reason
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(
+      `, [
         uuidv4(), req.user!.tenant_id, id, 'ENTRY', stock_quantity, cost_price || 0,
         req.user!.id, 'Estoque inicial'
-      );
+      ]);
     }
 
     if (supplier_id) {
-      db.prepare(`
+      await db.execute(`
         INSERT INTO supplier_parts (id, supplier_id, part_id, supplier_code, last_cost, is_preferred, last_purchase_date)
         VALUES (?, ?, ?, ?, ?, 1, CURRENT_TIMESTAMP)
-      `).run(uuidv4(), supplier_id, id, supplier_code || null, cost_price || 0);
+      `, [uuidv4(), supplier_id, id, supplier_code || null, cost_price || 0]);
     }
 
-    const newPart = db.prepare("SELECT * FROM parts WHERE id = ?").get(id);
+    const newPart = await db.queryOne("SELECT * FROM parts WHERE id = ?", [id]);
     res.status(201).json(newPart);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -193,10 +193,10 @@ router.post("/", (req: AuthRequest, res) => {
 });
 
 // Update part
-router.patch("/:id", (req: AuthRequest, res) => {
-  const { 
+router.patch("/:id", async (req: AuthRequest, res) => {
+  const {
     name, code, supplier_code, category, brand, supplier_id,
-    cost_price, sale_price, min_stock, location, compatibility, notes 
+    cost_price, sale_price, min_stock, location, compatibility, notes
   } = req.body;
 
   try {
@@ -225,10 +225,10 @@ router.patch("/:id", (req: AuthRequest, res) => {
 
     if (fields.length > 1) {
       params.push(req.params.id, req.user!.tenant_id);
-      db.prepare(`
-        UPDATE parts SET ${fields.join(", ")} 
+      await db.execute(`
+        UPDATE parts SET ${fields.join(", ")}
         WHERE id = ? AND tenant_id = ?
-      `).run(...params);
+      `, params);
     }
 
     res.json({ message: "Part updated successfully" });
@@ -238,13 +238,10 @@ router.patch("/:id", (req: AuthRequest, res) => {
 });
 
 // Delete part
-router.delete("/:id", (req: AuthRequest, res) => {
+router.delete("/:id", async (req: AuthRequest, res) => {
   try {
-    db.prepare("DELETE FROM stock_movements WHERE part_id = ? AND tenant_id = ?")
-      .run(req.params.id, req.user!.tenant_id);
-    
-    db.prepare("DELETE FROM parts WHERE id = ? AND tenant_id = ?")
-      .run(req.params.id, req.user!.tenant_id);
+    await db.execute("DELETE FROM stock_movements WHERE part_id = ? AND tenant_id = ?", [req.params.id, req.user!.tenant_id]);
+    await db.execute("DELETE FROM parts WHERE id = ? AND tenant_id = ?", [req.params.id, req.user!.tenant_id]);
 
     res.json({ message: "Part deleted successfully" });
   } catch (error: any) {
@@ -253,32 +250,32 @@ router.delete("/:id", (req: AuthRequest, res) => {
 });
 
 // Stock entry
-router.post("/:id/entry", (req: AuthRequest, res) => {
+router.post("/:id/entry", async (req: AuthRequest, res) => {
   const { quantity, unit_cost, invoice_number, reason } = req.body;
 
   try {
-    const part = db.prepare(`
+    const part = await db.queryOne(`
       SELECT * FROM parts WHERE id = ? AND tenant_id = ?
-    `).get(req.params.id, req.user!.tenant_id) as any;
+    `, [req.params.id, req.user!.tenant_id]) as any;
 
     if (!part) return res.status(404).json({ error: "Part not found" });
 
     // Update stock
     const newStock = part.stock_quantity + quantity;
-    db.prepare(`
-      UPDATE parts SET stock_quantity = ?, updated_at = CURRENT_TIMESTAMP 
+    await db.execute(`
+      UPDATE parts SET stock_quantity = ?, updated_at = CURRENT_TIMESTAMP
       WHERE id = ?
-    `).run(newStock, req.params.id);
+    `, [newStock, req.params.id]);
 
     // Register movement
-    db.prepare(`
+    await db.execute(`
       INSERT INTO stock_movements (
         id, tenant_id, part_id, type, quantity, unit_cost, invoice_number, reason, user_id
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(
+    `, [
       uuidv4(), req.user!.tenant_id, req.params.id, 'ENTRY', quantity,
       unit_cost || part.cost_price, invoice_number, reason, req.user!.id
-    );
+    ]);
 
     res.json({ message: "Stock entry registered successfully", new_stock: newStock });
   } catch (error: any) {
@@ -287,13 +284,13 @@ router.post("/:id/entry", (req: AuthRequest, res) => {
 });
 
 // Stock exit
-router.post("/:id/exit", (req: AuthRequest, res) => {
+router.post("/:id/exit", async (req: AuthRequest, res) => {
   const { quantity, reason } = req.body;
 
   try {
-    const part = db.prepare(`
+    const part = await db.queryOne(`
       SELECT * FROM parts WHERE id = ? AND tenant_id = ?
-    `).get(req.params.id, req.user!.tenant_id) as any;
+    `, [req.params.id, req.user!.tenant_id]) as any;
 
     if (!part) return res.status(404).json({ error: "Part not found" });
 
@@ -303,20 +300,20 @@ router.post("/:id/exit", (req: AuthRequest, res) => {
 
     // Update stock
     const newStock = part.stock_quantity - quantity;
-    db.prepare(`
-      UPDATE parts SET stock_quantity = ?, updated_at = CURRENT_TIMESTAMP 
+    await db.execute(`
+      UPDATE parts SET stock_quantity = ?, updated_at = CURRENT_TIMESTAMP
       WHERE id = ?
-    `).run(newStock, req.params.id);
+    `, [newStock, req.params.id]);
 
     // Register movement
-    db.prepare(`
+    await db.execute(`
       INSERT INTO stock_movements (
         id, tenant_id, part_id, type, quantity, unit_cost, reason, user_id
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(
+    `, [
       uuidv4(), req.user!.tenant_id, req.params.id, 'EXIT', quantity,
       part.cost_price, reason, req.user!.id
-    );
+    ]);
 
     res.json({ message: "Stock exit registered successfully", new_stock: newStock });
   } catch (error: any) {

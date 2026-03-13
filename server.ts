@@ -36,7 +36,7 @@ async function startServer() {
   // Initialize Database
   console.log("🗄️  Initializing database...");
   try {
-    initDb();
+    await initDb();
     console.log("✅ Database initialized successfully");
     
     // Initialize WhatsApp Bot Engine

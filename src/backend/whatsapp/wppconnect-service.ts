@@ -1,12 +1,12 @@
 /**
  * WPPConnect Service - WhatsApp Integration
- * 
+ *
  * Microserviço responsável por:
  * - Gerenciar sessões do WhatsApp (QR Code)
  * - Enviar e receber mensagens
  * - Gerenciar status de conexão
- * 
- * IMPORTANTE: WPPConnect é uma solução não-oficial. 
+ *
+ * IMPORTANTE: WPPConnect é uma solução não-oficial.
  * Use com cautela e esteja preparado para migrar para API oficial se necessário.
  */
 
@@ -34,12 +34,12 @@ interface SessionData {
  */
 function getPhoneFromWid(wid: string | any): string {
   if (!wid) return '';
-  
+
   // Se for objeto, tentar pegar _serialized primeiro
   if (typeof wid === 'object') {
     wid = wid._serialized || wid.user || wid.toString();
   }
-  
+
   // Converter para string e remover sufixo (@c.us, @lid, etc)
   return wid.toString().split('@')[0];
 }
@@ -53,7 +53,7 @@ function getPhoneFromWid(wid: string | any): string {
 function isValidPhone(phone: string): boolean {
   // Deve ter apenas dígitos
   if (!/^\d{10,15}$/.test(phone)) return false;
-  
+
   // Deve começar com código de país válido (1-999)
   // Números brasileiros: 55 + DDD (2 dígitos) + número (8-9 dígitos) = 12-13 dígitos
   // Rejeitar números que começam com 2 ou 3 seguidos de 8 (padrão de ID interno)
@@ -61,7 +61,7 @@ function isValidPhone(phone: string): boolean {
     console.log(`⚠️ Número rejeitado (parece ID @lid): ${phone}`);
     return false;
   }
-  
+
   // Aceitar números que começam com códigos de país conhecidos
   const validCountryCodes = [
     /^1[0-9]{10}/, // EUA/Canadá (1 + 10 dígitos)
@@ -71,7 +71,7 @@ function isValidPhone(phone: string): boolean {
     /^34[0-9]{9}/, // Espanha
     /^\d{10,15}/ // Fallback genérico
   ];
-  
+
   // Se começar com 55 (Brasil), validar DDD
   if (phone.startsWith('55')) {
     const ddd = phone.substring(2, 4);
@@ -81,7 +81,7 @@ function isValidPhone(phone: string): boolean {
       return false;
     }
   }
-  
+
   return true;
 }
 
@@ -133,8 +133,10 @@ async function resolvePhoneFromMessage(client: any, message: any, tenantId: stri
   // 2) se for @lid, tentar buscar no cache primeiro
   if (message.from && widIsLid(message.from)) {
     try {
-      const mapped = db.prepare(`SELECT phone FROM wa_lid_map WHERE tenant_id = ? AND lid = ?`)
-        .get(tenantId, String(message.from)) as any;
+      const mapped = await db.queryOne(
+        `SELECT phone FROM wa_lid_map WHERE tenant_id = ? AND lid = ?`,
+        [tenantId, String(message.from)]
+      );
       if (mapped?.phone && isValidPhone(mapped.phone)) {
         return { phone: mapped.phone, source: 'db wa_lid_map (cached)' };
       }
@@ -206,24 +208,24 @@ class WPPConnectService extends EventEmitter {
   private cleanupOrphanedProcesses() {
     try {
       console.log('🧹 Verificando processos órfãos do WhatsApp...');
-      
+
       const tokensPath = path.join(process.cwd(), 'tokens');
-      
+
       // 1. Matar processos Chrome/Chromium órfãos que usam a pasta tokens/
       if (os.platform() === 'win32') {
         try {
           // Matar processos Chrome que estejam usando a pasta tokens do projeto
           const normalizedPath = tokensPath.replace(/\\/g, '\\\\');
           try {
-            execSync(`wmic process where "name='chrome.exe' and commandline like '%${normalizedPath}%'" call terminate`, { 
-              stdio: 'pipe', timeout: 10000 
+            execSync(`wmic process where "name='chrome.exe' and commandline like '%${normalizedPath}%'" call terminate`, {
+              stdio: 'pipe', timeout: 10000
             });
             console.log('🔪 Processos Chrome órfãos terminados (via WMIC)');
           } catch (e) {
             // Tentar via taskkill como fallback - mas só Chromium da pasta WPPConnect
             try {
-              execSync(`taskkill /F /FI "IMAGENAME eq chrome.exe" /FI "WINDOWTITLE eq *wppconnect*" 2>nul`, { 
-                stdio: 'pipe', timeout: 10000 
+              execSync(`taskkill /F /FI "IMAGENAME eq chrome.exe" /FI "WINDOWTITLE eq *wppconnect*" 2>nul`, {
+                stdio: 'pipe', timeout: 10000
               });
             } catch (e2) {
               // Ignorar erros se não encontrar processos
@@ -247,14 +249,14 @@ class WPPConnectService extends EventEmitter {
         const sessions = fs.readdirSync(tokensPath);
         sessions.forEach((session: string) => {
           const sessionPath = path.join(tokensPath, session);
-          
+
           // Lista de lockfiles possíveis
           const lockfiles = [
             'SingletonLock',
             'SingletonSocket',
             'SingletonCookie',
           ];
-          
+
           lockfiles.forEach(lockfile => {
             const lockPath = path.join(sessionPath, lockfile);
             if (fs.existsSync(lockPath)) {
@@ -285,10 +287,10 @@ class WPPConnectService extends EventEmitter {
           }
         });
       }
-      
+
       // Dar tempo para processos terminarem
       console.log('⏳ Aguardando processos terminarem...');
-      
+
       console.log('✅ Limpeza de processos concluída');
     } catch (error) {
       console.warn('⚠️ Não foi possível limpar processos órfãos:', error);
@@ -298,23 +300,23 @@ class WPPConnectService extends EventEmitter {
   /**
    * Limpa cache de números de telefone inválidos (IDs @lid salvos como números)
    */
-  private cleanupInvalidPhoneCache() {
+  private async cleanupInvalidPhoneCache() {
     try {
       console.log('🧹 Limpando cache de números inválidos...');
-      
+
       // Buscar todos os registros no cache
-      const allCached = db.prepare(`SELECT lid, phone FROM wa_lid_map`).all() as any[];
-      
+      const allCached = await db.query(`SELECT lid, phone FROM wa_lid_map`, []);
+
       let invalidCount = 0;
       for (const record of allCached) {
         if (!isValidPhone(record.phone)) {
           // Deletar registros com números inválidos
-          db.prepare(`DELETE FROM wa_lid_map WHERE lid = ?`).run(record.lid);
+          await db.execute(`DELETE FROM wa_lid_map WHERE lid = ?`, [record.lid]);
           invalidCount++;
           console.log(`🗑️ Removido cache inválido: ${record.lid} → ${record.phone}`);
         }
       }
-      
+
       if (invalidCount > 0) {
         console.log(`✅ ${invalidCount} registro(s) inválido(s) removido(s) do cache`);
       } else {
@@ -324,14 +326,16 @@ class WPPConnectService extends EventEmitter {
       console.warn('⚠️ Não foi possível limpar cache de números inválidos:', error);
     }
   }
+
   /**
    * Inicializa sessões ativas ao startar o serviço
    */
   private async initExistingSessions() {
     try {
-      const activeSessions = db
-        .prepare(`SELECT * FROM whatsapp_sessions WHERE is_active = 1`)
-        .all() as any[];
+      const activeSessions = await db.query(
+        `SELECT * FROM whatsapp_sessions WHERE is_active = 1`,
+        []
+      );
 
       if (activeSessions.length === 0) {
         console.log('📱 Nenhuma sessão WhatsApp ativa para inicializar');
@@ -341,7 +345,7 @@ class WPPConnectService extends EventEmitter {
       console.log(`📱 Initializing ${activeSessions.length} WhatsApp sessions...`);
 
       // Inicializar todas as sessões em paralelo (não bloquear startup)
-      const initPromises = activeSessions.map(async (session) => {
+      const initPromises = activeSessions.map(async (session: any) => {
         try {
           await this.startSession(session.tenant_id, session.session_name);
         } catch (error: any) {
@@ -364,7 +368,7 @@ class WPPConnectService extends EventEmitter {
    */
   async startSession(tenantId: string, sessionName: string = 'default'): Promise<{ success: boolean; qrCode?: string; error?: string }> {
     const sessionKey = `${tenantId}_${sessionName}`;
-    const currentStatus = this.getSessionStatus(tenantId, sessionName);
+    const currentStatus = await this.getSessionStatus(tenantId, sessionName);
 
     if (
       currentStatus.status === 'connected' ||
@@ -378,7 +382,6 @@ class WPPConnectService extends EventEmitter {
       };
     }
 
-
     // Evitar iniciar a mesma sessão concorrentemente
     if (this.initializingSessions.has(sessionKey)) {
       console.log(`[whatsapp] Session ${sessionKey} is already initializing; reusing current state.`);
@@ -387,7 +390,7 @@ class WPPConnectService extends EventEmitter {
         qrCode: currentStatus.status === 'qr_ready' ? currentStatus.qrCode || undefined : undefined,
       };
     }
-    
+
     this.initializingSessions.add(sessionKey);
 
     try {
@@ -409,7 +412,7 @@ class WPPConnectService extends EventEmitter {
       }
 
       // Atualizar status no banco
-      this.updateSessionStatus(tenantId, sessionName, 'connecting');
+      await this.updateSessionStatus(tenantId, sessionName, 'connecting');
 
       // Criar cliente WPPConnect
       const client = await wppconnect.create({
@@ -417,7 +420,7 @@ class WPPConnectService extends EventEmitter {
         puppeteerOptions: {
           headless: true,
           args: [
-            '--no-sandbox', 
+            '--no-sandbox',
             '--disable-setuid-sandbox',
             '--disable-gpu',
             '--disable-dev-shm-usage',
@@ -433,7 +436,7 @@ class WPPConnectService extends EventEmitter {
         // QR Code Callback
         catchQR: (base64Qr: string, asciiQR: string, attempts: number) => {
           console.log(`📱 QR Code gerado para sessão ${sessionKey} (tentativa ${attempts})`);
-          
+
           // Salvar QR no banco
           this.updateSessionQR(tenantId, sessionName, base64Qr);
 
@@ -469,11 +472,12 @@ class WPPConnectService extends EventEmitter {
       const phoneNumber = getPhoneFromWid(hostDevice?.id) || null;
 
       if (phoneNumber) {
-        db.prepare(
-          `UPDATE whatsapp_sessions 
-           SET phone_number = ?, last_connected_at = CURRENT_TIMESTAMP 
-           WHERE tenant_id = ? AND session_name = ?`
-        ).run(phoneNumber, tenantId, sessionName);
+        await db.execute(
+          `UPDATE whatsapp_sessions
+           SET phone_number = ?, last_connected_at = NOW()
+           WHERE tenant_id = ? AND session_name = ?`,
+          [phoneNumber, tenantId, sessionName]
+        );
       }
 
       // Armazenar sessão
@@ -483,69 +487,69 @@ class WPPConnectService extends EventEmitter {
         phoneNumber,
       });
 
-      this.updateSessionStatus(tenantId, sessionName, 'connected');
+      await this.updateSessionStatus(tenantId, sessionName, 'connected');
 
       console.log(`✅ Sessão ${sessionKey} conectada com sucesso!`);
       return { success: true };
 
     } catch (error: any) {
       console.error(`❌ Erro ao iniciar sessão ${sessionKey}:`, error.message);
-      this.updateSessionStatus(tenantId, sessionName, 'disconnected');
+      await this.updateSessionStatus(tenantId, sessionName, 'disconnected');
 
       // Se for erro de browser já rodando, tentar limpar agressivamente e tentar de novo UMA VEZ
       if (error.message?.includes('browser is already running')) {
         console.error(`🚫 Browser já está rodando para ${sessionKey}. Tentando limpar agressivamente...`);
-        
+
         // Registrar que estamos tentando recuperar desse erro para evitar loop infinito
         const retryKey = `${sessionKey}_browser_retry`;
         const retryCount = this.reconnectAttempts.get(retryKey) || 0;
-        
+
         if (retryCount === 0) {
           this.reconnectAttempts.set(retryKey, 1);
-          
+
           try {
             // Fechar cliente se existir
             if (this.sessions.has(sessionKey)) {
               const s = this.sessions.get(sessionKey);
               if (s && s.client) await s.client.close().catch(() => {});
             }
-            
+
             // Remover lockfiles específicos desta sessão
             const tokensPath = path.join(process.cwd(), 'tokens');
             const sessionPath = path.join(tokensPath, sessionKey);
-            
+
             if (fs.existsSync(sessionPath)) {
               ['SingletonLock', 'SingletonSocket', 'SingletonCookie'].forEach(lockfile => {
                 const lockPath = path.join(sessionPath, lockfile);
                 if (fs.existsSync(lockPath)) {
-                  try { fs.unlinkSync(lockPath); } 
+                  try { fs.unlinkSync(lockPath); }
                   catch (e) { try { fs.rmdirSync(lockPath, { recursive: true } as any); } catch(ex) {} }
                 }
-                
+
                 const defaultLockPath = path.join(sessionPath, 'Default', lockfile);
                 if (fs.existsSync(defaultLockPath)) {
                   try { fs.unlinkSync(defaultLockPath); } catch (e) {}
                 }
               });
             }
-            
+
             // Matar processos gerais também como garantia
             this.cleanupOrphanedProcesses();
-            
+
             console.log(`🔄 Limpeza concluída. Tentando iniciar sessão ${sessionKey} novamente em 3 segundos...`);
-            
+
             return new Promise((resolve) => {
               setTimeout(async () => {
                 const result = await this.startSession(tenantId, sessionName);
                 resolve(result);
               }, 3000);
             });
-            
+
           } catch (cleanupError) {
             console.error('❌ Erro durante limpeza agressiva:', cleanupError);
           }
         }
-        
+
         // Se já tentou ou falhou na recuperação, reseta o contador e retorna erro
         this.reconnectAttempts.delete(retryKey);
         this.sessions.delete(sessionKey);
@@ -584,7 +588,7 @@ class WPPConnectService extends EventEmitter {
       }, 10000 * (attempts + 1)); // Backoff exponencial
     } else {
       console.error(`❌ Máximo de tentativas de reconexão atingido para ${sessionKey}`);
-      this.updateSessionStatus(tenantId, sessionName, 'disconnected');
+      await this.updateSessionStatus(tenantId, sessionName, 'disconnected');
     }
   }
 
@@ -597,14 +601,14 @@ class WPPConnectService extends EventEmitter {
     // Monitorar mudanças de estado da conexão
     client.onStateChange((state: any) => {
       console.log(`🔄 Estado da sessão ${sessionKey}: ${state}`);
-      
+
       if (state === 'CONFLICT' || state === 'UNPAIRED' || state === 'UNLAUNCHED') {
         console.warn(`⚠️ Sessão ${sessionKey} desconectada: ${state}`);
         this.updateSessionStatus(tenantId, sessionName, 'disconnected');
-        
+
         // Remover da memória
         this.sessions.delete(sessionKey);
-        
+
         // Tentar reconectar após 15 segundos
         setTimeout(() => {
           console.log(`🔄 Tentando reconectar ${sessionKey} após desconexão...`);
@@ -640,7 +644,7 @@ class WPPConnectService extends EventEmitter {
     client.onAck(async (ack: any) => {
       try {
         // Atualizar status de entrega/leitura
-        this.handleAck(tenantId, ack);
+        await this.handleAck(tenantId, ack);
       } catch (error: any) {
         console.error('❌ Erro no callback onAck:', error.message);
       }
@@ -682,35 +686,38 @@ class WPPConnectService extends EventEmitter {
 
       // Resolver número real usando client (converte @lid → número)
       let { phone, source } = await resolvePhoneFromMessage(client, message, tenantId);
-      
+
       console.log(`📞 RESOLVE PHONE => ${phone} [${source}] | from=${message.from}`);
 
       // Validar se conseguiu um número válido
       if (!isValidPhone(phone)) {
-        console.warn('⚠️ Não resolveu para telefone real. Tentando resolver via WPPConnect...', { 
-          phone, 
-          source, 
-          from: message.from 
+        console.warn('⚠️ Não resolveu para telefone real. Tentando resolver via WPPConnect...', {
+          phone,
+          source,
+          from: message.from
         });
-        
+
         // Última tentativa: buscar via getContact se for @lid
         if (String(message.from).includes('@lid')) {
           try {
             const contact = await client.getContact(String(message.from));
             const phoneNumber = contact?.number || contact?.phoneNumber;
-            
+
             if (phoneNumber) {
               const cleanNum = String(phoneNumber).replace(/\D/g, '');
               if (isValidPhone(cleanNum)) {
                 console.log(`✅ Número resolvido via getContact: ${message.from} → ${cleanNum}`);
-                
+
                 // Salvar mapeamento
                 try {
-                  db.prepare(`INSERT OR REPLACE INTO wa_lid_map (tenant_id, lid, phone) VALUES (?, ?, ?)`)
-                    .run(tenantId, String(message.from), cleanNum);
+                  await db.execute(
+                    `INSERT INTO wa_lid_map (tenant_id, lid, phone) VALUES (?, ?, ?)
+                     ON DUPLICATE KEY UPDATE phone = VALUES(phone)`,
+                    [tenantId, String(message.from), cleanNum]
+                  );
                   console.log(`✅ Mapeamento @lid salvo: ${message.from} → ${cleanNum}`);
                 } catch (e) {}
-                
+
                 // Substituir phone inválido pelo válido e continuar processamento
                 phone = cleanNum;
                 source = 'client.getContact().number (fallback)';
@@ -720,7 +727,7 @@ class WPPConnectService extends EventEmitter {
             console.error('❌ Falha ao resolver via getContact:', resolveErr.message);
           }
         }
-        
+
         // Verificar novamente - se ainda não é válido, ignorar
         if (!isValidPhone(phone)) {
           console.error(`❌ Mensagem ignorada - número inválido: ${phone} de ${message.from}`);
@@ -732,8 +739,11 @@ class WPPConnectService extends EventEmitter {
       const lid = String(message.from || '');
       if (lid.includes('@lid') && isValidPhone(phone)) {
         try {
-          db.prepare(`INSERT OR REPLACE INTO wa_lid_map (tenant_id, lid, phone) VALUES (?, ?, ?)`)
-            .run(tenantId, lid, phone);
+          await db.execute(
+            `INSERT INTO wa_lid_map (tenant_id, lid, phone) VALUES (?, ?, ?)
+             ON DUPLICATE KEY UPDATE phone = VALUES(phone)`,
+            [tenantId, lid, phone]
+          );
           console.log(`✅ Mapeamento @lid salvo: ${lid} → ${phone}`);
         } catch (e) {
           console.warn('⚠️ Erro ao salvar mapeamento @lid:', e);
@@ -750,29 +760,29 @@ class WPPConnectService extends EventEmitter {
       console.log(`👤 Processando mensagem de ${contactName} (${phone} → ${phoneE164}) [origem: ${source}]`);
 
       // Buscar ou criar conversa (agora usando phone_e164 para evitar duplicação)
-      let conversation = db
-        .prepare(`SELECT * FROM whatsapp_conversations WHERE tenant_id = ? AND phone_e164 = ?`)
-        .get(tenantId, phoneE164) as any;
+      let conversation = await db.queryOne(
+        `SELECT * FROM whatsapp_conversations WHERE tenant_id = ? AND phone_e164 = ?`,
+        [tenantId, phoneE164]
+      );
 
       if (!conversation) {
         // Tentar vincular cliente automaticamente por telefone
         let clientId = null;
-        
+
         if (phoneE164) {
           const phoneVariations = getPhoneVariations(phoneE164);
           const placeholders = phoneVariations.map(() => '?').join(',');
-          
-          const client = db
-            .prepare(`
-              SELECT id FROM clients 
-              WHERE tenant_id = ? 
-                AND (phone_e164 IN (${placeholders}) OR phone LIKE ?)
-              LIMIT 1
-            `)
-            .get(tenantId, ...phoneVariations, `%${phone}%`) as any;
-          
-          if (client) {
-            clientId = client.id;
+
+          const foundClient = await db.queryOne(
+            `SELECT id FROM clients
+             WHERE tenant_id = ?
+               AND (phone_e164 IN (${placeholders}) OR phone LIKE ?)
+             LIMIT 1`,
+            [tenantId, ...phoneVariations, `%${phone}%`]
+          );
+
+          if (foundClient) {
+            clientId = foundClient.id;
             console.log(`✅ Cliente auto-vinculado: ${clientId}`);
           } else {
             console.log(`⚠️ Cliente não encontrado para ${phoneE164}`);
@@ -781,47 +791,51 @@ class WPPConnectService extends EventEmitter {
 
         // Criar nova conversa
         const conversationId = uuidv4();
-        
+
         // Verificar se o tenant tem bot habilitado para ativar nas novas conversas
         let botEnabledForNew = 0;
         try {
-          const botSetting = db.prepare(
-            `SELECT value FROM tenant_settings WHERE tenant_id = ? AND key = 'whatsapp_bot_enabled'`
-          ).get(tenantId) as any;
+          const botSetting = await db.queryOne(
+            `SELECT value FROM tenant_settings WHERE tenant_id = ? AND \`key\` = 'whatsapp_bot_enabled'`,
+            [tenantId]
+          );
           if (botSetting && (botSetting.value === '1' || botSetting.value === 'true')) {
             botEnabledForNew = 1;
             console.log(`🤖 Bot habilitado para tenant ${tenantId} - nova conversa terá bot ativo`);
           }
         } catch (e) {}
 
-        db.prepare(
-          `INSERT INTO whatsapp_conversations 
+        await db.execute(
+          `INSERT INTO whatsapp_conversations
            (id, tenant_id, phone, phone_e164, display_name, contact_name, client_id, last_message_at, last_message_preview, unread_count, status, bot_enabled)
-           VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?, 1, 'open', ?)`
-        ).run(conversationId, tenantId, phone, phoneE164, displayName, contactName, clientId, body.substring(0, 100), botEnabledForNew);
+           VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), ?, 1, 'open', ?)`,
+          [conversationId, tenantId, phone, phoneE164, displayName, contactName, clientId, body.substring(0, 100), botEnabledForNew]
+        );
 
         conversation = { id: conversationId, client_id: clientId, bot_enabled: botEnabledForNew };
       } else {
         // Atualizar conversa existente
-        db.prepare(
-          `UPDATE whatsapp_conversations 
-           SET last_message_at = CURRENT_TIMESTAMP,
+        await db.execute(
+          `UPDATE whatsapp_conversations
+           SET last_message_at = NOW(),
                last_message_preview = ?,
                unread_count = unread_count + 1,
                contact_name = COALESCE(contact_name, ?),
                display_name = COALESCE(display_name, ?),
                phone_e164 = COALESCE(phone_e164, ?)
-           WHERE id = ?`
-        ).run(body.substring(0, 100), contactName, displayName, phoneE164, conversation.id);
+           WHERE id = ?`,
+          [body.substring(0, 100), contactName, displayName, phoneE164, conversation.id]
+        );
       }
 
       // Salvar mensagem
       const messageId = uuidv4();
-      db.prepare(
-        `INSERT INTO whatsapp_messages 
+      await db.execute(
+        `INSERT INTO whatsapp_messages
          (id, tenant_id, conversation_id, direction, type, body, media_url, sent_status, wpp_message_id, created_at)
-         VALUES (?, ?, ?, 'in', ?, ?, ?, 'delivered', ?, CURRENT_TIMESTAMP)`
-      ).run(messageId, tenantId, conversation.id, type, body, mediaUrl, message.id);
+         VALUES (?, ?, ?, 'in', ?, ?, ?, 'delivered', ?, NOW())`,
+        [messageId, tenantId, conversation.id, type, body, mediaUrl, message.id]
+      );
 
       // Emitir evento para notificar frontend
       this.emit('message', {
@@ -873,15 +887,17 @@ class WPPConnectService extends EventEmitter {
 
       // 🔍 RESOLVER @lid → número real @c.us
       let formattedPhone: string;
-      
+
       if (phone.includes('@lid')) {
         console.log(`🔄 Detectado @lid, tentando resolver: ${phone}`);
-        
+
         // 1. Tentar buscar no cache do banco
         try {
-          const mapped = db.prepare(`SELECT phone FROM wa_lid_map WHERE tenant_id = ? AND lid = ?`)
-            .get(tenantId, phone) as any;
-          
+          const mapped = await db.queryOne(
+            `SELECT phone FROM wa_lid_map WHERE tenant_id = ? AND lid = ?`,
+            [tenantId, phone]
+          );
+
           if (mapped?.phone && isValidPhone(mapped.phone)) {
             formattedPhone = `${mapped.phone}@c.us`;
             console.log(`✅ @lid resolvido via cache: ${phone} → ${formattedPhone}`);
@@ -894,16 +910,19 @@ class WPPConnectService extends EventEmitter {
           try {
             const chat = await session.client.getChatById(phone);
             const contactId = chat?.contact?.id?._serialized || chat?.contact?.id;
-            
+
             if (contactId && widIsCus(contactId)) {
               const resolvedPhone = getPhoneFromWid(contactId);
               if (isValidPhone(resolvedPhone)) {
                 formattedPhone = `${resolvedPhone}@c.us`;
-                
+
                 // Salvar no cache
-                db.prepare(`INSERT OR REPLACE INTO wa_lid_map (tenant_id, lid, phone) VALUES (?, ?, ?)`)
-                  .run(tenantId, phone, resolvedPhone);
-                
+                await db.execute(
+                  `INSERT INTO wa_lid_map (tenant_id, lid, phone) VALUES (?, ?, ?)
+                   ON DUPLICATE KEY UPDATE phone = VALUES(phone)`,
+                  [tenantId, phone, resolvedPhone]
+                );
+
                 console.log(`✅ @lid resolvido via WPPConnect: ${phone} → ${formattedPhone}`);
               } else {
                 throw new Error('Número inválido');
@@ -945,45 +964,49 @@ class WPPConnectService extends EventEmitter {
       const phoneE164 = normalizePhoneE164(phoneNormalized);
 
       // Buscar ou criar conversa (usando phone_e164)
-      let conversation = db
-        .prepare(`SELECT * FROM whatsapp_conversations WHERE tenant_id = ? AND phone_e164 = ?`)
-        .get(tenantId, phoneE164) as any;
+      let conversation = await db.queryOne(
+        `SELECT * FROM whatsapp_conversations WHERE tenant_id = ? AND phone_e164 = ?`,
+        [tenantId, phoneE164]
+      );
 
       if (!conversation) {
         const conversationId = uuidv4();
-        db.prepare(
-          `INSERT INTO whatsapp_conversations 
+        await db.execute(
+          `INSERT INTO whatsapp_conversations
            (id, tenant_id, phone, phone_e164, last_message_at, last_message_preview, status)
-           VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, ?, 'open')`
-        ).run(conversationId, tenantId, phoneNormalized, phoneE164, message.substring(0, 100));
+           VALUES (?, ?, ?, ?, NOW(), ?, 'open')`,
+          [conversationId, tenantId, phoneNormalized, phoneE164, message.substring(0, 100)]
+        );
 
         conversation = { id: conversationId };
       } else {
-        db.prepare(
-          `UPDATE whatsapp_conversations 
-           SET last_message_at = CURRENT_TIMESTAMP,
+        await db.execute(
+          `UPDATE whatsapp_conversations
+           SET last_message_at = NOW(),
                last_message_preview = ?
-           WHERE id = ?`
-        ).run(message.substring(0, 100), conversation.id);
+           WHERE id = ?`,
+          [message.substring(0, 100), conversation.id]
+        );
       }
 
       // Salvar mensagem no banco
       const messageId = uuidv4();
-      db.prepare(
-        `INSERT INTO whatsapp_messages 
-         (id, tenant_id, conversation_id, direction, type, body, sent_status, origin, 
+      await db.execute(
+        `INSERT INTO whatsapp_messages
+         (id, tenant_id, conversation_id, direction, type, body, sent_status, origin,
           related_type, related_id, template_id, wpp_message_id, created_at)
-         VALUES (?, ?, ?, 'out', 'text', ?, 'sent', ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`
-      ).run(
-        messageId,
-        tenantId,
-        options.conversationId || conversation.id,
-        message,
-        options.origin || 'human',
-        options.relatedType || null,
-        options.relatedId || null,
-        options.templateId || null,
-        wppMessageId
+         VALUES (?, ?, ?, 'out', 'text', ?, 'sent', ?, ?, ?, ?, ?, NOW())`,
+        [
+          messageId,
+          tenantId,
+          options.conversationId || conversation.id,
+          message,
+          options.origin || 'human',
+          options.relatedType || null,
+          options.relatedId || null,
+          options.templateId || null,
+          wppMessageId
+        ]
       );
 
       console.log(`✅ Mensagem salva no banco: ${messageId}`);
@@ -999,17 +1022,18 @@ class WPPConnectService extends EventEmitter {
       // Registrar erro
       if (options.conversationId) {
         const messageId = uuidv4();
-        db.prepare(
-          `INSERT INTO whatsapp_messages 
+        await db.execute(
+          `INSERT INTO whatsapp_messages
            (id, tenant_id, conversation_id, direction, type, body, sent_status, origin, error_message, created_at)
-           VALUES (?, ?, ?, 'out', 'text', ?, 'error', ?, ?, CURRENT_TIMESTAMP)`
-        ).run(
-          messageId,
-          tenantId,
-          options.conversationId,
-          message,
-          options.origin || 'human',
-          error.message
+           VALUES (?, ?, ?, 'out', 'text', ?, 'error', ?, ?, NOW())`,
+          [
+            messageId,
+            tenantId,
+            options.conversationId,
+            message,
+            options.origin || 'human',
+            error.message
+          ]
         );
       }
 
@@ -1020,13 +1044,14 @@ class WPPConnectService extends EventEmitter {
   /**
    * Obtém status da sessão
    */
-  getSessionStatus(tenantId: string, sessionName: string = 'default') {
+  async getSessionStatus(tenantId: string, sessionName: string = 'default') {
     const sessionKey = `${tenantId}_${sessionName}`;
     const session = this.sessions.get(sessionKey);
 
-    const dbSession = db
-      .prepare(`SELECT * FROM whatsapp_sessions WHERE tenant_id = ? AND session_name = ?`)
-      .get(tenantId, sessionName) as any;
+    const dbSession = await db.queryOne(
+      `SELECT * FROM whatsapp_sessions WHERE tenant_id = ? AND session_name = ?`,
+      [tenantId, sessionName]
+    );
 
     return {
       status: session?.status || dbSession?.status || 'disconnected',
@@ -1055,7 +1080,7 @@ class WPPConnectService extends EventEmitter {
   }
 
   /**
-   * Desconecta sess?o
+   * Desconecta sessão
    */
   async disconnectSession(tenantId: string, sessionName: string = 'default') {
     const sessionKey = `${tenantId}_${sessionName}`;
@@ -1068,7 +1093,7 @@ class WPPConnectService extends EventEmitter {
       }
 
       this.sessions.delete(sessionKey);
-      this.updateSessionStatus(tenantId, sessionName, 'disconnected');
+      await this.updateSessionStatus(tenantId, sessionName, 'disconnected');
 
       console.log(`✅ Sessão ${sessionKey} desconectada`);
       return { success: true };
@@ -1083,40 +1108,44 @@ class WPPConnectService extends EventEmitter {
   // HELPERS
   // ========================================
 
-  private updateSessionStatus(
+  private async updateSessionStatus(
     tenantId: string,
     sessionName: string,
     status: 'disconnected' | 'connecting' | 'connected' | 'qr_ready'
   ) {
     try {
-      const existing = db
-        .prepare(`SELECT id FROM whatsapp_sessions WHERE tenant_id = ? AND session_name = ?`)
-        .get(tenantId, sessionName) as any;
+      const existing = await db.queryOne(
+        `SELECT id FROM whatsapp_sessions WHERE tenant_id = ? AND session_name = ?`,
+        [tenantId, sessionName]
+      );
 
       if (existing) {
-        db.prepare(
-          `UPDATE whatsapp_sessions 
-           SET status = ? 
-           WHERE tenant_id = ? AND session_name = ?`
-        ).run(status, tenantId, sessionName);
+        await db.execute(
+          `UPDATE whatsapp_sessions
+           SET status = ?
+           WHERE tenant_id = ? AND session_name = ?`,
+          [status, tenantId, sessionName]
+        );
       } else {
-        db.prepare(
+        await db.execute(
           `INSERT INTO whatsapp_sessions (id, tenant_id, session_name, status)
-           VALUES (?, ?, ?, ?)`
-        ).run(uuidv4(), tenantId, sessionName, status);
+           VALUES (?, ?, ?, ?)`,
+          [uuidv4(), tenantId, sessionName, status]
+        );
       }
     } catch (error: any) {
       console.error('❌ Erro ao atualizar status da sessão:', error.message);
     }
   }
 
-  private updateSessionQR(tenantId: string, sessionName: string, qrCode: string) {
+  private async updateSessionQR(tenantId: string, sessionName: string, qrCode: string) {
     try {
-      db.prepare(
-        `UPDATE whatsapp_sessions 
-         SET qr_code = ?, status = 'qr_ready' 
-         WHERE tenant_id = ? AND session_name = ?`
-      ).run(qrCode, tenantId, sessionName);
+      await db.execute(
+        `UPDATE whatsapp_sessions
+         SET qr_code = ?, status = 'qr_ready'
+         WHERE tenant_id = ? AND session_name = ?`,
+        [qrCode, tenantId, sessionName]
+      );
     } catch (error: any) {
       console.error('❌ Erro ao atualizar QR Code:', error.message);
     }
@@ -1143,7 +1172,7 @@ class WPPConnectService extends EventEmitter {
     }
   }
 
-  private handleAck(tenantId: string, ack: any) {
+  private async handleAck(tenantId: string, ack: any) {
     try {
       // Validação de dados
       if (!ack) {
@@ -1158,7 +1187,7 @@ class WPPConnectService extends EventEmitter {
 
       // ack pode ter estruturas diferentes: ack.id._serialized ou ack.id
       const messageId = ack.id?._serialized || ack.id || null;
-      
+
       if (!messageId) {
         console.warn('⚠️ ACK sem ID de mensagem:', ack);
         return;
@@ -1175,13 +1204,14 @@ class WPPConnectService extends EventEmitter {
       const status = statusMap[ack.ack] || 'sent';
 
       // Tentar atualizar - mensagem pode não existir ainda
-      const result = db.prepare(
-        `UPDATE whatsapp_messages 
-         SET sent_status = ? 
-         WHERE wpp_message_id = ? AND tenant_id = ?`
-      ).run(status, messageId, tenantId);
+      const result = await db.execute(
+        `UPDATE whatsapp_messages
+         SET sent_status = ?
+         WHERE wpp_message_id = ? AND tenant_id = ?`,
+        [status, messageId, tenantId]
+      );
 
-      if (result.changes > 0) {
+      if (result.affectedRows > 0) {
         console.log(`✅ ACK processado: ${messageId.substring(0, 20)}... -> ${status}`);
       } else {
         // Não é erro - mensagem pode ser de antes de iniciar o sistema

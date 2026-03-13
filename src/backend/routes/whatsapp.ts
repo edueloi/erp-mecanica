@@ -33,7 +33,7 @@ router.get("/session/status", async (req: any, res: any) => {
 router.post("/session/start", async (req: any, res: any) => {
   try {
     const result = await wppConnectService.startSession(req.user.tenant_id);
-    
+
     if (result.success) {
       res.json({ message: "Sessão iniciada com sucesso", qrCode: result.qrCode });
     } else {
@@ -52,7 +52,7 @@ router.post("/session/start", async (req: any, res: any) => {
 router.post("/session/disconnect", async (req: any, res: any) => {
   try {
     const result = await wppConnectService.disconnectSession(req.user.tenant_id);
-    
+
     if (result.success) {
       res.json({ message: "Sessão desconectada com sucesso" });
     } else {
@@ -73,12 +73,12 @@ router.post("/session/disconnect", async (req: any, res: any) => {
  * Lista conversas (inbox)
  * Filtros: status, unread, assigned_to, search, tags
  */
-router.get("/conversations", (req: any, res: any) => {
+router.get("/conversations", async (req: any, res: any) => {
   try {
     const { status, unread, assigned_to, search, tags, limit = 50, offset = 0 } = req.query;
 
     let query = `
-      SELECT 
+      SELECT
         c.*,
         cl.name as client_name,
         cl.id as client_id,
@@ -121,7 +121,7 @@ router.get("/conversations", (req: any, res: any) => {
     query += ` ORDER BY c.last_message_at DESC LIMIT ? OFFSET ?`;
     params.push(parseInt(limit), parseInt(offset));
 
-    const conversations = db.prepare(query).all(...params);
+    const conversations = await db.query(query, params);
 
     res.json(conversations);
   } catch (error: any) {
@@ -134,27 +134,26 @@ router.get("/conversations", (req: any, res: any) => {
  * GET /api/whatsapp/conversations/:id
  * Obtém detalhes de uma conversa + últimas mensagens
  */
-router.get("/conversations/:id", (req: any, res: any) => {
+router.get("/conversations/:id", async (req: any, res: any) => {
   try {
-    const conversation = db
-      .prepare(
-        `SELECT 
-          c.*,
-          cl.name as client_name,
-          cl.phone as client_phone,
-          cl.email as client_email,
-          v.plate as vehicle_plate,
-          v.model as vehicle_model,
-          wo.id as work_order_id,
-          wo.status as work_order_status,
-          wo.total_amount as work_order_amount
-        FROM whatsapp_conversations c
-        LEFT JOIN clients cl ON c.client_id = cl.id
-        LEFT JOIN vehicles v ON c.vehicle_plate = v.plate
-        LEFT JOIN work_orders wo ON c.work_order_id = wo.id
-        WHERE c.id = ? AND c.tenant_id = ?`
-      )
-      .get(req.params.id, req.user.tenant_id);
+    const conversation = await db.queryOne(
+      `SELECT
+        c.*,
+        cl.name as client_name,
+        cl.phone as client_phone,
+        cl.email as client_email,
+        v.plate as vehicle_plate,
+        v.model as vehicle_model,
+        wo.id as work_order_id,
+        wo.status as work_order_status,
+        wo.total_amount as work_order_amount
+      FROM whatsapp_conversations c
+      LEFT JOIN clients cl ON c.client_id = cl.id
+      LEFT JOIN vehicles v ON c.vehicle_plate = v.plate
+      LEFT JOIN work_orders wo ON c.work_order_id = wo.id
+      WHERE c.id = ? AND c.tenant_id = ?`,
+      [req.params.id, req.user.tenant_id]
+    );
 
     if (!conversation) {
       return res.status(404).json({ error: "Conversa não encontrada" });
@@ -171,7 +170,7 @@ router.get("/conversations/:id", (req: any, res: any) => {
  * PATCH /api/whatsapp/conversations/:id
  * Atualiza conversa (marcar como lida, atribuir atendente, alterar status, etc)
  */
-router.patch("/conversations/:id", (req: any, res: any) => {
+router.patch("/conversations/:id", async (req: any, res: any) => {
   try {
     const { unread_count, assigned_to_user_id, status, bot_enabled, bot_topic, tags, client_id, work_order_id } = req.body;
 
@@ -220,15 +219,17 @@ router.patch("/conversations/:id", (req: any, res: any) => {
 
     params.push(req.params.id, req.user.tenant_id);
 
-    db.prepare(
-      `UPDATE whatsapp_conversations 
-       SET ${updates.join(", ")} 
-       WHERE id = ? AND tenant_id = ?`
-    ).run(...params);
+    await db.execute(
+      `UPDATE whatsapp_conversations
+       SET ${updates.join(", ")}
+       WHERE id = ? AND tenant_id = ?`,
+      params
+    );
 
-    const updated = db
-      .prepare("SELECT * FROM whatsapp_conversations WHERE id = ?")
-      .get(req.params.id);
+    const updated = await db.queryOne(
+      "SELECT * FROM whatsapp_conversations WHERE id = ?",
+      [req.params.id]
+    );
 
     res.json(updated);
   } catch (error: any) {
@@ -245,20 +246,19 @@ router.patch("/conversations/:id", (req: any, res: any) => {
  * GET /api/whatsapp/conversations/:id/messages
  * Obtém mensagens de uma conversa (paginado)
  */
-router.get("/conversations/:id/messages", (req: any, res: any) => {
+router.get("/conversations/:id/messages", async (req: any, res: any) => {
   try {
     const { limit = 50, offset = 0 } = req.query;
 
-    const messages = db
-      .prepare(
-        `SELECT m.*, u.name as sender_name
-         FROM whatsapp_messages m
-         LEFT JOIN users u ON m.origin = 'human' AND m.direction = 'out'
-         WHERE m.conversation_id = ? AND m.tenant_id = ?
-         ORDER BY m.created_at ASC
-         LIMIT ? OFFSET ?`
-      )
-      .all(req.params.id, req.user.tenant_id, parseInt(limit), parseInt(offset));
+    const messages = await db.query(
+      `SELECT m.*, u.name as sender_name
+       FROM whatsapp_messages m
+       LEFT JOIN users u ON m.origin = 'human' AND m.direction = 'out'
+       WHERE m.conversation_id = ? AND m.tenant_id = ?
+       ORDER BY m.created_at ASC
+       LIMIT ? OFFSET ?`,
+      [req.params.id, req.user.tenant_id, parseInt(limit), parseInt(offset)]
+    );
 
     res.json(messages);
   } catch (error: any) {
@@ -280,9 +280,10 @@ router.post("/conversations/:id/messages", async (req: any, res: any) => {
     }
 
     // Buscar conversa
-    const conversation = db
-      .prepare("SELECT * FROM whatsapp_conversations WHERE id = ? AND tenant_id = ?")
-      .get(req.params.id, req.user.tenant_id) as any;
+    const conversation = await db.queryOne(
+      "SELECT * FROM whatsapp_conversations WHERE id = ? AND tenant_id = ?",
+      [req.params.id, req.user.tenant_id]
+    ) as any;
 
     if (!conversation) {
       return res.status(404).json({ error: "Conversa não encontrada" });
@@ -290,7 +291,7 @@ router.post("/conversations/:id/messages", async (req: any, res: any) => {
 
     // Enviar mensagem - preferir phone_e164 (número limpo) sobre phone (pode ter @lid)
     let phoneToUse: string;
-    
+
     if (conversation.phone_e164) {
       // Se temos e164, é o número limpo (ex: 5528999999999)
       phoneToUse = conversation.phone_e164;
@@ -301,9 +302,9 @@ router.post("/conversations/:id/messages", async (req: any, res: any) => {
       // Se só temos @lid, tentar usar mesmo assim (sendMessage vai tentar resolver)
       phoneToUse = conversation.phone;
     }
-    
+
     console.log(`📤 Enviando mensagem: conversationId=${conversation.id}, phone=${conversation.phone}, phone_e164=${conversation.phone_e164}, usando=${phoneToUse}`);
-    
+
     const result = await wppConnectService.sendMessage(
       req.user.tenant_id,
       phoneToUse,
@@ -317,15 +318,17 @@ router.post("/conversations/:id/messages", async (req: any, res: any) => {
 
     if (result.success) {
       // Marcar conversa como lida (atendente respondeu)
-      db.prepare(
-        `UPDATE whatsapp_conversations 
-         SET unread_count = 0 
-         WHERE id = ?`
-      ).run(conversation.id);
+      await db.execute(
+        `UPDATE whatsapp_conversations
+         SET unread_count = 0
+         WHERE id = ?`,
+        [conversation.id]
+      );
 
-      const message = db
-        .prepare("SELECT * FROM whatsapp_messages WHERE id = ?")
-        .get(result.messageId);
+      const message = await db.queryOne(
+        "SELECT * FROM whatsapp_messages WHERE id = ?",
+        [result.messageId]
+      );
 
       res.json(message);
     } else {
@@ -345,12 +348,12 @@ router.post("/conversations/:id/messages", async (req: any, res: any) => {
  * GET /api/whatsapp/messages-history
  * Retorna o histórico de todas as mensagens
  */
-router.get("/messages-history", (req: any, res: any) => {
+router.get("/messages-history", async (req: any, res: any) => {
   try {
     const { search, limit = 50, offset = 0 } = req.query;
 
     let query = `
-      SELECT 
+      SELECT
         m.*,
         c.contact_name,
         c.phone as contact_phone,
@@ -371,7 +374,7 @@ router.get("/messages-history", (req: any, res: any) => {
     query += ` ORDER BY m.created_at DESC LIMIT ? OFFSET ?`;
     params.push(parseInt(limit), parseInt(offset));
 
-    const messages = db.prepare(query).all(...params);
+    const messages = await db.query(query, params);
 
     res.json(messages);
   } catch (error: any) {
@@ -388,7 +391,7 @@ router.get("/messages-history", (req: any, res: any) => {
  * GET /api/whatsapp/templates
  * Lista templates disponíveis
  */
-router.get("/templates", (req: any, res: any) => {
+router.get("/templates", async (req: any, res: any) => {
   try {
     const { category, enabled } = req.query;
 
@@ -407,7 +410,7 @@ router.get("/templates", (req: any, res: any) => {
 
     query += " ORDER BY category, name";
 
-    const templates = db.prepare(query).all(...params);
+    const templates = await db.query(query, params);
 
     res.json(templates);
   } catch (error: any) {
@@ -420,7 +423,7 @@ router.get("/templates", (req: any, res: any) => {
  * POST /api/whatsapp/templates
  * Cria novo template
  */
-router.post("/templates", (req: any, res: any) => {
+router.post("/templates", async (req: any, res: any) => {
   try {
     const { name, category, body, variables } = req.body;
 
@@ -430,15 +433,17 @@ router.post("/templates", (req: any, res: any) => {
 
     const id = uuidv4();
 
-    db.prepare(
-      `INSERT INTO whatsapp_templates 
+    await db.execute(
+      `INSERT INTO whatsapp_templates
        (id, tenant_id, name, category, body, variables_json, enabled)
-       VALUES (?, ?, ?, ?, ?, ?, 1)`
-    ).run(id, req.user.tenant_id, name, category, body, JSON.stringify(variables || []));
+       VALUES (?, ?, ?, ?, ?, ?, 1)`,
+      [id, req.user.tenant_id, name, category, body, JSON.stringify(variables || [])]
+    );
 
-    const template = db
-      .prepare("SELECT * FROM whatsapp_templates WHERE id = ?")
-      .get(id);
+    const template = await db.queryOne(
+      "SELECT * FROM whatsapp_templates WHERE id = ?",
+      [id]
+    );
 
     res.json(template);
   } catch (error: any) {
@@ -451,7 +456,7 @@ router.post("/templates", (req: any, res: any) => {
  * PATCH /api/whatsapp/templates/:id
  * Atualiza template
  */
-router.patch("/templates/:id", (req: any, res: any) => {
+router.patch("/templates/:id", async (req: any, res: any) => {
   try {
     const { name, category, body, variables, enabled } = req.body;
 
@@ -485,15 +490,17 @@ router.patch("/templates/:id", (req: any, res: any) => {
 
     params.push(req.params.id, req.user.tenant_id);
 
-    db.prepare(
-      `UPDATE whatsapp_templates 
-       SET ${updates.join(", ")} 
-       WHERE id = ? AND tenant_id = ?`
-    ).run(...params);
+    await db.execute(
+      `UPDATE whatsapp_templates
+       SET ${updates.join(", ")}
+       WHERE id = ? AND tenant_id = ?`,
+      params
+    );
 
-    const template = db
-      .prepare("SELECT * FROM whatsapp_templates WHERE id = ?")
-      .get(req.params.id);
+    const template = await db.queryOne(
+      "SELECT * FROM whatsapp_templates WHERE id = ?",
+      [req.params.id]
+    );
 
     res.json(template);
   } catch (error: any) {
@@ -506,10 +513,12 @@ router.patch("/templates/:id", (req: any, res: any) => {
  * DELETE /api/whatsapp/templates/:id
  * Remove template
  */
-router.delete("/templates/:id", (req: any, res: any) => {
+router.delete("/templates/:id", async (req: any, res: any) => {
   try {
-    db.prepare("DELETE FROM whatsapp_templates WHERE id = ? AND tenant_id = ?")
-      .run(req.params.id, req.user.tenant_id);
+    await db.execute(
+      "DELETE FROM whatsapp_templates WHERE id = ? AND tenant_id = ?",
+      [req.params.id, req.user.tenant_id]
+    );
 
     res.json({ message: "Template removido com sucesso" });
   } catch (error: any) {
@@ -522,11 +531,12 @@ router.delete("/templates/:id", (req: any, res: any) => {
  * POST /api/whatsapp/templates/:id/render
  * Renderiza template com variáveis
  */
-router.post("/templates/:id/render", (req: any, res: any) => {
+router.post("/templates/:id/render", async (req: any, res: any) => {
   try {
-    const template = db
-      .prepare("SELECT * FROM whatsapp_templates WHERE id = ? AND tenant_id = ?")
-      .get(req.params.id, req.user.tenant_id) as any;
+    const template = await db.queryOne(
+      "SELECT * FROM whatsapp_templates WHERE id = ? AND tenant_id = ?",
+      [req.params.id, req.user.tenant_id]
+    ) as any;
 
     if (!template) {
       return res.status(404).json({ error: "Template não encontrado" });
@@ -559,17 +569,16 @@ router.post("/templates/:id/render", (req: any, res: any) => {
  * GET /api/whatsapp/automation-rules
  * Lista regras de automação
  */
-router.get("/automation-rules", (req: any, res: any) => {
+router.get("/automation-rules", async (req: any, res: any) => {
   try {
-    const rules = db
-      .prepare(
-        `SELECT ar.*, t.name as template_name
-         FROM whatsapp_automation_rules ar
-         LEFT JOIN whatsapp_templates t ON ar.template_id = t.id
-         WHERE ar.tenant_id = ?
-         ORDER BY ar.trigger_event, ar.name`
-      )
-      .all(req.user.tenant_id);
+    const rules = await db.query(
+      `SELECT ar.*, t.name as template_name
+       FROM whatsapp_automation_rules ar
+       LEFT JOIN whatsapp_templates t ON ar.template_id = t.id
+       WHERE ar.tenant_id = ?
+       ORDER BY ar.trigger_event, ar.name`,
+      [req.user.tenant_id]
+    );
 
     res.json(rules);
   } catch (error: any) {
@@ -582,7 +591,7 @@ router.get("/automation-rules", (req: any, res: any) => {
  * POST /api/whatsapp/automation-rules
  * Cria regra de automação
  */
-router.post("/automation-rules", (req: any, res: any) => {
+router.post("/automation-rules", async (req: any, res: any) => {
   try {
     const { name, trigger_event, template_id, conditions, delay_minutes, business_hours_only } = req.body;
 
@@ -592,24 +601,26 @@ router.post("/automation-rules", (req: any, res: any) => {
 
     const id = uuidv4();
 
-    db.prepare(
-      `INSERT INTO whatsapp_automation_rules 
+    await db.execute(
+      `INSERT INTO whatsapp_automation_rules
        (id, tenant_id, name, trigger_event, template_id, conditions_json, delay_minutes, business_hours_only, enabled)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)`
-    ).run(
-      id,
-      req.user.tenant_id,
-      name,
-      trigger_event,
-      template_id,
-      JSON.stringify(conditions || {}),
-      delay_minutes || 0,
-      business_hours_only !== false ? 1 : 0
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)`,
+      [
+        id,
+        req.user.tenant_id,
+        name,
+        trigger_event,
+        template_id,
+        JSON.stringify(conditions || {}),
+        delay_minutes || 0,
+        business_hours_only !== false ? 1 : 0,
+      ]
     );
 
-    const rule = db
-      .prepare("SELECT * FROM whatsapp_automation_rules WHERE id = ?")
-      .get(id);
+    const rule = await db.queryOne(
+      "SELECT * FROM whatsapp_automation_rules WHERE id = ?",
+      [id]
+    );
 
     res.json(rule);
   } catch (error: any) {
@@ -622,7 +633,7 @@ router.post("/automation-rules", (req: any, res: any) => {
  * PATCH /api/whatsapp/automation-rules/:id
  * Atualiza regra de automação
  */
-router.patch("/automation-rules/:id", (req: any, res: any) => {
+router.patch("/automation-rules/:id", async (req: any, res: any) => {
   try {
     const { name, template_id, conditions, delay_minutes, business_hours_only, enabled } = req.body;
 
@@ -661,15 +672,17 @@ router.patch("/automation-rules/:id", (req: any, res: any) => {
 
     params.push(req.params.id, req.user.tenant_id);
 
-    db.prepare(
-      `UPDATE whatsapp_automation_rules 
-       SET ${updates.join(", ")} 
-       WHERE id = ? AND tenant_id = ?`
-    ).run(...params);
+    await db.execute(
+      `UPDATE whatsapp_automation_rules
+       SET ${updates.join(", ")}
+       WHERE id = ? AND tenant_id = ?`,
+      params
+    );
 
-    const rule = db
-      .prepare("SELECT * FROM whatsapp_automation_rules WHERE id = ?")
-      .get(req.params.id);
+    const rule = await db.queryOne(
+      "SELECT * FROM whatsapp_automation_rules WHERE id = ?",
+      [req.params.id]
+    );
 
     res.json(rule);
   } catch (error: any) {
@@ -682,10 +695,12 @@ router.patch("/automation-rules/:id", (req: any, res: any) => {
  * DELETE /api/whatsapp/automation-rules/:id
  * Remove regra de automação
  */
-router.delete("/automation-rules/:id", (req: any, res: any) => {
+router.delete("/automation-rules/:id", async (req: any, res: any) => {
   try {
-    db.prepare("DELETE FROM whatsapp_automation_rules WHERE id = ? AND tenant_id = ?")
-      .run(req.params.id, req.user.tenant_id);
+    await db.execute(
+      "DELETE FROM whatsapp_automation_rules WHERE id = ? AND tenant_id = ?",
+      [req.params.id, req.user.tenant_id]
+    );
 
     res.json({ message: "Regra removida com sucesso" });
   } catch (error: any) {
@@ -698,24 +713,23 @@ router.delete("/automation-rules/:id", (req: any, res: any) => {
  * GET /api/whatsapp/automation-logs
  * Logs de automação (auditoria)
  */
-router.get("/automation-logs", (req: any, res: any) => {
+router.get("/automation-logs", async (req: any, res: any) => {
   try {
     const { limit = 100, offset = 0 } = req.query;
 
-    const logs = db
-      .prepare(
-        `SELECT 
-          l.*,
-          r.name as rule_name,
-          m.body as message_body
-         FROM whatsapp_automation_logs l
-         LEFT JOIN whatsapp_automation_rules r ON l.rule_id = r.id
-         LEFT JOIN whatsapp_messages m ON l.message_id = m.id
-         WHERE l.tenant_id = ?
-         ORDER BY l.created_at DESC
-         LIMIT ? OFFSET ?`
-      )
-      .all(req.user.tenant_id, parseInt(limit), parseInt(offset));
+    const logs = await db.query(
+      `SELECT
+        l.*,
+        r.name as rule_name,
+        m.body as message_body
+       FROM whatsapp_automation_logs l
+       LEFT JOIN whatsapp_automation_rules r ON l.rule_id = r.id
+       LEFT JOIN whatsapp_messages m ON l.message_id = m.id
+       WHERE l.tenant_id = ?
+       ORDER BY l.created_at DESC
+       LIMIT ? OFFSET ?`,
+      [req.user.tenant_id, parseInt(limit), parseInt(offset)]
+    );
 
     res.json(logs);
   } catch (error: any) {
@@ -741,9 +755,10 @@ router.post("/send-template", async (req: any, res: any) => {
     }
 
     // Buscar template
-    const template = db
-      .prepare("SELECT * FROM whatsapp_templates WHERE id = ? AND tenant_id = ?")
-      .get(template_id, req.user.tenant_id) as any;
+    const template = await db.queryOne(
+      "SELECT * FROM whatsapp_templates WHERE id = ? AND tenant_id = ?",
+      [template_id, req.user.tenant_id]
+    ) as any;
 
     if (!template) {
       return res.status(404).json({ error: "Template não encontrado" });
@@ -840,20 +855,22 @@ router.get("/status", async (req: any, res: any) => {
  * POST /api/whatsapp/bot/toggle-all
  * Ativa/desativa o bot em TODAS as conversas do tenant
  */
-router.post("/bot/toggle-all", (req: any, res: any) => {
+router.post("/bot/toggle-all", async (req: any, res: any) => {
   try {
     const { enabled } = req.body;
     const botEnabled = enabled ? 1 : 0;
 
-    const result = db.prepare(
-      `UPDATE whatsapp_conversations SET bot_enabled = ? WHERE tenant_id = ?`
-    ).run(botEnabled, req.user.tenant_id);
+    const result = await db.execute(
+      `UPDATE whatsapp_conversations SET bot_enabled = ? WHERE tenant_id = ?`,
+      [botEnabled, req.user.tenant_id]
+    );
 
-    console.log(`🤖 Bot ${enabled ? 'ativado' : 'desativado'} em ${result.changes} conversas do tenant ${req.user.tenant_id}`);
+    const affected = (result as any).affectedRows ?? 0;
+    console.log(`🤖 Bot ${enabled ? 'ativado' : 'desativado'} em ${affected} conversas do tenant ${req.user.tenant_id}`);
 
-    res.json({ 
-      message: `Bot ${enabled ? 'ativado' : 'desativado'} em ${result.changes} conversas`,
-      affected: result.changes 
+    res.json({
+      message: `Bot ${enabled ? 'ativado' : 'desativado'} em ${affected} conversas`,
+      affected,
     });
   } catch (error: any) {
     console.error("Error toggling bot:", error);
@@ -865,24 +882,26 @@ router.post("/bot/toggle-all", (req: any, res: any) => {
  * GET /api/whatsapp/bot/status
  * Retorna o status do bot para o tenant
  */
-router.get("/bot/status", (req: any, res: any) => {
+router.get("/bot/status", async (req: any, res: any) => {
   try {
     // Verificar se bot está habilitado nas configurações do tenant
-    const setting = db.prepare(
-      `SELECT value FROM tenant_settings WHERE tenant_id = ? AND key = 'whatsapp_bot_enabled'`
-    ).get(req.user.tenant_id) as any;
+    const setting = await db.queryOne(
+      `SELECT value FROM tenant_settings WHERE tenant_id = ? AND key = 'whatsapp_bot_enabled'`,
+      [req.user.tenant_id]
+    ) as any;
 
     const botEnabledGlobal = setting && (setting.value === '1' || setting.value === 'true');
 
     // Contar conversas com bot ativo/inativo
-    const stats = db.prepare(`
-      SELECT 
+    const stats = await db.queryOne(
+      `SELECT
         COUNT(*) as total,
         SUM(CASE WHEN bot_enabled = 1 THEN 1 ELSE 0 END) as bot_active,
         SUM(CASE WHEN bot_enabled = 0 OR bot_enabled IS NULL THEN 1 ELSE 0 END) as bot_inactive
-      FROM whatsapp_conversations 
-      WHERE tenant_id = ?
-    `).get(req.user.tenant_id) as any;
+      FROM whatsapp_conversations
+      WHERE tenant_id = ?`,
+      [req.user.tenant_id]
+    ) as any;
 
     res.json({
       globalEnabled: botEnabledGlobal,
@@ -904,7 +923,7 @@ router.get("/bot/status", (req: any, res: any) => {
  * POST /api/whatsapp/conversations/:id/link-client
  * Vincula cliente a uma conversa
  */
-router.post("/conversations/:id/link-client", (req: any, res: any) => {
+router.post("/conversations/:id/link-client", async (req: any, res: any) => {
   try {
     const { clientId, updateClientPhone } = req.body;
     const conversationId = req.params.id;
@@ -914,44 +933,48 @@ router.post("/conversations/:id/link-client", (req: any, res: any) => {
     }
 
     // Buscar conversa
-    const conversation = db
-      .prepare("SELECT * FROM whatsapp_conversations WHERE id = ? AND tenant_id = ?")
-      .get(conversationId, req.user.tenant_id) as any;
+    const conversation = await db.queryOne(
+      "SELECT * FROM whatsapp_conversations WHERE id = ? AND tenant_id = ?",
+      [conversationId, req.user.tenant_id]
+    ) as any;
 
     if (!conversation) {
       return res.status(404).json({ error: "Conversa não encontrada" });
     }
 
     // Buscar cliente
-    const client = db
-      .prepare("SELECT * FROM clients WHERE id = ? AND tenant_id = ?")
-      .get(clientId, req.user.tenant_id) as any;
+    const client = await db.queryOne(
+      "SELECT * FROM clients WHERE id = ? AND tenant_id = ?",
+      [clientId, req.user.tenant_id]
+    ) as any;
 
     if (!client) {
       return res.status(404).json({ error: "Cliente não encontrado" });
     }
 
     // Vincular
-    db.prepare(
-      `UPDATE whatsapp_conversations 
-       SET client_id = ? 
-       WHERE id = ?`
-    ).run(clientId, conversationId);
+    await db.execute(
+      `UPDATE whatsapp_conversations
+       SET client_id = ?
+       WHERE id = ?`,
+      [clientId, conversationId]
+    );
 
     // Opcionalmente atualizar telefone do cliente
     if (updateClientPhone && conversation.phone_e164) {
-      db.prepare(
-        `UPDATE clients 
-         SET phone_e164 = ?, phone = ? 
-         WHERE id = ?`
-      ).run(conversation.phone_e164, conversation.phone, clientId);
+      await db.execute(
+        `UPDATE clients
+         SET phone_e164 = ?, phone = ?
+         WHERE id = ?`,
+        [conversation.phone_e164, conversation.phone, clientId]
+      );
     }
 
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       message: "Cliente vinculado com sucesso",
       clientId,
-      conversationId 
+      conversationId,
     });
   } catch (error: any) {
     console.error("Error linking client:", error);
@@ -963,15 +986,16 @@ router.post("/conversations/:id/link-client", (req: any, res: any) => {
  * DELETE /api/whatsapp/conversations/:id/unlink-client
  * Remove vinculação de cliente
  */
-router.delete("/conversations/:id/unlink-client", (req: any, res: any) => {
+router.delete("/conversations/:id/unlink-client", async (req: any, res: any) => {
   try {
     const conversationId = req.params.id;
 
-    db.prepare(
-      `UPDATE whatsapp_conversations 
-       SET client_id = NULL, vehicle_id = NULL 
-       WHERE id = ? AND tenant_id = ?`
-    ).run(conversationId, req.user.tenant_id);
+    await db.execute(
+      `UPDATE whatsapp_conversations
+       SET client_id = NULL, vehicle_id = NULL
+       WHERE id = ? AND tenant_id = ?`,
+      [conversationId, req.user.tenant_id]
+    );
 
     res.json({ success: true, message: "Cliente desvinculado" });
   } catch (error: any) {
@@ -984,7 +1008,7 @@ router.delete("/conversations/:id/unlink-client", (req: any, res: any) => {
  * POST /api/whatsapp/conversations/:id/link-vehicle
  * Vincula veículo a uma conversa (requer cliente vinculado)
  */
-router.post("/conversations/:id/link-vehicle", (req: any, res: any) => {
+router.post("/conversations/:id/link-vehicle", async (req: any, res: any) => {
   try {
     const { vehicleId } = req.body;
     const conversationId = req.params.id;
@@ -994,9 +1018,10 @@ router.post("/conversations/:id/link-vehicle", (req: any, res: any) => {
     }
 
     // Buscar conversa
-    const conversation = db
-      .prepare("SELECT * FROM whatsapp_conversations WHERE id = ? AND tenant_id = ?")
-      .get(conversationId, req.user.tenant_id) as any;
+    const conversation = await db.queryOne(
+      "SELECT * FROM whatsapp_conversations WHERE id = ? AND tenant_id = ?",
+      [conversationId, req.user.tenant_id]
+    ) as any;
 
     if (!conversation) {
       return res.status(404).json({ error: "Conversa não encontrada" });
@@ -1007,25 +1032,27 @@ router.post("/conversations/:id/link-vehicle", (req: any, res: any) => {
     }
 
     // Verificar se veículo pertence ao cliente
-    const vehicle = db
-      .prepare("SELECT * FROM vehicles WHERE id = ? AND client_id = ?")
-      .get(vehicleId, conversation.client_id) as any;
+    const vehicle = await db.queryOne(
+      "SELECT * FROM vehicles WHERE id = ? AND client_id = ?",
+      [vehicleId, conversation.client_id]
+    ) as any;
 
     if (!vehicle) {
       return res.status(404).json({ error: "Veículo não encontrado ou não pertence ao cliente" });
     }
 
     // Vincular
-    db.prepare(
-      `UPDATE whatsapp_conversations 
-       SET vehicle_id = ?, vehicle_plate = ? 
-       WHERE id = ?`
-    ).run(vehicleId, vehicle.plate, conversationId);
+    await db.execute(
+      `UPDATE whatsapp_conversations
+       SET vehicle_id = ?, vehicle_plate = ?
+       WHERE id = ?`,
+      [vehicleId, vehicle.plate, conversationId]
+    );
 
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       message: "Veículo vinculado",
-      vehicleId 
+      vehicleId,
     });
   } catch (error: any) {
     console.error("Error linking vehicle:", error);
@@ -1037,7 +1064,7 @@ router.post("/conversations/:id/link-vehicle", (req: any, res: any) => {
  * POST /api/whatsapp/conversations/:id/create-and-link-client
  * Cria cliente rápido e vincula à conversa
  */
-router.post("/conversations/:id/create-and-link-client", (req: any, res: any) => {
+router.post("/conversations/:id/create-and-link-client", async (req: any, res: any) => {
   try {
     const conversationId = req.params.id;
     const { name, cpfCnpj, email, city } = req.body;
@@ -1047,9 +1074,10 @@ router.post("/conversations/:id/create-and-link-client", (req: any, res: any) =>
     }
 
     // Buscar conversa
-    const conversation = db
-      .prepare("SELECT * FROM whatsapp_conversations WHERE id = ? AND tenant_id = ?")
-      .get(conversationId, req.user.tenant_id) as any;
+    const conversation = await db.queryOne(
+      "SELECT * FROM whatsapp_conversations WHERE id = ? AND tenant_id = ?",
+      [conversationId, req.user.tenant_id]
+    ) as any;
 
     if (!conversation) {
       return res.status(404).json({ error: "Conversa não encontrada" });
@@ -1059,33 +1087,35 @@ router.post("/conversations/:id/create-and-link-client", (req: any, res: any) =>
     const clientId = uuidv4();
     const phoneE164 = conversation.phone_e164 || normalizePhoneE164(conversation.phone);
 
-    db.prepare(
-      `INSERT INTO clients 
+    await db.execute(
+      `INSERT INTO clients
        (id, tenant_id, name, phone, phone_e164, document, email, city, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`
-    ).run(
-      clientId,
-      req.user.tenant_id,
-      name.trim(),
-      conversation.phone,
-      phoneE164,
-      cpfCnpj || null,
-      email || null,
-      city || null
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`,
+      [
+        clientId,
+        req.user.tenant_id,
+        name.trim(),
+        conversation.phone,
+        phoneE164,
+        cpfCnpj || null,
+        email || null,
+        city || null,
+      ]
     );
 
     // Vincular à conversa
-    db.prepare(
-      `UPDATE whatsapp_conversations 
-       SET client_id = ? 
-       WHERE id = ?`
-    ).run(clientId, conversationId);
+    await db.execute(
+      `UPDATE whatsapp_conversations
+       SET client_id = ?
+       WHERE id = ?`,
+      [clientId, conversationId]
+    );
 
     res.json({
       success: true,
       message: "Cliente criado e vinculado",
       clientId,
-      client: { id: clientId, name, phone: conversation.phone, phoneE164 }
+      client: { id: clientId, name, phone: conversation.phone, phoneE164 },
     });
   } catch (error: any) {
     console.error("Error creating and linking client:", error);
@@ -1097,7 +1127,7 @@ router.post("/conversations/:id/create-and-link-client", (req: any, res: any) =>
  * GET /api/whatsapp/search-clients
  * Busca clientes por nome/telefone/CPF para vincular
  */
-router.get("/search-clients", (req: any, res: any) => {
+router.get("/search-clients", async (req: any, res: any) => {
   try {
     const { query } = req.query;
 
@@ -1107,23 +1137,24 @@ router.get("/search-clients", (req: any, res: any) => {
 
     const searchTerm = `%${query}%`;
 
-    const clients = db.prepare(`
-      SELECT 
+    const clients = await db.query(
+      `SELECT
         id, name, phone, phone_e164, document, email, city,
         (SELECT COUNT(*) FROM vehicles WHERE client_id = clients.id) as vehicle_count,
         (SELECT COUNT(*) FROM work_orders WHERE client_id = clients.id) as work_order_count
       FROM clients
       WHERE tenant_id = ?
         AND (
-          name LIKE ? 
-          OR phone LIKE ? 
+          name LIKE ?
+          OR phone LIKE ?
           OR phone_e164 LIKE ?
           OR document LIKE ?
           OR email LIKE ?
         )
       ORDER BY name
-      LIMIT 20
-    `).all(req.user.tenant_id, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm);
+      LIMIT 20`,
+      [req.user.tenant_id, searchTerm, searchTerm, searchTerm, searchTerm, searchTerm]
+    );
 
     res.json(clients);
   } catch (error: any) {
@@ -1136,35 +1167,35 @@ router.get("/search-clients", (req: any, res: any) => {
  * GET /api/whatsapp/conversations/:id/client-context
  * Retorna contexto completo do cliente (veículos, OS, financeiro)
  */
-router.get("/conversations/:id/client-context", (req: any, res: any) => {
+router.get("/conversations/:id/client-context", async (req: any, res: any) => {
   try {
     const conversationId = req.params.id;
 
     // Buscar conversa com cliente
-    const conversation = db
-      .prepare(`
-        SELECT c.*, cl.id as client_id, cl.name as client_name, cl.phone, cl.email, cl.document,
-               cl.street, cl.city, cl.state, cl.zip_code, cl.complement
-        FROM whatsapp_conversations c
-        LEFT JOIN clients cl ON c.client_id = cl.id
-        WHERE c.id = ? AND c.tenant_id = ?
-      `)
-      .get(conversationId, req.user.tenant_id) as any;
+    const conversation = await db.queryOne(
+      `SELECT c.*, cl.id as client_id, cl.name as client_name, cl.phone, cl.email, cl.document,
+             cl.street, cl.city, cl.state, cl.zip_code, cl.complement
+      FROM whatsapp_conversations c
+      LEFT JOIN clients cl ON c.client_id = cl.id
+      WHERE c.id = ? AND c.tenant_id = ?`,
+      [conversationId, req.user.tenant_id]
+    ) as any;
 
     if (!conversation || !conversation.client_id) {
       return res.json({ hasClient: false });
     }
 
     // Buscar veículos do cliente
-    const vehicles = db.prepare(`
-      SELECT * FROM vehicles 
-      WHERE client_id = ? 
-      ORDER BY created_at DESC
-    `).all(conversation.client_id);
+    const vehicles = await db.query(
+      `SELECT * FROM vehicles
+      WHERE client_id = ?
+      ORDER BY created_at DESC`,
+      [conversation.client_id]
+    );
 
     // Buscar últimas 5 OS
-    const workOrders = db.prepare(`
-      SELECT 
+    const workOrders = await db.query(
+      `SELECT
         wo.*,
         v.plate as vehicle_plate,
         v.model as vehicle_model
@@ -1172,26 +1203,29 @@ router.get("/conversations/:id/client-context", (req: any, res: any) => {
       LEFT JOIN vehicles v ON wo.vehicle_id = v.id
       WHERE wo.client_id = ?
       ORDER BY wo.created_at DESC
-      LIMIT 5
-    `).all(conversation.client_id);
+      LIMIT 5`,
+      [conversation.client_id]
+    );
 
     // Buscar financeiro (a receber)
-    const receivables = db.prepare(`
-      SELECT 
+    const receivables = await db.queryOne(
+      `SELECT
         SUM(CASE WHEN status = 'OPEN' THEN balance ELSE 0 END) as total_open,
         SUM(CASE WHEN status = 'OVERDUE' THEN balance ELSE 0 END) as total_overdue,
         COUNT(CASE WHEN status = 'OPEN' OR status = 'OVERDUE' THEN 1 END) as count_pending
       FROM accounts_receivable
-      WHERE client_id = ? AND tenant_id = ?
-    `).get(conversation.client_id, req.user.tenant_id) as any;
+      WHERE client_id = ? AND tenant_id = ?`,
+      [conversation.client_id, req.user.tenant_id]
+    ) as any;
 
     // Buscar agendamentos futuros
-    const appointments = db.prepare(`
-      SELECT * FROM appointments 
-      WHERE client_id = ? AND date >= date('now')
+    const appointments = await db.query(
+      `SELECT * FROM appointments
+      WHERE client_id = ? AND date >= CURDATE()
       ORDER BY date ASC
-      LIMIT 3
-    `).all(conversation.client_id);
+      LIMIT 3`,
+      [conversation.client_id]
+    );
 
     res.json({
       hasClient: true,

@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep -o \"UPDATE [a-z_]*\" /c/Users/Eduardo/Desktop/meca-erp-main/src/backend/routes/*.ts)"
+    ]
+  }
+}

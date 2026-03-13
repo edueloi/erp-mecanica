@@ -8,14 +8,14 @@ const router = express.Router();
 router.use(authenticateToken);
 
 // Get all suppliers with filters
-router.get("/", (req: AuthRequest, res) => {
+router.get("/", async (req: AuthRequest, res) => {
   const { q, category, status, city, state, has_open_orders, is_preferred } = req.query;
-  
+
   let query = `
-    SELECT s.*, 
+    SELECT s.*,
       (SELECT COUNT(*) FROM purchase_orders po WHERE po.supplier_id = s.id AND po.status IN ('DRAFT', 'SENT', 'CONFIRMED')) as open_orders,
       (SELECT MAX(order_date) FROM purchase_orders po WHERE po.supplier_id = s.id) as last_order_date
-    FROM suppliers s 
+    FROM suppliers s
     WHERE s.tenant_id = ?
   `;
   const params: any[] = [req.user!.tenant_id];
@@ -50,15 +50,15 @@ router.get("/", (req: AuthRequest, res) => {
   }
 
   query += " ORDER BY s.is_preferred DESC, s.name ASC";
-  
+
   try {
-    let suppliers = db.prepare(query).all(...params);
-    
+    let suppliers = await db.query(query, params);
+
     // Filter by open orders if requested
     if (has_open_orders === 'true') {
       suppliers = (suppliers as any[]).filter((s: any) => s.open_orders > 0);
     }
-    
+
     res.json(suppliers);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -66,18 +66,18 @@ router.get("/", (req: AuthRequest, res) => {
 });
 
 // Get stats
-router.get("/stats", (req: AuthRequest, res) => {
+router.get("/stats", async (req: AuthRequest, res) => {
   try {
-    const stats = db.prepare(`
-      SELECT 
+    const stats = await db.queryOne(`
+      SELECT
         COUNT(*) as total,
         SUM(CASE WHEN status = 'ACTIVE' THEN 1 ELSE 0 END) as active,
         SUM(CASE WHEN is_preferred = 1 THEN 1 ELSE 0 END) as preferred,
         (SELECT COUNT(*) FROM purchase_orders WHERE tenant_id = ? AND status IN ('DRAFT', 'SENT', 'CONFIRMED')) as open_orders
-      FROM suppliers 
+      FROM suppliers
       WHERE tenant_id = ?
-    `).get(req.user!.tenant_id, req.user!.tenant_id);
-    
+    `, [req.user!.tenant_id, req.user!.tenant_id]);
+
     res.json(stats);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -85,15 +85,15 @@ router.get("/stats", (req: AuthRequest, res) => {
 });
 
 // Get categories
-router.get("/categories", (req: AuthRequest, res) => {
+router.get("/categories", async (req: AuthRequest, res) => {
   try {
-    const categories = db.prepare(`
-      SELECT DISTINCT category 
-      FROM suppliers 
-      WHERE tenant_id = ? AND category IS NOT NULL 
+    const categories = await db.query(`
+      SELECT DISTINCT category
+      FROM suppliers
+      WHERE tenant_id = ? AND category IS NOT NULL
       ORDER BY category
-    `).all(req.user!.tenant_id);
-    
+    `, [req.user!.tenant_id]);
+
     res.json(categories.map((c: any) => c.category));
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -101,15 +101,15 @@ router.get("/categories", (req: AuthRequest, res) => {
 });
 
 // Get cities
-router.get("/cities", (req: AuthRequest, res) => {
+router.get("/cities", async (req: AuthRequest, res) => {
   try {
-    const cities = db.prepare(`
-      SELECT DISTINCT city 
-      FROM suppliers 
-      WHERE tenant_id = ? AND city IS NOT NULL 
+    const cities = await db.query(`
+      SELECT DISTINCT city
+      FROM suppliers
+      WHERE tenant_id = ? AND city IS NOT NULL
       ORDER BY city
-    `).all(req.user!.tenant_id);
-    
+    `, [req.user!.tenant_id]);
+
     res.json(cities.map((c: any) => c.city));
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -117,12 +117,12 @@ router.get("/cities", (req: AuthRequest, res) => {
 });
 
 // Get single supplier
-router.get("/:id", (req: AuthRequest, res) => {
+router.get("/:id", async (req: AuthRequest, res) => {
   try {
-    const supplier = db.prepare(`
-      SELECT * FROM suppliers 
+    const supplier = await db.queryOne(`
+      SELECT * FROM suppliers
       WHERE id = ? AND tenant_id = ?
-    `).get(req.params.id, req.user!.tenant_id);
+    `, [req.params.id, req.user!.tenant_id]);
 
     if (!supplier) return res.status(404).json({ error: "Supplier not found" });
 
@@ -133,15 +133,15 @@ router.get("/:id", (req: AuthRequest, res) => {
 });
 
 // Get supplier parts
-router.get("/:id/parts", (req: AuthRequest, res) => {
+router.get("/:id/parts", async (req: AuthRequest, res) => {
   try {
-    const parts = db.prepare(`
+    const parts = await db.query(`
       SELECT sp.*, p.name, p.code, p.stock_quantity, p.min_stock
       FROM supplier_parts sp
       JOIN parts p ON sp.part_id = p.id
       WHERE sp.supplier_id = ?
       ORDER BY sp.is_preferred DESC, p.name ASC
-    `).all(req.params.id);
+    `, [req.params.id]);
 
     res.json(parts);
   } catch (error: any) {
@@ -150,15 +150,15 @@ router.get("/:id/parts", (req: AuthRequest, res) => {
 });
 
 // Get supplier purchase orders
-router.get("/:id/orders", (req: AuthRequest, res) => {
+router.get("/:id/orders", async (req: AuthRequest, res) => {
   try {
-    const orders = db.prepare(`
+    const orders = await db.query(`
       SELECT po.*, u.name as created_by_name
       FROM purchase_orders po
       LEFT JOIN users u ON po.created_by = u.id
       WHERE po.supplier_id = ? AND po.tenant_id = ?
       ORDER BY po.order_date DESC
-    `).all(req.params.id, req.user!.tenant_id);
+    `, [req.params.id, req.user!.tenant_id]);
 
     res.json(orders);
   } catch (error: any) {
@@ -167,31 +167,31 @@ router.get("/:id/orders", (req: AuthRequest, res) => {
 });
 
 // Create supplier
-router.post("/", (req: AuthRequest, res) => {
-  const { 
+router.post("/", async (req: AuthRequest, res) => {
+  const {
     name, trade_name, cnpj, ie, category, status, phone, whatsapp, email, website,
     contact_name, sales_rep, sales_rep_phone, zip_code, street, number, complement,
-    neighborhood, city, state, payment_terms, payment_methods, notes, is_preferred 
+    neighborhood, city, state, payment_terms, payment_methods, notes, is_preferred
   } = req.body;
 
   const id = uuidv4();
 
   try {
-    db.prepare(`
+    await db.execute(`
       INSERT INTO suppliers (
-        id, tenant_id, name, trade_name, cnpj, ie, category, status, phone, whatsapp, 
-        email, website, contact_name, sales_rep, sales_rep_phone, zip_code, street, 
-        number, complement, neighborhood, city, state, payment_terms, payment_methods, 
+        id, tenant_id, name, trade_name, cnpj, ie, category, status, phone, whatsapp,
+        email, website, contact_name, sales_rep, sales_rep_phone, zip_code, street,
+        number, complement, neighborhood, city, state, payment_terms, payment_methods,
         notes, is_preferred
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(
+    `, [
       id, req.user!.tenant_id, name, trade_name, cnpj, ie, category, status || 'ACTIVE',
       phone, whatsapp, email, website, contact_name, sales_rep, sales_rep_phone,
       zip_code, street, number, complement, neighborhood, city, state,
       payment_terms, payment_methods, notes, is_preferred ? 1 : 0
-    );
+    ]);
 
-    const newSupplier = db.prepare("SELECT * FROM suppliers WHERE id = ?").get(id);
+    const newSupplier = await db.queryOne("SELECT * FROM suppliers WHERE id = ?", [id]);
     res.status(201).json(newSupplier);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -199,11 +199,11 @@ router.post("/", (req: AuthRequest, res) => {
 });
 
 // Update supplier
-router.patch("/:id", (req: AuthRequest, res) => {
-  const { 
+router.patch("/:id", async (req: AuthRequest, res) => {
+  const {
     name, trade_name, cnpj, ie, category, status, phone, whatsapp, email, website,
     contact_name, sales_rep, sales_rep_phone, zip_code, street, number, complement,
-    neighborhood, city, state, payment_terms, payment_methods, notes, is_preferred 
+    neighborhood, city, state, payment_terms, payment_methods, notes, is_preferred
   } = req.body;
 
   try {
@@ -244,10 +244,10 @@ router.patch("/:id", (req: AuthRequest, res) => {
 
     if (fields.length > 1) {
       params.push(req.params.id, req.user!.tenant_id);
-      db.prepare(`
-        UPDATE suppliers SET ${fields.join(", ")} 
+      await db.execute(`
+        UPDATE suppliers SET ${fields.join(", ")}
         WHERE id = ? AND tenant_id = ?
-      `).run(...params);
+      `, params);
     }
 
     res.json({ message: "Supplier updated successfully" });
@@ -257,21 +257,20 @@ router.patch("/:id", (req: AuthRequest, res) => {
 });
 
 // Delete supplier
-router.delete("/:id", (req: AuthRequest, res) => {
+router.delete("/:id", async (req: AuthRequest, res) => {
   try {
     // Check if has orders
-    const hasOrders = db.prepare(`
-      SELECT COUNT(*) as count FROM purchase_orders 
+    const hasOrders = await db.queryOne(`
+      SELECT COUNT(*) as count FROM purchase_orders
       WHERE supplier_id = ?
-    `).get(req.params.id) as any;
+    `, [req.params.id]) as any;
 
     if (hasOrders.count > 0) {
       return res.status(400).json({ error: "Não é possível excluir fornecedor com pedidos vinculados" });
     }
 
-    db.prepare("DELETE FROM supplier_parts WHERE supplier_id = ?").run(req.params.id);
-    db.prepare("DELETE FROM suppliers WHERE id = ? AND tenant_id = ?")
-      .run(req.params.id, req.user!.tenant_id);
+    await db.execute("DELETE FROM supplier_parts WHERE supplier_id = ?", [req.params.id]);
+    await db.execute("DELETE FROM suppliers WHERE id = ? AND tenant_id = ?", [req.params.id, req.user!.tenant_id]);
 
     res.json({ message: "Supplier deleted successfully" });
   } catch (error: any) {
@@ -280,19 +279,19 @@ router.delete("/:id", (req: AuthRequest, res) => {
 });
 
 // Link part to supplier
-router.post("/:id/parts", (req: AuthRequest, res) => {
+router.post("/:id/parts", async (req: AuthRequest, res) => {
   const { part_id, supplier_code, last_cost, is_preferred } = req.body;
   const id = uuidv4();
 
   try {
-    db.prepare(`
+    await db.execute(`
       INSERT INTO supplier_parts (id, supplier_id, part_id, supplier_code, last_cost, is_preferred)
       VALUES (?, ?, ?, ?, ?, ?)
-    `).run(id, req.params.id, part_id, supplier_code, last_cost || 0, is_preferred ? 1 : 0);
+    `, [id, req.params.id, part_id, supplier_code, last_cost || 0, is_preferred ? 1 : 0]);
 
     res.status(201).json({ message: "Part linked successfully" });
   } catch (error: any) {
-    if (error.message.includes('UNIQUE')) {
+    if (error.message.includes('UNIQUE') || error.message.includes('Duplicate')) {
       return res.status(400).json({ error: "Peça já vinculada a este fornecedor" });
     }
     res.status(500).json({ error: error.message });
@@ -300,20 +299,20 @@ router.post("/:id/parts", (req: AuthRequest, res) => {
 });
 
 // Generate purchase order for low stock
-router.post("/generate-order-low-stock", (req: AuthRequest, res) => {
+router.post("/generate-order-low-stock", async (req: AuthRequest, res) => {
   try {
     // Get parts with low stock
-    const lowStockParts = db.prepare(`
+    const lowStockParts = await db.query(`
       SELECT p.*, sp.supplier_id, sp.last_cost, s.name as supplier_name
       FROM parts p
       JOIN supplier_parts sp ON p.id = sp.part_id
       JOIN suppliers s ON sp.supplier_id = s.id
-      WHERE p.tenant_id = ? 
+      WHERE p.tenant_id = ?
         AND p.stock_quantity <= p.min_stock
         AND s.status = 'ACTIVE'
         AND sp.is_preferred = 1
       ORDER BY s.is_preferred DESC, s.name ASC
-    `).all(req.user!.tenant_id);
+    `, [req.user!.tenant_id]);
 
     // Group by supplier
     const grouped = (lowStockParts as any[]).reduce((acc: any, part: any) => {

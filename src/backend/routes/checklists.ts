@@ -6,22 +6,22 @@ import { authenticateToken, AuthRequest } from "../middleware/auth";
 const router = express.Router();
 
 // GET single checklist publicly using TOKEN
-router.get("/public/:token", (req, res) => {
+router.get("/public/:token", async (req, res) => {
   try {
-    const checklist = db.prepare(`
+    const checklist = await db.queryOne(`
       SELECT cl.*, v.brand as vehicle_brand, v.model as vehicle_model, v.plate as vehicle_plate
       FROM vehicle_checklists cl
       JOIN vehicles v ON cl.vehicle_id = v.id
       WHERE cl.public_token = ? AND cl.token_expires_at > CURRENT_TIMESTAMP
-    `).get(req.params.token) as any;
+    `, [req.params.token]) as any;
 
     if (!checklist) return res.status(404).json({ error: "Link expirado ou inválido" });
 
-    const items = db.prepare(`
-      SELECT * FROM vehicle_checklist_items 
+    const items = await db.query(`
+      SELECT * FROM vehicle_checklist_items
       WHERE checklist_id = ?
       ORDER BY sort_order ASC
-    `).all(checklist.id);
+    `, [checklist.id]);
 
     res.json({ ...checklist, items });
   } catch (error: any) {
@@ -30,25 +30,24 @@ router.get("/public/:token", (req, res) => {
 });
 
 // PATCH item publicly using TOKEN
-router.patch("/public/:token/items/:itemId", (req, res) => {
+router.patch("/public/:token/items/:itemId", async (req, res) => {
   const { image_url } = req.body;
   try {
-    const checklist = db.prepare(`
-      SELECT id FROM vehicle_checklists 
+    const checklist = await db.queryOne(`
+      SELECT id FROM vehicle_checklists
       WHERE public_token = ? AND token_expires_at > CURRENT_TIMESTAMP
-    `).get(req.params.token) as any;
+    `, [req.params.token]) as any;
 
     if (!checklist) return res.status(404).json({ error: "Link expirado" });
 
-    const stmt = db.prepare(`
-      UPDATE vehicle_checklist_items 
+    const result = await db.execute(`
+      UPDATE vehicle_checklist_items
       SET image_url = ?, status = CASE WHEN status = 'NA' THEN 'OK' ELSE status END
       WHERE id = ? AND checklist_id = ?
-    `);
-    
-    const result = stmt.run(image_url, req.params.itemId, checklist.id);
-    if (result.changes === 0) return res.status(404).json({ error: "Item not found" });
-    
+    `, [image_url, req.params.itemId, checklist.id]);
+
+    if ((result as any).affectedRows === 0) return res.status(404).json({ error: "Item not found" });
+
     res.json({ success: true });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -161,16 +160,19 @@ const DEFAULT_CHECKLIST_ITEMS = [
 ];
 
 // GET all checklists for a vehicle
-router.get("/vehicle/:vehicleId", (req: AuthRequest, res) => {
+router.get("/vehicle/:vehicleId", async (req: AuthRequest, res) => {
   try {
-    // Check if vehicle_checklists table exists
-    const tableCheck = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='vehicle_checklists'").get();
+    // Check if vehicle_checklists table exists (MySQL compatible)
+    const tableCheck = await db.queryOne(
+      "SELECT table_name FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = 'vehicle_checklists'",
+      []
+    );
     if (!tableCheck) {
       return res.json([]);
     }
 
-    const checklists = db.prepare(`
-      SELECT cl.id, cl.tenant_id, cl.vehicle_id, cl.work_order_id, cl.km, 
+    const checklists = await db.query(`
+      SELECT cl.id, cl.tenant_id, cl.vehicle_id, cl.work_order_id, cl.km,
              cl.inspector_name, cl.general_notes, cl.status, cl.created_at, cl.updated_at,
              u.name as inspector_name_display,
              COUNT(ci.id) as total_items,
@@ -183,7 +185,7 @@ router.get("/vehicle/:vehicleId", (req: AuthRequest, res) => {
       WHERE cl.vehicle_id = ? AND cl.tenant_id = ?
       GROUP BY cl.id
       ORDER BY cl.created_at DESC
-    `).all(req.params.vehicleId, req.user!.tenant_id);
+    `, [req.params.vehicleId, req.user!.tenant_id]);
 
     // Map inspector_name_display to inspector_name if needed by frontend
     const mapped = checklists.map((cl: any) => ({
@@ -199,20 +201,20 @@ router.get("/vehicle/:vehicleId", (req: AuthRequest, res) => {
 });
 
 // POST Generate/Refresh Public Token
-router.post("/:id/token", (req: AuthRequest, res) => {
+router.post("/:id/token", async (req: AuthRequest, res) => {
   console.log('Generating token for checklist:', req.params.id);
   try {
     const token = uuidv4();
-    // 60 minutes from now (ISO format with space for SQLite compatibility)
-    const expiresAt = new Date(Date.now() + 60 * 60000).toISOString().replace('T', ' ').replace('Z', ''); 
+    // 60 minutes from now
+    const expiresAt = new Date(Date.now() + 60 * 60000).toISOString().replace('T', ' ').replace('Z', '');
 
-    const result = db.prepare(`
-      UPDATE vehicle_checklists 
+    const result = await db.execute(`
+      UPDATE vehicle_checklists
       SET public_token = ?, token_expires_at = ?
       WHERE id = ? AND tenant_id = ?
-    `).run(token, expiresAt, req.params.id, req.user!.tenant_id);
+    `, [token, expiresAt, req.params.id, req.user!.tenant_id]);
 
-    if (result.changes === 0) {
+    if ((result as any).affectedRows === 0) {
       console.warn('Checklist not found or unauthorized:', req.params.id);
       return res.status(404).json({ error: "Checklist não encontrado" });
     }
@@ -225,19 +227,19 @@ router.post("/:id/token", (req: AuthRequest, res) => {
 });
 
 // GET single checklist with items
-router.get("/:id", (req: AuthRequest, res) => {
+router.get("/:id", async (req: AuthRequest, res) => {
   try {
-    const checklist = db.prepare(`
+    const checklist = await db.queryOne(`
       SELECT * FROM vehicle_checklists WHERE id = ? AND tenant_id = ?
-    `).get(req.params.id, req.user!.tenant_id) as any;
+    `, [req.params.id, req.user!.tenant_id]) as any;
 
     if (!checklist) return res.status(404).json({ error: "Checklist not found" });
 
-    const items = db.prepare(`
-      SELECT * FROM vehicle_checklist_items 
+    const items = await db.query(`
+      SELECT * FROM vehicle_checklist_items
       WHERE checklist_id = ?
       ORDER BY sort_order ASC
-    `).all(req.params.id);
+    `, [req.params.id]);
 
     res.json({ ...checklist, items });
   } catch (error: any) {
@@ -246,7 +248,7 @@ router.get("/:id", (req: AuthRequest, res) => {
 });
 
 // POST create a new checklist
-router.post("/", (req: AuthRequest, res) => {
+router.post("/", async (req: AuthRequest, res) => {
   const { vehicle_id, work_order_id, km, inspector_name, general_notes } = req.body;
 
   if (!vehicle_id || vehicle_id === 'undefined') {
@@ -256,27 +258,23 @@ router.post("/", (req: AuthRequest, res) => {
   const id = uuidv4();
 
   try {
-    const txn = db.transaction(() => {
-      db.prepare(`
+    await db.transaction(async (conn) => {
+      await conn.execute(`
         INSERT INTO vehicle_checklists (id, tenant_id, vehicle_id, work_order_id, km, inspector_name, general_notes, status)
         VALUES (?, ?, ?, ?, ?, ?, ?, 'DRAFT')
-      `).run(id, req.user!.tenant_id, vehicle_id, work_order_id || null, km || 0, inspector_name || null, general_notes || null);
+      `, [id, req.user!.tenant_id, vehicle_id, work_order_id || null, km || 0, inspector_name || null, general_notes || null]);
 
       // Insert default items
-      const stmt = db.prepare(`
-        INSERT INTO vehicle_checklist_items (id, checklist_id, category, item, status, sort_order)
-        VALUES (?, ?, ?, ?, 'NA', ?)
-      `);
-
       for (const item of DEFAULT_CHECKLIST_ITEMS) {
-        stmt.run(uuidv4(), id, item.category, item.item, item.sort_order);
+        await conn.execute(`
+          INSERT INTO vehicle_checklist_items (id, checklist_id, category, item, status, sort_order)
+          VALUES (?, ?, ?, ?, 'NA', ?)
+        `, [uuidv4(), id, item.category, item.item, item.sort_order]);
       }
     });
 
-    txn();
-
-    const checklist = db.prepare("SELECT * FROM vehicle_checklists WHERE id = ?").get(id);
-    const items = db.prepare("SELECT * FROM vehicle_checklist_items WHERE checklist_id = ? ORDER BY sort_order ASC").all(id);
+    const checklist = await db.queryOne("SELECT * FROM vehicle_checklists WHERE id = ?", [id]);
+    const items = await db.query("SELECT * FROM vehicle_checklist_items WHERE checklist_id = ? ORDER BY sort_order ASC", [id]);
 
     res.status(201).json({ ...checklist, items });
   } catch (error: any) {
@@ -285,11 +283,11 @@ router.post("/", (req: AuthRequest, res) => {
 });
 
 // PATCH update checklist header
-router.patch("/:id", (req: AuthRequest, res) => {
+router.patch("/:id", async (req: AuthRequest, res) => {
   const { km, inspector_name, general_notes, status } = req.body;
 
   try {
-    db.prepare(`
+    await db.execute(`
       UPDATE vehicle_checklists
       SET km = COALESCE(?, km),
           inspector_name = COALESCE(?, inspector_name),
@@ -297,10 +295,10 @@ router.patch("/:id", (req: AuthRequest, res) => {
           status = COALESCE(?, status),
           updated_at = CURRENT_TIMESTAMP
       WHERE id = ? AND tenant_id = ?
-    `).run(km, inspector_name, general_notes, status, req.params.id, req.user!.tenant_id);
+    `, [km, inspector_name, general_notes, status, req.params.id, req.user!.tenant_id]);
 
-    const checklist = db.prepare("SELECT * FROM vehicle_checklists WHERE id = ?").get(req.params.id);
-    const items = db.prepare("SELECT * FROM vehicle_checklist_items WHERE checklist_id = ? ORDER BY sort_order ASC").all(req.params.id);
+    const checklist = await db.queryOne("SELECT * FROM vehicle_checklists WHERE id = ?", [req.params.id]);
+    const items = await db.query("SELECT * FROM vehicle_checklist_items WHERE checklist_id = ? ORDER BY sort_order ASC", [req.params.id]);
 
     res.json({ ...checklist, items });
   } catch (error: any) {
@@ -309,23 +307,23 @@ router.patch("/:id", (req: AuthRequest, res) => {
 });
 
 // PATCH update an individual checklist item
-router.patch("/:id/items/:itemId", (req: AuthRequest, res) => {
+router.patch("/:id/items/:itemId", async (req: AuthRequest, res) => {
   const { status, notes } = req.body;
 
   try {
-    db.prepare(`
+    await db.execute(`
       UPDATE vehicle_checklist_items
       SET status = COALESCE(?, status),
           notes = COALESCE(?, notes)
       WHERE id = ? AND checklist_id = ?
-    `).run(status, notes, req.params.itemId, req.params.id);
+    `, [status, notes, req.params.itemId, req.params.id]);
 
     // Update checklist updated_at
-    db.prepare(`
+    await db.execute(`
       UPDATE vehicle_checklists SET updated_at = CURRENT_TIMESTAMP WHERE id = ? AND tenant_id = ?
-    `).run(req.params.id, req.user!.tenant_id);
+    `, [req.params.id, req.user!.tenant_id]);
 
-    const item = db.prepare("SELECT * FROM vehicle_checklist_items WHERE id = ?").get(req.params.itemId);
+    const item = await db.queryOne("SELECT * FROM vehicle_checklist_items WHERE id = ?", [req.params.itemId]);
     res.json(item);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -333,10 +331,10 @@ router.patch("/:id/items/:itemId", (req: AuthRequest, res) => {
 });
 
 // DELETE checklist
-router.delete("/:id", (req: AuthRequest, res) => {
+router.delete("/:id", async (req: AuthRequest, res) => {
   try {
-    db.prepare("DELETE FROM vehicle_checklist_items WHERE checklist_id = ?").run(req.params.id);
-    db.prepare("DELETE FROM vehicle_checklists WHERE id = ? AND tenant_id = ?").run(req.params.id, req.user!.tenant_id);
+    await db.execute("DELETE FROM vehicle_checklist_items WHERE checklist_id = ?", [req.params.id]);
+    await db.execute("DELETE FROM vehicle_checklists WHERE id = ? AND tenant_id = ?", [req.params.id, req.user!.tenant_id]);
     res.json({ message: "Checklist excluído com sucesso" });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
