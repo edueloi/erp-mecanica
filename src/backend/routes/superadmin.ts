@@ -171,8 +171,10 @@ router.delete("/tenants/:id", requireSuperAdmin, async (req: AuthRequest, res) =
       await conn.execute("DELETE FROM action_boards WHERE tenant_id = ?", [id]);
 
       // 3. Financial & Cashflow
-      await conn.execute("DELETE FROM receivable_payments WHERE receivable_id IN (SELECT id FROM accounts_receivable WHERE tenant_id = ?)", [id]);
+      await conn.execute("DELETE FROM receivable_payments WHERE account_id IN (SELECT id FROM accounts_receivable WHERE tenant_id = ?)", [id]);
       await conn.execute("DELETE FROM accounts_receivable WHERE tenant_id = ?", [id]);
+      await conn.execute("DELETE FROM payable_payments WHERE account_id IN (SELECT id FROM accounts_payable WHERE tenant_id = ?)", [id]);
+      await conn.execute("DELETE FROM accounts_payable WHERE tenant_id = ?", [id]);
       await conn.execute("DELETE FROM cash_closes WHERE tenant_id = ?", [id]);
       await conn.execute("DELETE FROM cashflow_transactions WHERE tenant_id = ?", [id]);
       await conn.execute("DELETE FROM cash_accounts WHERE tenant_id = ?", [id]);

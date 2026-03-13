@@ -55,12 +55,12 @@ router.get("/stats", async (req: AuthRequest, res) => {
     const stats = await db.queryOne(`
       SELECT
         COUNT(*) as total,
-        SUM(CASE WHEN status = 'CONFIRMED' AND STR_TO_DATE(CONCAT(date, ' ', time), '%Y-%m-%d %H:%i') >= DATE_SUB(NOW(), INTERVAL 15 MINUTE) THEN 1 ELSE 0 END) as confirmed,
-        SUM(CASE WHEN status = 'PENDING' AND STR_TO_DATE(CONCAT(date, ' ', time), '%Y-%m-%d %H:%i') >= DATE_SUB(NOW(), INTERVAL 15 MINUTE) THEN 1 ELSE 0 END) as pending,
+        SUM(CASE WHEN status = 'CONFIRMED' AND STR_TO_DATE(CONCAT(\`date\`, ' ', \`time\`), '%Y-%m-%d %H:%i') >= DATE_SUB(NOW(), INTERVAL 15 MINUTE) THEN 1 ELSE 0 END) as confirmed,
+        SUM(CASE WHEN status = 'PENDING' AND STR_TO_DATE(CONCAT(\`date\`, ' ', \`time\`), '%Y-%m-%d %H:%i') >= DATE_SUB(NOW(), INTERVAL 15 MINUTE) THEN 1 ELSE 0 END) as pending,
         SUM(CASE WHEN status = 'ARRIVED' THEN 1 ELSE 0 END) as arrived,
-        SUM(CASE WHEN (status IN ('PENDING', 'CONFIRMED') AND STR_TO_DATE(CONCAT(date, ' ', time), '%Y-%m-%d %H:%i') < DATE_SUB(NOW(), INTERVAL 15 MINUTE)) OR status = 'DELAYED' THEN 1 ELSE 0 END) as delayed
+        SUM(CASE WHEN (status IN ('PENDING', 'CONFIRMED') AND STR_TO_DATE(CONCAT(\`date\`, ' ', \`time\`), '%Y-%m-%d %H:%i') < DATE_SUB(NOW(), INTERVAL 15 MINUTE)) OR status = 'DELAYED' THEN 1 ELSE 0 END) as delayed
       FROM appointments
-      WHERE tenant_id = ? AND date = ?
+      WHERE tenant_id = ? AND \`date\` = ?
     `, [req.user!.tenant_id, targetDate]);
 
     res.json(stats);
