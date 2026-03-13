@@ -256,7 +256,7 @@ router.get("/tenants/:id/users", requireAdminOrSeller, async (req: AuthRequest, 
 router.get("/team", requireSuperAdmin, async (req: AuthRequest, res) => {
   try {
     const team = await db.query(`
-      SELECT id, name, surname, email, role, phone, cpf, profession, photo_url, permissions, created_at
+      SELECT id, name, surname, email, role, phone, cpf, profession, education, photo_url, permissions, created_at
       FROM users
       WHERE role IN ('SUPER_ADMIN', 'VENDEDOR')
         AND email != 'admin@mecaerp.com.br'
