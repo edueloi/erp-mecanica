@@ -3,6 +3,10 @@ import cors from "cors";
 import dotenv from "dotenv";
 import { createServer as createViteServer } from "vite";
 import path from "path";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 import { initDb } from "./src/backend/db";
 import authRoutes from "./src/backend/routes/auth";
 import clientRoutes from "./src/backend/routes/clients";
