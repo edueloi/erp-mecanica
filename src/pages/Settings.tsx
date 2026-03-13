@@ -233,6 +233,23 @@ export default function Settings() {
     }
   };
 
+  const fetchAddressByCEP = async (cep: string) => {
+    const digits = cep.replace(/\D/g, "");
+    if (digits.length !== 8) return;
+    try {
+      const res = await fetch(`https://viacep.com.br/ws/${digits}/json/`);
+      const data = await res.json();
+      if (data.erro) return;
+      setTenantForm(prev => ({
+        ...prev,
+        address: `${data.logradouro}${data.bairro ? ', ' + data.bairro : ''}`,
+        city: data.localidade || prev.city,
+        state: data.uf || prev.state
+      }));
+      if (data.uf) loadCidades(data.uf);
+    } catch {}
+  };
+
   const handleSaveTenantSettings = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     setSaving(true);
@@ -696,6 +713,7 @@ export default function Settings() {
                             type="text"
                             value={tenantForm.zip_code || ""}
                             onChange={(e) => setTenantForm({ ...tenantForm, zip_code: maskCEP(e.target.value) })}
+                            onBlur={(e) => fetchAddressByCEP(e.target.value)}
                             className="w-full px-4 py-2.5 bg-slate-50 border border-slate-100 rounded-xl focus:ring-4 focus:ring-slate-900/5 outline-none transition-all font-bold"
                             placeholder="00000-000"
                           />

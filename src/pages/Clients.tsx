@@ -71,18 +71,18 @@ export default function Clients() {
 
   // Template data for import
   const templateData = [{
-    name: 'Nome do Cliente',
-    type: 'PF ou PJ',
-    document: 'CPF ou CNPJ',
-    phone: '(11) 98765-4321',
-    email: 'cliente@email.com',
-    cep: '01234-567',
-    street: 'Rua Exemplo',
-    number: '123',
-    complement: 'Apto 45',
-    neighborhood: 'Bairro',
-    city: 'Cidade',
-    state: 'SP'
+    'Nome': 'Nome do Cliente',
+    'Tipo': 'PF ou PJ',
+    'Documento': 'CPF ou CNPJ',
+    'Telefone': '(11) 98765-4321',
+    'Email': 'cliente@email.com',
+    'CEP': '01234-567',
+    'Rua': 'Rua Exemplo',
+    'Numero': '123',
+    'Complemento': 'Apto 45',
+    'Bairro': 'Bairro',
+    'Cidade': 'Cidade',
+    'Estado': 'SP'
   }];
 
   // Columns for export
