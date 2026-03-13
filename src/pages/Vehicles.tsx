@@ -531,6 +531,40 @@ export default function Vehicles() {
                   </div>
                 </div>
 
+                {/* Editable fields pre-filled by FIPE */}
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1.5 px-1 tracking-widest">Marca</label>
+                    <input
+                      type="text"
+                      className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-medium outline-none focus:ring-2 focus:ring-slate-900/5 focus:border-slate-900 shadow-sm transition-all"
+                      placeholder="Ex: Volkswagen"
+                      value={newVehicle.brand}
+                      onChange={e => setNewVehicle({...newVehicle, brand: e.target.value})}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1.5 px-1 tracking-widest">Modelo</label>
+                    <input
+                      type="text"
+                      className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-medium outline-none focus:ring-2 focus:ring-slate-900/5 focus:border-slate-900 shadow-sm transition-all"
+                      placeholder="Ex: Gol 1.0"
+                      value={newVehicle.model}
+                      onChange={e => setNewVehicle({...newVehicle, model: e.target.value})}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1.5 px-1 tracking-widest">Ano</label>
+                    <input
+                      type="text"
+                      className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm font-medium outline-none focus:ring-2 focus:ring-slate-900/5 focus:border-slate-900 shadow-sm transition-all"
+                      placeholder="Ex: 2020"
+                      value={newVehicle.year}
+                      onChange={e => setNewVehicle({...newVehicle, year: e.target.value})}
+                    />
+                  </div>
+                </div>
+
                 <div className="space-y-4">
                   <div>
                     <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1.5 px-1 tracking-widest">Proprietário</label>
