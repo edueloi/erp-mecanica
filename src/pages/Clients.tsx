@@ -13,13 +13,16 @@ import { motion, AnimatePresence } from 'motion/react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import ImportExportModal from '../components/ImportExportModal';
-
+import { useSettings } from '../contexts/SettingsContext';
+import { useAuthStore } from '../services/authStore';
 import { cepService } from '../services/cepService';
 
 type ClientStatus = 'ACTIVE' | 'INACTIVE' | 'BLOCKED';
 
 export default function Clients() {
   const navigate = useNavigate();
+  const { tenantSettings } = useSettings();
+  const { user } = useAuthStore();
   const [clients, setClients] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -1013,6 +1016,8 @@ export default function Clients() {
         data={clients}
         columns={exportColumns}
         entityName="clientes"
+        tenantName={tenantSettings?.name || user?.tenant_name}
+        tenantLogo={tenantSettings?.logo_url}
       />
     </div>
   );

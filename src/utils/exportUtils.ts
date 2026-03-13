@@ -26,46 +26,83 @@ export const exportToExcel = (data: any[], filename: string, sheetName: string =
   XLSX.writeFile(workbook, `${filename}.xlsx`);
 };
 
+const STATUS_LABELS: Record<string, string> = {
+  ACTIVE: 'Ativo', INACTIVE: 'Inativo', BLOCKED: 'Bloqueado',
+  TRIAL: 'Teste', OVERDUE: 'Atrasado', PENDING_PAYMENT: 'Pendente',
+  PF: 'Pessoa Física', PJ: 'Pessoa Jurídica',
+};
+
 /**
- * Export data to PDF file
+ * Export data to PDF file — landscape, with company header
  */
 export const exportToPDF = (
-  data: any[], 
+  data: any[],
   columns: { header: string; dataKey: string }[],
   filename: string,
-  title: string
+  title: string,
+  options?: { tenantName?: string; tenantLogo?: string }
 ) => {
-  const doc = new jsPDF();
-  
-  // Add title
-  doc.setFontSize(18);
-  doc.text(title, 14, 20);
-  
-  // Add date
+  const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+  const pageW = doc.internal.pageSize.width;
+  const pageH = doc.internal.pageSize.height;
+  const margin = 14;
+
+  // ── Header band ──────────────────────────────────────────────
+  doc.setFillColor(15, 23, 42); // slate-900
+  doc.rect(0, 0, pageW, 22, 'F');
+
+  let logoEndX = margin;
+
+  // Logo (base64 or URL — only base64 works in jsPDF)
+  if (options?.tenantLogo && options.tenantLogo.startsWith('data:image')) {
+    try {
+      const ext = options.tenantLogo.includes('png') ? 'PNG' : 'JPEG';
+      doc.addImage(options.tenantLogo, ext, margin, 3, 16, 16);
+      logoEndX = margin + 20;
+    } catch {}
+  }
+
+  // Company name
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(13);
+  doc.setFont('helvetica', 'bold');
+  doc.text(options?.tenantName || 'MecaERP', logoEndX, 13);
+
+  // Report title (right side)
   doc.setFontSize(10);
-  doc.text(`Data: ${new Date().toLocaleDateString('pt-BR')}`, 14, 28);
-  
-  // Add table
+  doc.setFont('helvetica', 'normal');
+  doc.text(title, pageW - margin, 10, { align: 'right' });
+  doc.setFontSize(8);
+  doc.text(`Data: ${new Date().toLocaleDateString('pt-BR')}`, pageW - margin, 17, { align: 'right' });
+
+  // ── Table ─────────────────────────────────────────────────────
+  const translateCell = (value: any) =>
+    value !== null && value !== undefined
+      ? (STATUS_LABELS[String(value)] ?? String(value))
+      : '';
+
   autoTable(doc, {
-    startY: 35,
+    startY: 28,
     head: [columns.map(col => col.header)],
-    body: data.map(row => columns.map(col => row[col.dataKey] || '')),
-    styles: { fontSize: 8 },
-    headStyles: { fillColor: [15, 23, 42] }, // slate-900
-    margin: { top: 35 },
-    didDrawPage: (data: any) => {
-      // Footer
+    body: data.map(row => columns.map(col => translateCell(row[col.dataKey]))),
+    styles: { fontSize: 8, cellPadding: 3 },
+    headStyles: { fillColor: [15, 23, 42], textColor: 255, fontStyle: 'bold' },
+    alternateRowStyles: { fillColor: [241, 245, 249] },
+    margin: { left: margin, right: margin },
+    didDrawPage: (hookData: any) => {
       const pageCount = doc.getNumberOfPages();
-      doc.setFontSize(8);
+      doc.setFontSize(7);
+      doc.setTextColor(100);
+      doc.setFont('helvetica', 'normal');
       doc.text(
-        `Página ${data.pageNumber} de ${pageCount}`,
-        doc.internal.pageSize.width / 2,
-        doc.internal.pageSize.height - 10,
+        `Página ${hookData.pageNumber} de ${pageCount}  •  ${options?.tenantName || 'MecaERP'}`,
+        pageW / 2,
+        pageH - 6,
         { align: 'center' }
       );
     }
   });
-  
+
   doc.save(`${filename}.pdf`);
 };
 

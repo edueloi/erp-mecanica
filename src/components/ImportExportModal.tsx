@@ -12,7 +12,9 @@ interface ImportExportModalProps {
   columns?: { header: string; dataKey: string }[];
   templateData?: any[];
   onImport?: (data: any[]) => Promise<void>;
-  entityName: string; // e.g., "clientes", "veiculos", "pecas"
+  entityName: string;
+  tenantName?: string;
+  tenantLogo?: string;
 }
 
 export default function ImportExportModal({
@@ -24,7 +26,9 @@ export default function ImportExportModal({
   columns = [],
   templateData = [],
   onImport,
-  entityName
+  entityName,
+  tenantName,
+  tenantLogo
 }: ImportExportModalProps) {
   const [selectedFormat, setSelectedFormat] = useState<'excel' | 'pdf' | 'csv'>('excel');
   const [importing, setImporting] = useState(false);
@@ -39,7 +43,7 @@ export default function ImportExportModal({
       if (selectedFormat === 'excel') {
         exportToExcel(data, filename, title);
       } else if (selectedFormat === 'pdf') {
-        exportToPDF(data, columns, filename, title);
+        exportToPDF(data, columns, filename, title, { tenantName, tenantLogo });
       } else if (selectedFormat === 'csv') {
         exportToCSV(data, filename);
       }
