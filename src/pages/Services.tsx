@@ -8,6 +8,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import api from '../services/api';
 import ImportExportModal from '../components/ImportExportModal';
+import DeleteConfirmationModal from '../components/DeleteConfirmationModal';
 
 type ServiceCategory = 'MOTOR' | 'FREIO' | 'SUSPENSAO' | 'ELETRICA' | 'REVISAO' | 'OUTROS';
 type ServiceStatus = 'ACTIVE' | 'INACTIVE';
@@ -72,6 +73,7 @@ export default function Services() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
+  const [isBulkDeleteModalOpen, setIsBulkDeleteModalOpen] = useState(false);
   const [selectedService, setSelectedService] = useState<Service | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [activeDetailTab, setActiveDetailTab] = useState<'SUMMARY' | 'PARTS' | 'HISTORY' | 'COMPATIBILITY'>('SUMMARY');
@@ -279,10 +281,10 @@ export default function Services() {
   };
 
   const handleBulkDelete = async () => {
-    if (!window.confirm(`Excluir ${selectedIds.size} serviço(s) selecionado(s)?`)) return;
     try {
       await Promise.all([...selectedIds].map(id => api.delete(`/services/${id}`)));
       setSelectedIds(new Set());
+      setIsBulkDeleteModalOpen(false);
       fetchServices();
     } catch {
       alert('Erro ao excluir serviços');
@@ -401,7 +403,7 @@ export default function Services() {
           <button onClick={() => setIsExportModalOpen(true)} className="flex items-center gap-1.5 px-3 py-1 bg-white/10 hover:bg-white/20 rounded-lg transition-all">
             <Download size={13} /> Exportar selecionados
           </button>
-          <button onClick={handleBulkDelete} className="flex items-center gap-1.5 px-3 py-1 bg-red-500/80 hover:bg-red-500 rounded-lg transition-all">
+          <button onClick={() => setIsBulkDeleteModalOpen(true)} className="flex items-center gap-1.5 px-3 py-1 bg-red-500/80 hover:bg-red-500 rounded-lg transition-all">
             <Trash2 size={13} /> Excluir selecionados
           </button>
           <button onClick={() => setSelectedIds(new Set())} className="ml-auto text-white/60 hover:text-white transition-colors">
@@ -1171,6 +1173,15 @@ export default function Services() {
         data={selectedIds.size > 0 ? selectedData : filteredServices}
         columns={serviceExportColumns}
         entityName="serviços"
+      />
+
+      <DeleteConfirmationModal
+        isOpen={isBulkDeleteModalOpen}
+        onClose={() => setIsBulkDeleteModalOpen(false)}
+        onConfirm={handleBulkDelete}
+        title="Excluir Serviços"
+        message={`Tem certeza que deseja excluir ${selectedIds.size} serviço(s) selecionado(s)? Esta ação não pode ser desfeita.`}
+        itemName={`${selectedIds.size} serviço(s) selecionado(s)`}
       />
     </div>
   );

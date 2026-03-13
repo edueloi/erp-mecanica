@@ -17,6 +17,7 @@ import { twMerge } from 'tailwind-merge';
 
 import { fipeService, FipeItem } from '../services/fipeService';
 import ImportExportModal from '../components/ImportExportModal';
+import DeleteConfirmationModal from '../components/DeleteConfirmationModal';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -40,6 +41,7 @@ export default function Vehicles() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
+  const [isBulkDeleteModalOpen, setIsBulkDeleteModalOpen] = useState(false);
   const [selectedVehicle, setSelectedVehicle] = useState<any>(null);
 
   const [newVehicle, setNewVehicle] = useState({
@@ -268,10 +270,10 @@ export default function Vehicles() {
   };
 
   const handleBulkDelete = async () => {
-    if (!window.confirm(`Excluir ${selectedIds.size} veículo(s) selecionado(s)?`)) return;
     try {
       await Promise.all([...selectedIds].map(id => api.delete(`/vehicles/${id}`)));
       setSelectedIds(new Set());
+      setIsBulkDeleteModalOpen(false);
       fetchData();
     } catch {
       alert('Erro ao excluir veículos');
@@ -409,7 +411,7 @@ export default function Vehicles() {
           <button onClick={() => setIsExportModalOpen(true)} className="flex items-center gap-1.5 px-3 py-1 bg-white/10 hover:bg-white/20 rounded-lg transition-all">
             <Download size={13} /> Exportar selecionados
           </button>
-          <button onClick={handleBulkDelete} className="flex items-center gap-1.5 px-3 py-1 bg-red-500/80 hover:bg-red-500 rounded-lg transition-all">
+          <button onClick={() => setIsBulkDeleteModalOpen(true)} className="flex items-center gap-1.5 px-3 py-1 bg-red-500/80 hover:bg-red-500 rounded-lg transition-all">
             <Trash2 size={13} /> Excluir selecionados
           </button>
           <button onClick={() => setSelectedIds(new Set())} className="ml-auto text-white/60 hover:text-white transition-colors">
@@ -1163,6 +1165,15 @@ export default function Vehicles() {
         data={selectedIds.size > 0 ? selectedData : filteredVehicles}
         columns={vehicleExportColumns}
         entityName="veículos"
+      />
+
+      <DeleteConfirmationModal
+        isOpen={isBulkDeleteModalOpen}
+        onClose={() => setIsBulkDeleteModalOpen(false)}
+        onConfirm={handleBulkDelete}
+        title="Excluir Veículos"
+        message={`Tem certeza que deseja excluir ${selectedIds.size} veículo(s) selecionado(s)? Esta ação não pode ser desfeita.`}
+        itemName={`${selectedIds.size} veículo(s) selecionado(s)`}
       />
     </div>
   );

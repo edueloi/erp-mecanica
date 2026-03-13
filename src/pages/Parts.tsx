@@ -23,6 +23,7 @@ import {
 import api from "../services/api";
 import { cn } from "../utils/cn";
 import ImportExportModal from "../components/ImportExportModal";
+import DeleteConfirmationModal from "../components/DeleteConfirmationModal";
 
 interface Part {
   id: string;
@@ -87,6 +88,7 @@ export default function Parts() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
+  const [isBulkDeleteModalOpen, setIsBulkDeleteModalOpen] = useState(false);
 
   // Modals
   const [showNewPartModal, setShowNewPartModal] = useState(false);
@@ -161,10 +163,10 @@ export default function Parts() {
   };
 
   const handleBulkDelete = async () => {
-    if (!confirm(`Excluir ${selectedIds.size} peça(s) selecionada(s)?`)) return;
     try {
       await Promise.all([...selectedIds].map(id => api.delete(`/parts/${id}`)));
       setSelectedIds(new Set());
+      setIsBulkDeleteModalOpen(false);
       loadData();
     } catch {
       alert('Erro ao excluir peças');
@@ -525,7 +527,7 @@ export default function Parts() {
           <button onClick={() => setIsExportModalOpen(true)} className="flex items-center gap-1.5 px-3 py-1 bg-white/10 hover:bg-white/20 rounded-lg transition-all">
             <Download size={13} /> Exportar selecionadas
           </button>
-          <button onClick={handleBulkDelete} className="flex items-center gap-1.5 px-3 py-1 bg-red-500/80 hover:bg-red-500 rounded-lg transition-all">
+          <button onClick={() => setIsBulkDeleteModalOpen(true)} className="flex items-center gap-1.5 px-3 py-1 bg-red-500/80 hover:bg-red-500 rounded-lg transition-all">
             <Trash2 size={13} /> Excluir selecionadas
           </button>
           <button onClick={() => setSelectedIds(new Set())} className="ml-auto text-white/60 hover:text-white transition-colors">
@@ -1395,6 +1397,15 @@ export default function Parts() {
         data={selectedIds.size > 0 ? selectedData : parts}
         columns={partsExportColumns}
         entityName="peças"
+      />
+
+      <DeleteConfirmationModal
+        isOpen={isBulkDeleteModalOpen}
+        onClose={() => setIsBulkDeleteModalOpen(false)}
+        onConfirm={handleBulkDelete}
+        title="Excluir Peças"
+        message={`Tem certeza que deseja excluir ${selectedIds.size} peça(s) selecionada(s)? Esta ação não pode ser desfeita.`}
+        itemName={`${selectedIds.size} peça(s) selecionada(s)`}
       />
     </div>
   );

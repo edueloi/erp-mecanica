@@ -33,6 +33,9 @@ export const exportToExcel = (
 ) => {
   if (!data || data.length === 0) return;
 
+  // Excel sheet names cannot exceed 31 characters
+  sheetName = sheetName.slice(0, 31);
+
   // If columns provided, use them to map/filter; otherwise fall back to all keys (excluding id/uuid fields)
   const cols = columns && columns.length > 0
     ? columns
@@ -124,8 +127,12 @@ export const exportToPDF = (
   const margin = 14;
 
   // ── Header band ──────────────────────────────────────────────
-  doc.setFillColor(15, 23, 42); // slate-900
+  doc.setFillColor(255, 255, 255); // white background
   doc.rect(0, 0, pageW, 22, 'F');
+  // Bottom border line
+  doc.setDrawColor(203, 213, 225); // slate-300
+  doc.setLineWidth(0.3);
+  doc.line(0, 22, pageW, 22);
 
   let logoEndX = margin;
 
@@ -137,15 +144,17 @@ export const exportToPDF = (
     } catch {}
   }
 
-  doc.setTextColor(255, 255, 255);
+  doc.setTextColor(15, 23, 42); // slate-900
   doc.setFontSize(13);
   doc.setFont('helvetica', 'bold');
   doc.text(options?.tenantName || 'MecaERP', logoEndX, 13);
 
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
+  doc.setTextColor(30, 41, 59); // slate-800
   doc.text(title, pageW - margin, 10, { align: 'right' });
   doc.setFontSize(8);
+  doc.setTextColor(100, 116, 139); // slate-500
   doc.text(`Data: ${new Date().toLocaleDateString('pt-BR')}`, pageW - margin, 17, { align: 'right' });
 
   // ── Table ─────────────────────────────────────────────────────

@@ -32,6 +32,7 @@ import {
   Download,
 } from "lucide-react";
 import ImportExportModal from "../components/ImportExportModal";
+import DeleteConfirmationModal from "../components/DeleteConfirmationModal";
 import api from "../services/api";
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -87,6 +88,7 @@ export default function Suppliers() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
+  const [isBulkDeleteModalOpen, setIsBulkDeleteModalOpen] = useState(false);
   const [showOrderModal, setShowOrderModal] = useState(false);
   const [selectedSupplier, setSelectedSupplier] = useState<Supplier | null>(null);
   const [loading, setLoading] = useState(true);
@@ -195,12 +197,11 @@ export default function Suppliers() {
   };
 
   const handleBulkDelete = async () => {
-    if (!window.confirm(`Excluir ${selectedIds.size} fornecedor(es) selecionado(s)?`)) return;
     try {
       await Promise.all([...selectedIds].map(id => api.delete(`/suppliers/${id}`)));
       setSelectedIds(new Set());
+      setIsBulkDeleteModalOpen(false);
       fetchSuppliers();
-      fetchStats();
     } catch {
       alert('Erro ao excluir fornecedores');
     }
@@ -887,7 +888,7 @@ export default function Suppliers() {
           <button onClick={() => setIsExportModalOpen(true)} className="flex items-center gap-1.5 px-3 py-1 bg-white/10 hover:bg-white/20 rounded-lg transition-all">
             <Download size={13} /> Exportar selecionados
           </button>
-          <button onClick={handleBulkDelete} className="flex items-center gap-1.5 px-3 py-1 bg-red-500/80 hover:bg-red-500 rounded-lg transition-all">
+          <button onClick={() => setIsBulkDeleteModalOpen(true)} className="flex items-center gap-1.5 px-3 py-1 bg-red-500/80 hover:bg-red-500 rounded-lg transition-all">
             <Trash2 size={13} /> Excluir selecionados
           </button>
           <button onClick={() => setSelectedIds(new Set())} className="ml-auto text-white/60 hover:text-white transition-colors">
@@ -2078,6 +2079,15 @@ export default function Suppliers() {
         data={selectedIds.size > 0 ? selectedData : filteredSuppliers}
         columns={supplierExportColumns}
         entityName="fornecedores"
+      />
+
+      <DeleteConfirmationModal
+        isOpen={isBulkDeleteModalOpen}
+        onClose={() => setIsBulkDeleteModalOpen(false)}
+        onConfirm={handleBulkDelete}
+        title="Excluir Fornecedores"
+        message={`Tem certeza que deseja excluir ${selectedIds.size} fornecedor(es) selecionado(s)? Esta ação não pode ser desfeita.`}
+        itemName={`${selectedIds.size} fornecedor(es) selecionado(s)`}
       />
     </div>
   );

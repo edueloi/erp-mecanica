@@ -13,6 +13,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import ImportExportModal from '../components/ImportExportModal';
+import DeleteConfirmationModal from '../components/DeleteConfirmationModal';
 import { cepService } from '../services/cepService';
 
 type ClientStatus = 'ACTIVE' | 'INACTIVE' | 'BLOCKED';
@@ -39,6 +40,7 @@ export default function Clients() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
+  const [isBulkDeleteModalOpen, setIsBulkDeleteModalOpen] = useState(false);
 
   const [newClient, setNewClient] = useState({
     name: '',
@@ -256,10 +258,10 @@ export default function Clients() {
   };
 
   const handleBulkDelete = async () => {
-    if (!window.confirm(`Excluir ${selectedIds.size} cliente(s) selecionado(s)?`)) return;
     try {
       await Promise.all([...selectedIds].map(id => api.delete(`/clients/${id}`)));
       setSelectedIds(new Set());
+      setIsBulkDeleteModalOpen(false);
       fetchClients();
     } catch {
       alert('Erro ao excluir clientes');
@@ -377,7 +379,7 @@ export default function Clients() {
           <button onClick={() => setIsExportModalOpen(true)} className="flex items-center gap-1.5 px-3 py-1 bg-white/10 hover:bg-white/20 rounded-lg transition-all">
             <Download size={13} /> Exportar selecionados
           </button>
-          <button onClick={handleBulkDelete} className="flex items-center gap-1.5 px-3 py-1 bg-red-500/80 hover:bg-red-500 rounded-lg transition-all">
+          <button onClick={() => setIsBulkDeleteModalOpen(true)} className="flex items-center gap-1.5 px-3 py-1 bg-red-500/80 hover:bg-red-500 rounded-lg transition-all">
             <Trash2 size={13} /> Excluir selecionados
           </button>
           <button onClick={() => setSelectedIds(new Set())} className="ml-auto text-white/60 hover:text-white transition-colors">
@@ -1133,6 +1135,15 @@ export default function Clients() {
         data={selectedIds.size > 0 ? selectedData : filteredClients}
         columns={exportColumns}
         entityName="clientes"
+      />
+
+      <DeleteConfirmationModal
+        isOpen={isBulkDeleteModalOpen}
+        onClose={() => setIsBulkDeleteModalOpen(false)}
+        onConfirm={handleBulkDelete}
+        title="Excluir Clientes"
+        message={`Tem certeza que deseja excluir ${selectedIds.size} cliente(s) selecionado(s)? Esta ação não pode ser desfeita.`}
+        itemName={`${selectedIds.size} cliente(s) selecionado(s)`}
       />
     </div>
   );
