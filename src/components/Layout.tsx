@@ -152,15 +152,22 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       >
         <div className={cn(
           "p-6 flex items-center justify-between shrink-0 border-b border-white/5 mb-2",
-          isCollapsed && "lg:px-4 lg:justify-center"
+          isCollapsed && "lg:px-4 lg:justify-center",
+          (preferences.sidebar_display === 'logo_only' || preferences.sidebar_display === 'name_only') && "lg:justify-center"
         )}>
-          <div className="flex items-center gap-3 overflow-hidden">
+          <div className={cn(
+            "flex items-center gap-3 overflow-hidden",
+            (preferences.sidebar_display === 'logo_only' || preferences.sidebar_display === 'name_only') && "justify-center w-full"
+          )}>
             {(preferences.sidebar_display === 'name_and_logo' || preferences.sidebar_display === 'logo_only' || !preferences.sidebar_display) && (
-              <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center font-bold text-slate-900 overflow-hidden shrink-0 shadow-lg shadow-black/20">
+              <div className={cn(
+                "bg-white rounded-xl flex items-center justify-center font-bold text-slate-900 overflow-hidden shrink-0 shadow-lg shadow-black/20",
+                preferences.sidebar_display === 'logo_only' ? "w-14 h-14" : "w-12 h-12"
+              )}>
                 {tenantSettings?.logo_url ? (
                   <img src={tenantSettings.logo_url} alt="Logo" className="w-full h-full object-contain p-0.5" />
                 ) : (
-                  <Shield size={24} style={{ color: preferences.primary_color }} />
+                  <Shield size={preferences.sidebar_display === 'logo_only' ? 28 : 24} style={{ color: preferences.primary_color }} />
                 )}
               </div>
             )}
