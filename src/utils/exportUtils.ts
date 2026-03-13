@@ -1,4 +1,5 @@
 import * as XLSX from 'xlsx';
+import XLSXStyle from 'xlsx-js-style';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -88,18 +89,74 @@ export const exportToCSV = (data: any[], filename: string) => {
 };
 
 /**
- * Download template file for import
+ * Download template file for import — styled with system colors
  */
 export const downloadTemplate = (
   templateData: any[],
   filename: string,
   format: 'excel' | 'csv' = 'excel'
 ) => {
-  if (format === 'excel') {
-    exportToExcel(templateData, `${filename}_template`, 'Template');
-  } else {
-    exportToCSV(templateData, `${filename}_template`);
+  if (format === 'csv') {
+    exportToCSV(templateData, `${filename}_modelo`);
+    return;
   }
+
+  const headers = Object.keys(templateData[0] || {});
+  const wsData = [
+    headers,
+    ...templateData.map(row => headers.map(h => row[h] ?? ''))
+  ];
+
+  const ws: any = XLSXStyle.utils.aoa_to_sheet(wsData);
+
+  // Style header row — slate-900 background, white bold text
+  headers.forEach((_, colIdx) => {
+    const addr = XLSXStyle.utils.encode_cell({ r: 0, c: colIdx });
+    ws[addr].s = {
+      font: { bold: true, color: { rgb: 'FFFFFF' }, sz: 11, name: 'Calibri' },
+      fill: { patternType: 'solid', fgColor: { rgb: '0F172A' } },
+      alignment: { horizontal: 'center', vertical: 'center', wrapText: false },
+      border: {
+        top:    { style: 'thin', color: { rgb: '334155' } },
+        bottom: { style: 'thin', color: { rgb: '334155' } },
+        left:   { style: 'thin', color: { rgb: '334155' } },
+        right:  { style: 'thin', color: { rgb: '334155' } },
+      }
+    };
+  });
+
+  // Style example data rows — alternating light background
+  templateData.forEach((row, rowIdx) => {
+    headers.forEach((_, colIdx) => {
+      const addr = XLSXStyle.utils.encode_cell({ r: rowIdx + 1, c: colIdx });
+      if (!ws[addr]) ws[addr] = { t: 's', v: '' };
+      ws[addr].s = {
+        font: { sz: 10, color: { rgb: '334155' }, name: 'Calibri' },
+        fill: { patternType: 'solid', fgColor: { rgb: rowIdx % 2 === 0 ? 'F1F5F9' : 'FFFFFF' } },
+        border: {
+          top:    { style: 'thin', color: { rgb: 'E2E8F0' } },
+          bottom: { style: 'thin', color: { rgb: 'E2E8F0' } },
+          left:   { style: 'thin', color: { rgb: 'E2E8F0' } },
+          right:  { style: 'thin', color: { rgb: 'E2E8F0' } },
+        }
+      };
+    });
+  });
+
+  // Column widths
+  ws['!cols'] = headers.map(h => ({ wch: Math.max(h.length + 6, 18) }));
+
+  // Row height for header
+  ws['!rows'] = [{ hpx: 30 }];
+
+  // AutoFilter (dropdown arrows on each column header)
+  const lastCol = XLSXStyle.utils.encode_col(headers.length - 1);
+  const lastRow = templateData.length + 1;
+  ws['!autofilter'] = { ref: `A1:${lastCol}${lastRow}` };
+
+  const wb = XLSXStyle.utils.book_new();
+  XLSXStyle.utils.book_append_sheet(wb, ws, 'Modelo');
+  XLSXStyle.writeFile(wb, `${filename}_modelo.xlsx`);
 };
 
 /**
