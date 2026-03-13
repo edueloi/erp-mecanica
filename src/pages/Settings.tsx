@@ -1052,8 +1052,9 @@ export default function Settings() {
                                 </div>
                              </div>
                              
+                             {user.id !== currentUser?.id && user.role !== 'ADMIN' && (
                              <div className="flex gap-2">
-                                <button 
+                                <button
                                    onClick={() => {
                                       setEditingUser(user);
                                       setUserForm({
@@ -1061,8 +1062,8 @@ export default function Settings() {
                                          email: user.email,
                                          password: "",
                                          role: user.role,
-                                         permissions: typeof user.permissions === 'string' 
-                                           ? JSON.parse(user.permissions) 
+                                         permissions: typeof user.permissions === 'string'
+                                           ? JSON.parse(user.permissions)
                                            : (user.permissions || {
                                                dashboard: true,
                                                clients: true,
@@ -1082,7 +1083,7 @@ export default function Settings() {
                                 >
                                    <Edit2 size={16} />
                                 </button>
-                                <button 
+                                <button
                                    onClick={async () => {
                                       if (window.confirm(`Deseja realmente excluir o usuário ${user.name}?`)) {
                                          try {
@@ -1099,6 +1100,7 @@ export default function Settings() {
                                    <Trash2 size={16} />
                                 </button>
                              </div>
+                             )}
                           </div>
 
                           <div className="space-y-1 mb-3">
