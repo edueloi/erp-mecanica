@@ -420,8 +420,64 @@ router.delete("/team/:id", requireSuperAdmin, async (req: AuthRequest, res) => {
 // ==========================================
 router.get("/plans", requireAdminOrSeller, async (req, res) => {
   try {
-    const plans = await db.query("SELECT * FROM pricing_plans WHERE active = 1", []);
+    const plans = await db.query("SELECT * FROM pricing_plans ORDER BY monthly_value ASC", []);
     res.json(plans);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.post("/plans", requireSuperAdmin, async (req, res) => {
+  const { name, description, user_limit, monthly_value, months_duration } = req.body;
+  try {
+    const id = uuidv4();
+    await db.execute(`
+      INSERT INTO pricing_plans (id, name, description, user_limit, monthly_value, months_duration, active)
+      VALUES (?, ?, ?, ?, ?, ?, 1)
+    `, [id, name, description || null, user_limit || 5, monthly_value || 0, months_duration || 1]);
+    res.json({ message: "Plano criado com sucesso!", id });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.patch("/plans/:id", requireSuperAdmin, async (req, res) => {
+  const { id } = req.params;
+  const { name, description, user_limit, monthly_value, months_duration, active } = req.body;
+  try {
+    const plan = await db.queryOne("SELECT id FROM pricing_plans WHERE id = ?", [id]);
+    if (!plan) return res.status(404).json({ error: "Plano não encontrado" });
+
+    const updates: string[] = [];
+    const values: any[] = [];
+
+    if (name !== undefined) { updates.push("name = ?"); values.push(name); }
+    if (description !== undefined) { updates.push("description = ?"); values.push(description || null); }
+    if (user_limit !== undefined) { updates.push("user_limit = ?"); values.push(user_limit); }
+    if (monthly_value !== undefined) { updates.push("monthly_value = ?"); values.push(monthly_value); }
+    if (months_duration !== undefined) { updates.push("months_duration = ?"); values.push(months_duration); }
+    if (active !== undefined) { updates.push("active = ?"); values.push(active ? 1 : 0); }
+
+    if (updates.length > 0) {
+      await db.execute(`UPDATE pricing_plans SET ${updates.join(", ")} WHERE id = ?`, [...values, id]);
+    }
+
+    res.json({ message: "Plano atualizado com sucesso!" });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.delete("/plans/:id", requireSuperAdmin, async (req, res) => {
+  const { id } = req.params;
+  try {
+    // Verificar se algum tenant usa este plano
+    const inUse = await db.queryOne("SELECT id FROM tenants WHERE plan_id = ? LIMIT 1", [id]);
+    if (inUse) {
+      return res.status(400).json({ error: "Este plano está em uso por um ou mais parceiros e não pode ser excluído." });
+    }
+    await db.execute("DELETE FROM pricing_plans WHERE id = ?", [id]);
+    res.json({ message: "Plano excluído com sucesso!" });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
