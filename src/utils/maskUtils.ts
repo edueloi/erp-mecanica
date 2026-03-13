@@ -37,3 +37,9 @@ export const maskDocument = (value: string) => {
   if (digits.length <= 11) return maskCPF(value);
   return maskCNPJ(value);
 };
+
+export const maskCEP = (value: string) => {
+  value = value.replace(/\D/g, "");
+  if (value.length > 8) value = value.slice(0, 8);
+  return value.replace(/^(\d{5})(\d{1,3})$/, "$1-$2");
+};

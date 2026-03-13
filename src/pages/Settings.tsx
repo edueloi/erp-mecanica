@@ -42,7 +42,7 @@ import { useAuthStore } from "../services/authStore";
 import * as ibgeService from "../services/ibgeService";
 import api from "../services/api";
 import { cn } from "../utils/cn";
-import { maskPhone, maskCPF } from "../utils/maskUtils";
+import { maskPhone, maskCPF, maskDocument, maskCEP } from "../utils/maskUtils";
 
 type Tab = 
   | "overview"
@@ -602,8 +602,9 @@ export default function Settings() {
                         <input
                           type="text"
                           value={tenantForm.cnpj || ""}
-                          onChange={(e) => setTenantForm({ ...tenantForm, cnpj: e.target.value })}
+                          onChange={(e) => setTenantForm({ ...tenantForm, cnpj: maskDocument(e.target.value) })}
                           className="w-full px-4 py-2.5 bg-slate-50 border border-slate-100 rounded-xl focus:ring-4 focus:ring-slate-900/5 focus:bg-white focus:border-slate-900 outline-none transition-all font-bold text-slate-800"
+                          placeholder="00.000.000/0000-00"
                         />
                       </div>
                       <div className="space-y-2">
@@ -630,8 +631,9 @@ export default function Settings() {
                            <input
                              type="text"
                              value={tenantForm.phone || ""}
-                             onChange={(e) => setTenantForm({ ...tenantForm, phone: e.target.value })}
+                             onChange={(e) => setTenantForm({ ...tenantForm, phone: maskPhone(e.target.value) })}
                              className="w-full px-4 py-2.5 bg-slate-50 border border-slate-100 rounded-xl focus:ring-4 focus:ring-slate-900/5 outline-none transition-all font-bold"
+                             placeholder="(00) 0000-0000"
                            />
                       </div>
                       <div className="space-y-2">
@@ -639,8 +641,9 @@ export default function Settings() {
                         <input
                           type="text"
                           value={tenantForm.whatsapp || ""}
-                          onChange={(e) => setTenantForm({ ...tenantForm, whatsapp: e.target.value })}
+                          onChange={(e) => setTenantForm({ ...tenantForm, whatsapp: maskPhone(e.target.value) })}
                           className="w-full px-4 py-2.5 bg-white border-2 border-emerald-500/20 rounded-xl focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none transition-all font-bold text-emerald-600"
+                          placeholder="(00) 00000-0000"
                         />
                       </div>
 
@@ -692,8 +695,9 @@ export default function Settings() {
                           <input
                             type="text"
                             value={tenantForm.zip_code || ""}
-                            onChange={(e) => setTenantForm({ ...tenantForm, zip_code: e.target.value })}
+                            onChange={(e) => setTenantForm({ ...tenantForm, zip_code: maskCEP(e.target.value) })}
                             className="w-full px-4 py-2.5 bg-slate-50 border border-slate-100 rounded-xl focus:ring-4 focus:ring-slate-900/5 outline-none transition-all font-bold"
+                            placeholder="00000-000"
                           />
                        </div>
                         <div>
