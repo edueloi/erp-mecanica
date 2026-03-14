@@ -24,6 +24,7 @@ export default function VehicleEntryDetail() {
   const [showQR, setShowQR] = useState(false);
   const [publicToken, setPublicToken] = useState<string | null>(null);
   const [uploading, setUploading] = useState<string | null>(null);
+  const [copiedLink, setCopiedLink] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const activeItemIdRef = useRef<string | null>(null);
   
@@ -916,12 +917,19 @@ export default function VehicleEntryDetail() {
                       onClick={() => {
                         const url = window.location.origin + '/entry-upload/' + publicToken;
                         navigator.clipboard.writeText(url);
-                        alert('Link copiado!');
+                        setCopiedLink(true);
+                        setTimeout(() => setCopiedLink(false), 2500);
                       }}
                       className="w-full h-11 bg-slate-900 text-white rounded-xl font-bold text-sm flex items-center justify-center gap-2 hover:bg-slate-800 transition-all"
                     >
-                      <Share2 size={16} /> Copiar Link de Acesso
+                      <Share2 size={16} />
+                      {copiedLink ? 'Link Copiado!' : 'Copiar Link de Acesso'}
                     </button>
+                    {copiedLink && (
+                      <div className="flex items-center justify-center gap-2 py-2 px-4 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-700 text-xs font-bold">
+                        <CheckCircle2 size={14} /> Link copiado para a área de transferência
+                      </div>
+                    )}
                     <button onClick={() => setShowQR(false)} className="text-slate-400 text-xs font-bold uppercase tracking-wider hover:text-slate-600 transition-colors">
                       Fechar
                     </button>
