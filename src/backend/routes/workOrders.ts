@@ -7,6 +7,14 @@ const router = express.Router();
 
 router.use(authenticateToken);
 
+// Convert any date value to MySQL DATETIME format 'YYYY-MM-DD HH:MM:SS'
+const toMySQLDatetime = (val: any): string | null => {
+  if (!val) return null;
+  const d = new Date(val);
+  if (isNaN(d.getTime())) return null;
+  return d.toISOString().replace('T', ' ').replace(/\.\d{3}Z$/, '');
+};
+
 const syncWorkOrderToFinance = async (woId: string, tenantId: string, userId: string) => {
   try {
     const wo = await db.queryOne(
@@ -189,8 +197,8 @@ router.post("/", async (req: AuthRequest, res) => {
       addField('priority', priority || 'MEDIUM');
       addField('responsible_id', responsible_id === "" ? null : responsible_id);
       addField('delivery_forecast', delivery_forecast);
-      addField('start_date', start_date || new Date().toISOString());
-      addField('finish_date', req.body.finish_date);
+      addField('start_date', toMySQLDatetime(start_date || new Date()));
+      addField('finish_date', toMySQLDatetime(req.body.finish_date));
       addField('guarantee', req.body.guarantee);
       addField('technical_report', req.body.technical_report);
       addField('defect', defect);
@@ -382,8 +390,8 @@ router.patch("/:id", async (req: AuthRequest, res) => {
       addField("taxes", taxes);
       addField("delivery_forecast", delivery_forecast);
       addField("approval_required", approval_required !== undefined ? (approval_required ? 1 : 0) : undefined);
-      addField("start_date", start_date);
-      addField("finish_date", finish_date);
+      addField("start_date", toMySQLDatetime(start_date));
+      addField("finish_date", toMySQLDatetime(finish_date));
       addField("guarantee", guarantee);
       addField("technical_report", technical_report);
       addField("defect", defect);
