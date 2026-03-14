@@ -390,8 +390,8 @@ router.patch("/:id", async (req: AuthRequest, res) => {
       addField("taxes", taxes);
       addField("delivery_forecast", delivery_forecast);
       addField("approval_required", approval_required !== undefined ? (approval_required ? 1 : 0) : undefined);
-      addField("start_date", toMySQLDatetime(start_date));
-      addField("finish_date", toMySQLDatetime(finish_date));
+      addField("start_date", start_date !== undefined ? toMySQLDatetime(start_date) : undefined);
+      addField("finish_date", finish_date !== undefined ? toMySQLDatetime(finish_date) : undefined);
       addField("guarantee", guarantee);
       addField("technical_report", technical_report);
       addField("defect", defect);

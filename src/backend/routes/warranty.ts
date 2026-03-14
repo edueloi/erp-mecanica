@@ -115,7 +115,7 @@ router.post("/issued", async (req: AuthRequest, res) => {
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `, [
       id, req.user!.tenant_id, vehicle_id, client_id, work_order_id, template_id,
-      title, content, expiresAt.toISOString(), req.user!.id
+      title, content, expiresAt.toISOString().replace('T', ' ').replace(/\.\d{3}Z$/, ''), req.user!.id
     ]);
 
     // Log in vehicle history if vehicle_id exists
