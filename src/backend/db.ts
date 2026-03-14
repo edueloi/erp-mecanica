@@ -186,6 +186,20 @@ export async function initDb(): Promise<void> {
     await addCol('vehicle_entries', 'photos_confirmed', 'TINYINT(1) DEFAULT 0');
     await addCol('vehicle_entries', 'public_token', 'VARCHAR(36) DEFAULT NULL');
     await addCol('vehicle_entries', 'token_expires_at', 'DATETIME DEFAULT NULL');
+    await addCol('vehicle_entries', 'entry_date', 'DATE DEFAULT NULL');
+    await addCol('vehicle_entries', 'entry_time', 'VARCHAR(10) DEFAULT NULL');
+    await addCol('vehicle_entries', 'tow_truck_driver_name', 'VARCHAR(255) DEFAULT NULL');
+    await addCol('vehicle_entries', 'vehicle_chassis', 'VARCHAR(100) DEFAULT NULL');
+    await addCol('vehicle_entries', 'vehicle_km', 'INT DEFAULT 0');
+    await addCol('vehicle_entries', 'vehicle_gearbox', "VARCHAR(50) DEFAULT NULL");
+    await addCol('vehicle_entries', 'vehicle_fuel_type', 'VARCHAR(50) DEFAULT NULL');
+    await addCol('vehicle_entries', 'doc_in_vehicle', 'TINYINT(1) DEFAULT 0');
+    await addCol('vehicle_entries', 'dashboard_light_on', 'TINYINT(1) DEFAULT 0');
+    await addCol('vehicle_entries', 'image_auth', 'TINYINT(1) DEFAULT 0');
+    await addCol('vehicle_entries', 'diagnostic_requested', 'TINYINT(1) DEFAULT 0');
+    await addCol('vehicle_entries', 'doors_count', 'INT DEFAULT NULL');
+    await addCol('vehicle_entries', 'last_revision_km', 'INT DEFAULT NULL');
+    await addCol('vehicle_entries', 'last_revision_date', 'DATE DEFAULT NULL');
 
     console.log('✅ Columns verified/added');
 

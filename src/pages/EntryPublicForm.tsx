@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
-import { 
-  Camera, CheckCircle2, ShieldCheck, Info, Loader, Smartphone, 
+import {
+  Camera, CheckCircle2, ShieldCheck, Info, Loader, Smartphone,
   User, Car, AlertCircle, Send, ChevronRight, ChevronLeft,
-  Calendar, Clock, CheckCircle, MapPin, Search
+  Calendar, Clock, CheckCircle, MapPin, Search, ClipboardList
 } from 'lucide-react';
 import api from '../services/api';
 import { motion, AnimatePresence } from 'motion/react';
@@ -19,7 +19,7 @@ export default function EntryPublicForm() {
   const [finalized, setFinalized] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [activeItemId, setActiveItemId] = useState<string | null>(null);
-  
+
   // Cliente autocomplete
   const [clientSuggestions, setClientSuggestions] = useState<any[]>([]);
   const [showClientSuggestions, setShowClientSuggestions] = useState(false);
@@ -110,7 +110,7 @@ export default function EntryPublicForm() {
       customer_street: client.street,
       customer_number: client.number,
     };
-    
+
     setEntry((prev: any) => ({ ...prev, ...updateData }));
     handleUpdate(updateData);
     setShowClientSuggestions(false);
@@ -120,17 +120,15 @@ export default function EntryPublicForm() {
   // Handler para mudança no nome do cliente
   const handleClientNameChange = (value: string) => {
     handleUpdate({ customer_name: value });
-    
-    // Limpar timeout anterior
+
     if (clientSearchTimeout) {
       clearTimeout(clientSearchTimeout);
     }
-    
-    // Criar novo timeout para buscar após 500ms
+
     const timeout = setTimeout(() => {
       searchClients(value);
     }, 500);
-    
+
     setClientSearchTimeout(timeout);
   };
 
@@ -138,7 +136,7 @@ export default function EntryPublicForm() {
   const handleCepLookup = async (cep: string) => {
     const cleaned = cep.replace(/\D/g, '');
     if (cleaned.length !== 8) return;
-    setFipeLoading(true); // reuse as cep loading indicator
+    setFipeLoading(true);
     try {
       const res = await fetch(`https://viacep.com.br/ws/${cleaned}/json/`);
       const data = await res.json();
@@ -176,8 +174,7 @@ export default function EntryPublicForm() {
       reader.onload = async () => {
         const base64 = reader.result as string;
         await api.patch(`/entries/public/${token}/items/${activeItemId}`, { image_url: base64 });
-        
-        // Update local state
+
         setEntry((prev: any) => ({
           ...prev,
           items: prev.items.map((it: any) => it.id === activeItemId ? { ...it, image_url: base64 } : it)
@@ -214,12 +211,12 @@ export default function EntryPublicForm() {
     </div>
   );
 
-  const totalSteps = 5;
+  const totalSteps = 6;
 
   return (
     <div className="min-h-screen bg-slate-50 relative font-sans pb-32">
       <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*" capture="environment" className="hidden" />
-      
+
       <header className="sticky top-0 z-50 bg-slate-900 text-white px-6 py-8 rounded-b-[40px] shadow-2xl overflow-hidden">
         <div className="absolute top-0 right-0 w-40 h-40 bg-indigo-500/10 rounded-full -mr-20 -mt-20 blur-3xl" />
         <div className="relative flex items-center justify-between">
@@ -236,15 +233,16 @@ export default function EntryPublicForm() {
 
       <div className="px-6 -mt-4">
         <div className="w-full h-1.5 bg-slate-200 rounded-full mb-8 overflow-hidden shadow-inner">
-           <motion.div 
+           <motion.div
              animate={{ width: `${(step / totalSteps) * 100}%` }}
              className="h-full bg-indigo-500"
            />
         </div>
 
         <AnimatePresence mode="wait">
+          {/* ── STEP 1 — Responsável ── */}
           {step === 1 && (
-            <motion.div 
+            <motion.div
               key="step1"
               initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}
               className="space-y-6"
@@ -255,21 +253,58 @@ export default function EntryPublicForm() {
                  </div>
                  <h2 className="text-xl font-black text-slate-800 tracking-tight italic">QUEM <span className="text-indigo-600">REGISTRA?</span></h2>
               </div>
-              <div className="bg-white p-6 rounded-[32px] shadow-xl border border-slate-100 space-y-6">
+              <div className="bg-white p-6 rounded-[32px] shadow-xl border border-slate-100 space-y-5">
                 <div>
                   <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">Seu Nome</label>
-                  <input type="text" value={entry.responsible_name || ''} onChange={(e) => handleUpdate({ responsible_name: e.target.value })} className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-[24px]" />
+                  <input type="text" value={entry.responsible_name || ''} onChange={(e) => handleUpdate({ responsible_name: e.target.value })} className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-[24px] text-sm" />
                 </div>
-                <div className="flex items-center gap-3 p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                  <input type="checkbox" id="towmob" checked={entry.arrived_by_tow_truck} onChange={(e) => handleUpdate({ arrived_by_tow_truck: e.target.checked })} className="w-5 h-5" />
-                  <label htmlFor="towmob" className="text-sm font-bold">Chegou de Guincho?</label>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Data</label>
+                    <input
+                      type="date"
+                      value={entry.entry_date || ''}
+                      onChange={(e) => handleUpdate({ entry_date: e.target.value })}
+                      className="w-full px-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Horário</label>
+                    <input
+                      type="time"
+                      value={entry.entry_time || ''}
+                      onChange={(e) => handleUpdate({ entry_time: e.target.value })}
+                      className="w-full px-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm"
+                    />
+                  </div>
+                </div>
+
+                <div className={`flex items-start gap-3 p-4 rounded-2xl border transition-all ${entry.arrived_by_tow_truck ? 'bg-amber-50 border-amber-200' : 'bg-slate-50 border-slate-100'}`}>
+                  <input type="checkbox" id="towmob" checked={!!entry.arrived_by_tow_truck} onChange={(e) => handleUpdate({ arrived_by_tow_truck: e.target.checked })} className="w-5 h-5 mt-0.5" />
+                  <div className="flex-1">
+                    <label htmlFor="towmob" className="text-sm font-bold text-slate-700">Chegou de Guincho?</label>
+                    {entry.arrived_by_tow_truck && (
+                      <div className="mt-3">
+                        <label className="block text-[10px] font-black text-amber-700 uppercase tracking-widest mb-2">Nome do Guincheiro / Empresa</label>
+                        <input
+                          type="text"
+                          value={entry.tow_truck_driver_name || ''}
+                          onChange={(e) => handleUpdate({ tow_truck_driver_name: e.target.value })}
+                          placeholder="Nome ou empresa do guincho..."
+                          className="w-full px-4 py-3 bg-white border border-amber-200 rounded-xl text-sm"
+                        />
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             </motion.div>
           )}
 
+          {/* ── STEP 2 — Cliente ── */}
           {step === 2 && (
-            <motion.div 
+            <motion.div
               key="step2"
               initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}
               className="space-y-6"
@@ -283,12 +318,12 @@ export default function EntryPublicForm() {
               <div className="bg-white p-6 rounded-[32px] shadow-xl border border-slate-100 space-y-5">
                 <div className="relative" ref={clientInputRef}>
                   <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Nome Completo</label>
-                  <input 
-                    type="text" 
-                    value={entry.customer_name || ''} 
+                  <input
+                    type="text"
+                    value={entry.customer_name || ''}
                     onChange={(e) => handleClientNameChange(e.target.value)}
                     placeholder="Digite seu nome..."
-                    className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl" 
+                    className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm"
                   />
                   {showClientSuggestions && clientSuggestions.length > 0 && (
                     <div className="absolute z-50 w-full mt-2 bg-white border border-slate-200 rounded-2xl shadow-2xl max-h-60 overflow-y-auto">
@@ -309,9 +344,21 @@ export default function EntryPublicForm() {
                     </div>
                   )}
                 </div>
+
+                <div>
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">CPF / CNPJ</label>
+                  <input
+                    type="text"
+                    value={entry.customer_document || ''}
+                    onChange={(e) => handleUpdate({ customer_document: e.target.value })}
+                    placeholder="000.000.000-00"
+                    className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm"
+                  />
+                </div>
+
                 <div>
                   <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Telefone</label>
-                  <input type="text" value={entry.customer_phone || ''} onChange={(e) => handleUpdate({ customer_phone: e.target.value })} className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl" />
+                  <input type="text" value={entry.customer_phone || ''} onChange={(e) => handleUpdate({ customer_phone: e.target.value })} placeholder="(00) 00000-0000" className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm" />
                 </div>
 
                 {/* ── ENDEREÇO ── */}
@@ -321,7 +368,6 @@ export default function EntryPublicForm() {
                     <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Endereço</span>
                   </div>
                   <div className="space-y-4">
-                    {/* CEP com lookup automático */}
                     <div>
                       <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">CEP</label>
                       <div className="relative">
@@ -332,7 +378,7 @@ export default function EntryPublicForm() {
                           onBlur={(e) => handleCepLookup(e.target.value)}
                           placeholder="00000-000"
                           maxLength={9}
-                          className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl pr-14"
+                          className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl pr-14 text-sm"
                         />
                         <div className="absolute right-4 top-1/2 -translate-y-1/2">
                           {fipeLoading ? <Loader size={16} className="animate-spin text-indigo-400" /> : <Search size={16} className="text-slate-300" />}
@@ -342,25 +388,25 @@ export default function EntryPublicForm() {
                     <div className="grid grid-cols-3 gap-3">
                       <div>
                         <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">UF</label>
-                        <input type="text" value={entry.customer_state || ''} onChange={(e) => handleUpdate({ customer_state: e.target.value.toUpperCase() })} maxLength={2} placeholder="SP" className="w-full px-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-center font-bold uppercase" />
+                        <input type="text" value={entry.customer_state || ''} onChange={(e) => handleUpdate({ customer_state: e.target.value.toUpperCase() })} maxLength={2} placeholder="SP" className="w-full px-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-center font-bold uppercase text-sm" />
                       </div>
                       <div className="col-span-2">
                         <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Cidade</label>
-                        <input type="text" value={entry.customer_city || ''} onChange={(e) => handleUpdate({ customer_city: e.target.value })} placeholder="Sua cidade" className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl" />
+                        <input type="text" value={entry.customer_city || ''} onChange={(e) => handleUpdate({ customer_city: e.target.value })} placeholder="Sua cidade" className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm" />
                       </div>
                     </div>
                     <div>
                       <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Bairro</label>
-                      <input type="text" value={entry.customer_neighborhood || ''} onChange={(e) => handleUpdate({ customer_neighborhood: e.target.value })} placeholder="Seu bairro" className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl" />
+                      <input type="text" value={entry.customer_neighborhood || ''} onChange={(e) => handleUpdate({ customer_neighborhood: e.target.value })} placeholder="Seu bairro" className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm" />
                     </div>
                     <div className="grid grid-cols-3 gap-3">
                       <div className="col-span-2">
                         <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Rua / Avenida</label>
-                        <input type="text" value={entry.customer_street || ''} onChange={(e) => handleUpdate({ customer_street: e.target.value })} placeholder="Nome da rua" className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl" />
+                        <input type="text" value={entry.customer_street || ''} onChange={(e) => handleUpdate({ customer_street: e.target.value })} placeholder="Nome da rua" className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm" />
                       </div>
                       <div>
                         <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Nº</label>
-                        <input type="text" value={entry.customer_number || ''} onChange={(e) => handleUpdate({ customer_number: e.target.value })} placeholder="000" className="w-full px-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-center font-bold" />
+                        <input type="text" value={entry.customer_number || ''} onChange={(e) => handleUpdate({ customer_number: e.target.value })} placeholder="000" className="w-full px-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-center font-bold text-sm" />
                       </div>
                     </div>
                   </div>
@@ -369,8 +415,9 @@ export default function EntryPublicForm() {
             </motion.div>
           )}
 
+          {/* ── STEP 3 — Veículo ── */}
           {step === 3 && (
-            <motion.div 
+            <motion.div
               key="step3"
               initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}
               className="space-y-6"
@@ -381,8 +428,8 @@ export default function EntryPublicForm() {
                  </div>
                  <h2 className="text-xl font-black text-slate-800 tracking-tight italic">DADOS DO <span className="text-indigo-600">VEÍCULO</span></h2>
               </div>
-              <div className="bg-white p-6 rounded-[32px] shadow-xl border border-slate-100 space-y-6">
-                {/* Placa com busca automática */}
+              <div className="bg-white p-6 rounded-[32px] shadow-xl border border-slate-100 space-y-5">
+                {/* Placa */}
                 <div>
                   <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Placa</label>
                   <div className="relative">
@@ -390,9 +437,7 @@ export default function EntryPublicForm() {
                       type="text"
                       value={entry.vehicle_plate || ''}
                       onChange={(e) => setEntry((prev: any) => ({ ...prev, vehicle_plate: e.target.value.toUpperCase() }))}
-                      onBlur={(e) => {
-                        handleUpdate({ vehicle_plate: e.target.value.toUpperCase() });
-                      }}
+                      onBlur={(e) => handleUpdate({ vehicle_plate: e.target.value.toUpperCase() })}
                       placeholder="ABC-1234"
                       maxLength={8}
                       className="w-full px-5 py-5 bg-slate-900 text-white rounded-2xl text-center text-2xl font-black tracking-widest uppercase pr-16"
@@ -403,50 +448,116 @@ export default function EntryPublicForm() {
                         : <Search size={18} className="text-white/30" />}
                     </div>
                   </div>
-                  {fipeLoading && (
-                    <p className="text-[10px] text-indigo-500 font-bold uppercase tracking-widest mt-2 text-center animate-pulse">Buscando dados do veículo...</p>
-                  )}
                 </div>
 
-                {/* Dados vindos do sistema (editáveis) */}
-                {(entry.vehicle_brand || entry.vehicle_model) && (
-                  <div className="p-4 bg-indigo-50 rounded-2xl border border-indigo-100 space-y-3">
-                    <div className="flex items-center gap-2 mb-1">
-                      <CheckCircle size={14} className="text-indigo-500" />
-                      <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">Dados encontrados — você pode editar</span>
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Marca</label>
-                        <input type="text" value={entry.vehicle_brand || ''} onChange={(e) => handleUpdate({ vehicle_brand: e.target.value })} className="w-full px-4 py-3 bg-white border border-indigo-100 rounded-xl text-sm font-bold" />
-                      </div>
-                      <div>
-                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Modelo</label>
-                        <input type="text" value={entry.vehicle_model || ''} onChange={(e) => handleUpdate({ vehicle_model: e.target.value })} className="w-full px-4 py-3 bg-white border border-indigo-100 rounded-xl text-sm font-bold" />
-                      </div>
-                      <div>
-                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Ano</label>
-                        <input type="text" value={entry.vehicle_year || ''} onChange={(e) => handleUpdate({ vehicle_year: e.target.value })} className="w-full px-4 py-3 bg-white border border-indigo-100 rounded-xl text-sm font-bold" />
-                      </div>
-                      <div>
-                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Cor</label>
-                        <input type="text" value={entry.vehicle_color || ''} onChange={(e) => handleUpdate({ vehicle_color: e.target.value })} className="w-full px-4 py-3 bg-white border border-indigo-100 rounded-xl text-sm font-bold" />
-                      </div>
-                    </div>
-                  </div>
-                )}
+                {/* Chassi */}
+                <div>
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Nº Chassi</label>
+                  <input
+                    type="text"
+                    value={entry.vehicle_chassis || ''}
+                    onChange={(e) => handleUpdate({ vehicle_chassis: e.target.value })}
+                    placeholder="Número do chassi (opcional)"
+                    className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm"
+                  />
+                </div>
 
-                <div className="pt-2 border-t">
-                  <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Combustível</h3>
+                {/* Campos do veículo — sempre visíveis */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Marca</label>
+                    <input type="text" value={entry.vehicle_brand || ''} onChange={(e) => handleUpdate({ vehicle_brand: e.target.value })} placeholder="Ex: Volkswagen" className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm" />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Modelo</label>
+                    <input type="text" value={entry.vehicle_model || ''} onChange={(e) => handleUpdate({ vehicle_model: e.target.value })} placeholder="Ex: Fox 1.6" className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm" />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Ano</label>
+                    <input type="text" value={entry.vehicle_year || ''} onChange={(e) => handleUpdate({ vehicle_year: e.target.value })} placeholder="2020" className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm" />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Cor</label>
+                    <input type="text" value={entry.vehicle_color || ''} onChange={(e) => handleUpdate({ vehicle_color: e.target.value })} placeholder="Ex: Prata" className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm" />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">KM Atual</label>
+                    <input type="number" value={entry.vehicle_km || ''} onChange={(e) => handleUpdate({ vehicle_km: e.target.value })} placeholder="0" className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm" />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Câmbio</label>
+                    <select value={entry.vehicle_gearbox || ''} onChange={(e) => handleUpdate({ vehicle_gearbox: e.target.value })} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm">
+                      <option value="">Selecione...</option>
+                      <option value="MANUAL">Manual</option>
+                      <option value="AUTOMATICO">Automático</option>
+                      <option value="CVT">CVT</option>
+                      <option value="SEMI-AUTOMATICO">Semi-automático</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Combustível */}
+                <div className="pt-2 border-t border-slate-100">
+                  <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Nível de Combustível</h3>
                    <FuelLevel value={entry.fuel_level || 'EMPTY'} onChange={(v) => handleUpdate({ fuel_level: v })} />
                 </div>
               </div>
             </motion.div>
           )}
 
+          {/* ── STEP 4 — Conferência ── */}
           {step === 4 && (
-            <motion.div 
+            <motion.div
               key="step4"
+              initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}
+              className="space-y-6"
+            >
+              <div className="flex items-center gap-3">
+                 <div className="w-10 h-10 bg-indigo-600 text-white rounded-xl flex items-center justify-center">
+                    <ClipboardList size={20} />
+                 </div>
+                 <h2 className="text-xl font-black text-slate-800 tracking-tight italic">ITENS DE <span className="text-indigo-600">CONFERÊNCIA</span></h2>
+              </div>
+              <div className="bg-white p-6 rounded-[32px] shadow-xl border border-slate-100 space-y-4">
+                {[
+                  { key: 'doc_in_vehicle', label: 'Documento está no veículo?' },
+                  { key: 'dashboard_light_on', label: 'Luz de painel acesa?' },
+                  { key: 'image_auth', label: 'Autoriza uso de imagem?' },
+                  { key: 'diagnostic_requested', label: 'Diagnóstico técnico solicitado?' },
+                ].map(item => (
+                  <div key={item.key} className={`flex items-center justify-between p-4 rounded-2xl border transition-all ${entry[item.key] ? 'bg-indigo-50 border-indigo-200' : 'bg-slate-50 border-slate-100'}`}>
+                    <span className="text-sm font-bold text-slate-700 flex-1 pr-4">{item.label}</span>
+                    <input
+                      type="checkbox"
+                      checked={!!entry[item.key]}
+                      onChange={(e) => handleUpdate({ [item.key]: e.target.checked })}
+                      className="w-6 h-6 rounded border-slate-300"
+                    />
+                  </div>
+                ))}
+
+                <div className="pt-2">
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Quantidade de Portas</label>
+                  <div className="flex gap-3">
+                    {[2, 3, 4, 5].map(p => (
+                      <button
+                        key={p}
+                        onClick={() => handleUpdate({ doors_count: p })}
+                        className={`flex-1 py-4 rounded-2xl font-black text-sm transition-all border ${entry.doors_count === p ? 'bg-slate-900 text-white border-slate-900' : 'bg-slate-50 text-slate-400 border-slate-200'}`}
+                      >
+                        {p}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          )}
+
+          {/* ── STEP 5 — Fotos ── */}
+          {step === 5 && (
+            <motion.div
+              key="step5"
               initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}
               className="space-y-6"
             >
@@ -467,9 +578,10 @@ export default function EntryPublicForm() {
             </motion.div>
           )}
 
-          {step === 5 && (
-            <motion.div 
-              key="step5"
+          {/* ── STEP 6 — Finalizar ── */}
+          {step === 6 && (
+            <motion.div
+              key="step6"
               initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}
               className="space-y-6"
             >
@@ -479,12 +591,38 @@ export default function EntryPublicForm() {
                  </div>
                  <h2 className="text-xl font-black text-slate-800 tracking-tight italic">FINALIZAR <span className="text-indigo-600">ENTRADA</span></h2>
               </div>
-              <div className="bg-white p-6 rounded-[32px] shadow-xl border border-slate-100 space-y-6">
-                 <textarea value={entry.requested_service || ''} onChange={(e) => handleUpdate({ requested_service: e.target.value })} placeholder="O que o cliente relatou?" className="w-full p-4 bg-slate-50 rounded-2xl min-h-[150px]" />
-                 <div className="flex items-center gap-3 p-4 bg-amber-50 rounded-2xl border border-amber-100">
-                    <input type="checkbox" checked={entry.photos_confirmed} onChange={(e) => handleUpdate({ photos_confirmed: e.target.checked })} className="w-6 h-6" />
-                    <span className="text-[10px] font-black uppercase text-amber-900">Confirmo que as fotos estão ok</span>
-                 </div>
+              <div className="bg-white p-6 rounded-[32px] shadow-xl border border-slate-100 space-y-5">
+                <div>
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Relato do Cliente</label>
+                  <textarea value={entry.requested_service || ''} onChange={(e) => handleUpdate({ requested_service: e.target.value })} placeholder="O que o cliente relatou?" className="w-full p-4 bg-slate-50 rounded-2xl min-h-[120px] text-sm border border-slate-200" />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Última Revisão KM</label>
+                    <input
+                      type="number"
+                      value={entry.last_revision_km || ''}
+                      onChange={(e) => handleUpdate({ last_revision_km: e.target.value })}
+                      placeholder="KM"
+                      className="w-full px-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Data Última Revisão</label>
+                    <input
+                      type="date"
+                      value={entry.last_revision_date || ''}
+                      onChange={(e) => handleUpdate({ last_revision_date: e.target.value })}
+                      className="w-full px-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3 p-4 bg-amber-50 rounded-2xl border border-amber-100">
+                   <input type="checkbox" checked={!!entry.photos_confirmed} onChange={(e) => handleUpdate({ photos_confirmed: e.target.checked })} className="w-6 h-6" />
+                   <span className="text-[10px] font-black uppercase text-amber-900">Confirmo que as fotos estão ok</span>
+                </div>
               </div>
             </motion.div>
           )}
