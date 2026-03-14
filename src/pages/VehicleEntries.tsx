@@ -31,6 +31,7 @@ export default function VehicleEntries() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [creating, setCreating] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -49,11 +50,15 @@ export default function VehicleEntries() {
   };
 
   const handleCreate = async () => {
+    setCreating(true);
     try {
       const res = await api.post('/entries', {});
       navigate(`/vehicle-entries/${res.data.id}`);
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
+      alert('Erro ao criar entrada: ' + (err?.response?.data?.error || err.message));
+    } finally {
+      setCreating(false);
     }
   };
 
@@ -80,9 +85,11 @@ export default function VehicleEntries() {
         <div className="flex items-center gap-2">
           <button
             onClick={handleCreate}
-            className="h-9 px-4 bg-slate-900 text-white rounded-lg text-xs font-bold flex items-center gap-2 hover:bg-slate-800 transition-all shadow-sm whitespace-nowrap"
+            disabled={creating}
+            className="h-9 px-4 bg-slate-900 text-white rounded-lg text-xs font-bold flex items-center gap-2 hover:bg-slate-800 transition-all shadow-sm whitespace-nowrap disabled:opacity-60"
           >
-            <Plus size={16} /> Nova Entrada
+            {creating ? <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Plus size={16} />}
+            Nova Entrada
           </button>
         </div>
       </header>
