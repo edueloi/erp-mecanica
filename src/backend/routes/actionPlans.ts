@@ -10,8 +10,33 @@ router.use(authenticateToken);
 // ===== CATEGORIES =====
 
 router.get("/categories", async (req: AuthRequest, res) => {
-  const categories = await db.query(`SELECT * FROM action_categories ORDER BY type, name`);
+  const categories = await db.query(`SELECT * FROM action_categories ORDER BY name`);
   res.json(categories);
+});
+
+router.post("/categories", async (req: AuthRequest, res) => {
+  const { name, color, type } = req.body;
+  if (!name) return res.status(400).json({ error: "name is required" });
+  const id = uuidv4();
+  try {
+    await db.execute(
+      `INSERT INTO action_categories (id, name, color, type) VALUES (?, ?, ?, ?)`,
+      [id, name, color || '#6b7280', type || 'OTHER']
+    );
+    const cat = await db.queryOne(`SELECT * FROM action_categories WHERE id = ?`, [id]);
+    res.status(201).json(cat);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.delete("/categories/:id", async (req: AuthRequest, res) => {
+  try {
+    await db.execute(`DELETE FROM action_categories WHERE id = ?`, [req.params.id]);
+    res.status(204).send();
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
 // ===== STATISTICS =====
