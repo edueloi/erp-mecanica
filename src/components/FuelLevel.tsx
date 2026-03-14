@@ -8,82 +8,215 @@ interface FuelLevelProps {
 }
 
 const LEVELS = [
-  { id: 'EMPTY', label: 'E', color: '#ef4444' },
-  { id: 'RESERVE', label: 'R', color: '#f59e0b' },
-  { id: '1/4', label: '1/4', color: '#f59e0b' },
-  { id: '1/2', label: '1/2', color: '#10b981' },
-  { id: '3/4', label: '3/4', color: '#10b981' },
-  { id: 'FULL', label: 'F', color: '#10b981' },
+  { id: 'EMPTY',   label: 'E',   angle: 180 },
+  { id: 'RESERVE', label: 'R',   angle: 144 },
+  { id: '1/4',     label: '¼',   angle: 108 },
+  { id: '1/2',     label: '½',   angle:  72 },
+  { id: '3/4',     label: '¾',   angle:  36 },
+  { id: 'FULL',    label: 'F',   angle:   0 },
 ];
 
+// Center and radius of the semicircle
+const CX = 150;
+const CY = 138;
+const R_OUTER = 108;
+const R_INNER = 72;
+const R_TICK_OUTER = 118;
+const R_TICK_INNER = 96;
+const R_LABEL = 132;
+
+function toPoint(angleDeg: number, r: number) {
+  const rad = (angleDeg * Math.PI) / 180;
+  return {
+    x: CX + r * Math.cos(rad),
+    y: CY - r * Math.sin(rad),
+  };
+}
+
+function describeArc(startAngle: number, endAngle: number, r: number, innerR: number) {
+  const s = toPoint(startAngle, r);
+  const e = toPoint(endAngle, r);
+  const si = toPoint(startAngle, innerR);
+  const ei = toPoint(endAngle, innerR);
+  const large = Math.abs(endAngle - startAngle) > 180 ? 1 : 0;
+  return [
+    `M ${s.x} ${s.y}`,
+    `A ${r} ${r} 0 ${large} 0 ${e.x} ${e.y}`,
+    `L ${ei.x} ${ei.y}`,
+    `A ${innerR} ${innerR} 0 ${large} 1 ${si.x} ${si.y}`,
+    'Z',
+  ].join(' ');
+}
+
+// Zone colors
+const ZONE_SEGMENTS = [
+  { from: 180, to: 144, color: '#ef4444' }, // E → R  (red)
+  { from: 144, to:  72, color: '#f59e0b' }, // R → ½  (amber)
+  { from:  72, to:   0, color: '#22c55e' }, // ½ → F  (green)
+];
+
+function levelColor(id: string) {
+  if (id === 'EMPTY') return '#ef4444';
+  if (id === 'RESERVE') return '#f97316';
+  if (id === '1/4') return '#f59e0b';
+  if (id === '1/2') return '#84cc16';
+  return '#22c55e';
+}
+
 export default function FuelLevel({ value, onChange, readOnly }: FuelLevelProps) {
-  const currentIndex = LEVELS.findIndex(l => l.id === value);
+  const currentIdx = LEVELS.findIndex(l => l.id === value);
+  const current = LEVELS[currentIdx] ?? LEVELS[0];
+  const needleAngle = current.angle;
+  const color = levelColor(value);
+
+  // Needle tip and base
+  const tip = toPoint(needleAngle, R_INNER - 6);
+  const baseL = toPoint(needleAngle + 90, 7);
+  const baseR = toPoint(needleAngle - 90, 7);
 
   return (
-    <div className="bg-slate-900 p-8 rounded-[40px] shadow-2xl relative overflow-hidden border-4 border-slate-800">
-      {/* Dashboard glow */}
-      <div className="absolute inset-0 bg-blue-500/5 pointer-events-none" />
-      
-      <div className="relative flex flex-col items-center">
-        <div className="w-full flex justify-between items-end h-20 px-2">
-          {LEVELS.map((level, idx) => {
-            const isActive = idx <= currentIndex;
-            const isTarget = idx === currentIndex;
-            
+    <div className="w-full">
+      {/* Gauge card */}
+      <div className="relative bg-slate-950 rounded-3xl p-4 pb-3 shadow-2xl border border-slate-800 overflow-hidden select-none">
+        {/* Ambient glow behind gauge */}
+        <div
+          className="absolute bottom-0 left-1/2 -translate-x-1/2 w-40 h-20 blur-3xl opacity-30 pointer-events-none transition-all duration-500"
+          style={{ backgroundColor: color }}
+        />
+
+        <svg
+          viewBox="0 0 300 160"
+          className="w-full"
+          style={{ maxHeight: 160 }}
+        >
+          {/* ── Background ring ── */}
+          <path
+            d={describeArc(180, 0, R_OUTER, R_INNER)}
+            fill="#1e293b"
+          />
+
+          {/* ── Colored zone segments ── */}
+          {ZONE_SEGMENTS.map((seg, i) => (
+            <path
+              key={i}
+              d={describeArc(seg.from, seg.to, R_OUTER, R_INNER)}
+              fill={seg.color}
+              opacity={0.18}
+            />
+          ))}
+
+          {/* ── Active fill arc (from EMPTY to current level) ── */}
+          {currentIdx > 0 && (
+            <motion.path
+              d={describeArc(180, needleAngle, R_OUTER, R_INNER)}
+              fill={color}
+              opacity={0.55}
+              initial={false}
+              animate={{ opacity: 0.55 }}
+              transition={{ duration: 0.4 }}
+            />
+          )}
+
+          {/* ── Tick marks ── */}
+          {LEVELS.map((lvl) => {
+            const o = toPoint(lvl.angle, R_TICK_OUTER);
+            const i = toPoint(lvl.angle, R_TICK_INNER);
+            const isActive = LEVELS.findIndex(l => l.id === lvl.id) <= currentIdx;
             return (
-              <button
-                key={level.id}
-                disabled={readOnly}
-                onClick={() => onChange?.(level.id)}
-                className="flex flex-col items-center gap-3 group relative cursor-pointer disabled:cursor-default"
-                style={{ width: `${100 / LEVELS.length}%` }}
-              >
-                {/* Tick */}
-                <div className={`w-1 h-3 rounded-full transition-all ${isActive ? 'bg-white' : 'bg-slate-700'}`} />
-                
-                {/* Level Bar Segment */}
-                <div className="w-full h-8 px-1">
-                  <motion.div 
-                    animate={{ 
-                      backgroundColor: isActive ? level.color : '#1e293b',
-                      boxShadow: isTarget ? `0 0 15px ${level.color}` : 'none'
-                    }}
-                    className={`w-full h-full rounded-md transition-all ${isTarget ? 'scale-y-110' : ''}`}
-                  />
-                </div>
-
-                {/* Label */}
-                <span className={`text-[10px] font-black transition-all ${isActive ? 'text-white' : 'text-slate-600'}`}>
-                  {level.label}
-                </span>
-
-                {/* Needle Indicator */}
-                {isTarget && (
-                  <motion.div 
-                    layoutId="needle"
-                    className="absolute -top-12 left-1/2 -translate-x-1/2 flex flex-col items-center"
-                    initial={false}
-                  >
-                     <div className="w-4 h-4 bg-white rounded-full border-4 border-slate-900 shadow-xl" />
-                     <div className="w-1 h-8 bg-white" />
-                  </motion.div>
-                )}
-              </button>
+              <line
+                key={lvl.id}
+                x1={o.x} y1={o.y}
+                x2={i.x} y2={i.y}
+                stroke={isActive ? color : '#334155'}
+                strokeWidth={lvl.id === 'EMPTY' || lvl.id === 'FULL' ? 3 : 2}
+                strokeLinecap="round"
+              />
             );
           })}
-        </div>
 
-        {/* Gauge Background Curve */}
-        <div className="w-full h-1 bg-slate-800 mt-2 rounded-full overflow-hidden">
-           <motion.div 
-             animate={{ width: `${((currentIndex + 1) / LEVELS.length) * 100}%`, backgroundColor: LEVELS[currentIndex]?.color || '#1e293b' }}
-             className="h-full transition-all duration-500"
-           />
-        </div>
+          {/* ── Tick labels ── */}
+          {LEVELS.map((lvl) => {
+            const pos = toPoint(lvl.angle, R_LABEL);
+            const isActive = LEVELS.findIndex(l => l.id === lvl.id) <= currentIdx;
+            return (
+              <text
+                key={lvl.id}
+                x={pos.x}
+                y={pos.y + 4}
+                textAnchor="middle"
+                fontSize="11"
+                fontWeight="900"
+                fill={isActive ? color : '#475569'}
+                style={{ cursor: readOnly ? 'default' : 'pointer', fontFamily: 'system-ui' }}
+                onClick={() => !readOnly && onChange?.(lvl.id)}
+              >
+                {lvl.label}
+              </text>
+            );
+          })}
 
-        <div className="mt-8 flex items-center gap-3">
-           <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-           <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Fuel Indicator System</span>
+          {/* ── Needle ── */}
+          <motion.polygon
+            points={`${tip.x},${tip.y} ${baseL.x},${baseL.y} ${baseR.x},${baseR.y}`}
+            fill={color}
+            initial={false}
+            animate={{ fill: color }}
+            transition={{ duration: 0.4 }}
+            style={{ filter: `drop-shadow(0 0 4px ${color})` }}
+          />
+
+          {/* ── Center cap ── */}
+          <circle cx={CX} cy={CY} r={9} fill="#0f172a" stroke={color} strokeWidth={2.5} />
+          <circle cx={CX} cy={CY} r={3} fill={color} />
+
+          {/* ── E / F labels at ends ── */}
+          <text x="18" y={CY + 5} fontSize="13" fontWeight="900" fill="#ef4444" textAnchor="middle" style={{ fontFamily: 'system-ui' }}>E</text>
+          <text x="282" y={CY + 5} fontSize="13" fontWeight="900" fill="#22c55e" textAnchor="middle" style={{ fontFamily: 'system-ui' }}>F</text>
+
+          {/* ── Fuel pump icon (simple path) at bottom center ── */}
+          <g transform={`translate(${CX - 8}, ${CY + 14})`} opacity="0.35">
+            <rect x="2" y="0" width="10" height="13" rx="1.5" fill="white" />
+            <rect x="4" y="2" width="6" height="5" rx="1" fill="#0f172a" />
+            <rect x="12" y="2" width="4" height="7" rx="1" fill="white" />
+            <line x1="12" y1="5" x2="16" y2="5" stroke="white" strokeWidth="1.5" />
+          </g>
+        </svg>
+
+        {/* ── Clickable level buttons (below gauge) ── */}
+        {!readOnly && (
+          <div className="flex justify-between gap-1 mt-1 px-1">
+            {LEVELS.map((lvl, idx) => {
+              const isSelected = lvl.id === value;
+              return (
+                <button
+                  key={lvl.id}
+                  onClick={() => onChange?.(lvl.id)}
+                  className="flex-1 py-2 rounded-xl text-[10px] font-black transition-all border"
+                  style={{
+                    backgroundColor: isSelected ? color : 'transparent',
+                    borderColor: isSelected ? color : '#1e293b',
+                    color: isSelected ? '#fff' : '#475569',
+                    boxShadow: isSelected ? `0 0 10px ${color}55` : 'none',
+                  }}
+                >
+                  {lvl.label}
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {/* ── Status label ── */}
+        <div className="flex items-center justify-center gap-2 mt-2">
+          <div className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ backgroundColor: color }} />
+          <span className="text-[10px] font-black uppercase tracking-[0.2em]" style={{ color }}>
+            {value === 'EMPTY' ? 'Tanque Vazio'
+              : value === 'RESERVE' ? 'Reserva'
+              : value === '1/4' ? 'Quarto do Tanque'
+              : value === '1/2' ? 'Meio Tanque'
+              : value === '3/4' ? 'Três Quartos'
+              : 'Tanque Cheio'}
+          </span>
         </div>
       </div>
     </div>

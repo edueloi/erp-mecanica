@@ -131,7 +131,7 @@ export default function VehicleDetail() {
             <ArrowLeft size={18} />
           </button>
           <div className="flex items-center gap-3">
-            <div className="w-12 h-10 bg-slate-900 rounded-lg flex items-center justify-center text-white font-mono font-black text-sm shadow-sm">
+            <div className="h-10 px-3 bg-slate-900 rounded-lg flex items-center justify-center text-white font-mono font-black text-sm shadow-sm whitespace-nowrap min-w-max tracking-widest">
               {vehicle.plate?.toUpperCase() || '---'}
             </div>
             <div>
