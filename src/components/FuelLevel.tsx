@@ -34,16 +34,39 @@ function toPoint(angleDeg: number, r: number) {
 }
 
 function describeArc(startAngle: number, endAngle: number, r: number, innerR: number) {
+  // startAngle > endAngle (e.g. 180 → 0) going clockwise in math = counterclockwise in SVG (Y-down)
+  // We want arcs to travel through the TOP of the semicircle: use sweep-flag=0 on outer, 1 on inner return
   const s = toPoint(startAngle, r);
   const e = toPoint(endAngle, r);
   const si = toPoint(startAngle, innerR);
   const ei = toPoint(endAngle, innerR);
-  const large = Math.abs(endAngle - startAngle) > 180 ? 1 : 0;
+  // For arcs spanning ≤180° going from high angle to low angle through the top,
+  // large-arc-flag = 0 always (we never span more than 180° in one segment)
   return [
     `M ${s.x} ${s.y}`,
-    `A ${r} ${r} 0 ${large} 0 ${e.x} ${e.y}`,
+    `A ${r} ${r} 0 0 0 ${e.x} ${e.y}`,
     `L ${ei.x} ${ei.y}`,
-    `A ${innerR} ${innerR} 0 ${large} 1 ${si.x} ${si.y}`,
+    `A ${innerR} ${innerR} 0 0 1 ${si.x} ${si.y}`,
+    'Z',
+  ].join(' ');
+}
+
+function describeFullSemiArc(r: number, innerR: number) {
+  // Full 180° semicircle from left (180°) to right (0°) through top
+  // Need two arcs because a single 180° arc is ambiguous (large=0 or 1 both work)
+  const leftOuter = toPoint(180, r);
+  const topOuter = toPoint(90, r);
+  const rightOuter = toPoint(0, r);
+  const leftInner = toPoint(180, innerR);
+  const topInner = toPoint(90, innerR);
+  const rightInner = toPoint(0, innerR);
+  return [
+    `M ${leftOuter.x} ${leftOuter.y}`,
+    `A ${r} ${r} 0 0 0 ${topOuter.x} ${topOuter.y}`,
+    `A ${r} ${r} 0 0 0 ${rightOuter.x} ${rightOuter.y}`,
+    `L ${rightInner.x} ${rightInner.y}`,
+    `A ${innerR} ${innerR} 0 0 1 ${topInner.x} ${topInner.y}`,
+    `A ${innerR} ${innerR} 0 0 1 ${leftInner.x} ${leftInner.y}`,
     'Z',
   ].join(' ');
 }
@@ -91,7 +114,7 @@ export default function FuelLevel({ value, onChange, readOnly }: FuelLevelProps)
         >
           {/* ── Background ring ── */}
           <path
-            d={describeArc(180, 0, R_OUTER, R_INNER)}
+            d={describeFullSemiArc(R_OUTER, R_INNER)}
             fill="#1e293b"
           />
 
@@ -108,7 +131,9 @@ export default function FuelLevel({ value, onChange, readOnly }: FuelLevelProps)
           {/* ── Active fill arc (from EMPTY to current level) ── */}
           {currentIdx > 0 && (
             <motion.path
-              d={describeArc(180, needleAngle, R_OUTER, R_INNER)}
+              d={needleAngle === 0
+                ? describeFullSemiArc(R_OUTER, R_INNER)
+                : describeArc(180, needleAngle, R_OUTER, R_INNER)}
               fill={color}
               opacity={0.55}
               initial={false}

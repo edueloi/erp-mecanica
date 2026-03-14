@@ -184,7 +184,7 @@ export default function Clients() {
       await api.post('/clients', newClient);
       setIsNewModalOpen(false);
       setNewClient({
-        name: '', type: 'PF', document: '', phone: '', email: '',
+        name: '', type: 'PF', document: '', phone: '', email: '', birth_date: '',
         cep: '', street: '', number: '', complement: '', neighborhood: '', city: '', state: ''
       });
       fetchClients();
