@@ -200,6 +200,7 @@ export async function initDb(): Promise<void> {
     await addCol('vehicle_entries', 'doors_count', 'INT DEFAULT NULL');
     await addCol('vehicle_entries', 'last_revision_km', 'INT DEFAULT NULL');
     await addCol('vehicle_entries', 'last_revision_date', 'DATE DEFAULT NULL');
+    await addCol('clients', 'birth_date', 'DATE DEFAULT NULL');
 
     console.log('✅ Columns verified/added');
 

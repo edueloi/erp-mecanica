@@ -31,6 +31,7 @@ import {
   ClipboardSignature,
   CheckCircle2,
   Trash2,
+  Cake,
 } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../services/authStore';
@@ -55,27 +56,14 @@ interface NavItem {
 
 interface AppNotification {
   id: string;
-  type: 'entry' | 'appointment' | 'stock_low' | 'stock_zero';
+  type: 'entry' | 'appointment' | 'stock_low' | 'stock_zero' | 'birthday';
   title: string;
   description: string;
   link: string;
   severity: 'info' | 'warning' | 'error';
 }
 
-const DISMISSED_KEY = 'mecaerp_dismissed_notifications';
-
-function getDismissed(): Set<string> {
-  try {
-    const raw = localStorage.getItem(DISMISSED_KEY);
-    return new Set(raw ? JSON.parse(raw) : []);
-  } catch {
-    return new Set();
-  }
-}
-
-function saveDismissed(ids: Set<string>) {
-  localStorage.setItem(DISMISSED_KEY, JSON.stringify(Array.from(ids)));
-}
+// Dismissed notifications are stored only in memory — reset on page refresh
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -89,7 +77,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   // Notification state
   const [showNotifications, setShowNotifications] = useState(false);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
-  const [dismissed, setDismissed] = useState<Set<string>>(getDismissed);
+  const [dismissed, setDismissed] = useState<Set<string>>(new Set());
   const [loadingNotifs, setLoadingNotifs] = useState(false);
   const bellRef = useRef<HTMLDivElement>(null);
 
@@ -111,11 +99,12 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     setLoadingNotifs(true);
     try {
       const today = format(new Date(), 'yyyy-MM-dd');
-      const [partsLow, partsZero, appointmentsToday, entries] = await Promise.allSettled([
+      const [partsLow, partsZero, appointmentsToday, entries, dashStats] = await Promise.allSettled([
         api.get('/parts?status=low'),
         api.get('/parts?status=zero'),
         api.get(`/appointments?date=${today}`),
         api.get('/entries'),
+        api.get('/dashboard/stats'),
       ]);
 
       const notifs: AppNotification[] = [];
@@ -178,6 +167,23 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         }
       }
 
+      // ── Birthdays today ──
+      if (dashStats.status === 'fulfilled') {
+        const todayDay = new Date().getDate();
+        for (const c of dashStats.value.data?.birthdaysThisMonth || []) {
+          if (Number(c.birth_day) === todayDay) {
+            notifs.push({
+              id: `birthday-${c.id}`,
+              type: 'birthday',
+              title: 'Aniversário hoje!',
+              description: c.name,
+              link: '/clients',
+              severity: 'info',
+            });
+          }
+        }
+      }
+
       setNotifications(notifs);
     } catch (err) {
       console.error('Error fetching notifications', err);
@@ -194,17 +200,11 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   }, []);
 
   const dismiss = (id: string) => {
-    const next = new Set(dismissed);
-    next.add(id);
-    setDismissed(next);
-    saveDismissed(next);
+    setDismissed(prev => new Set([...prev, id]));
   };
 
   const dismissAll = () => {
-    const next = new Set(dismissed);
-    visibleNotifications.forEach(n => next.add(n.id));
-    setDismissed(next);
-    saveDismissed(next);
+    setDismissed(prev => new Set([...prev, ...visibleNotifications.map(n => n.id)]));
   };
 
   const severityStyles: Record<string, string> = {
@@ -224,6 +224,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     stock_low: <Package size={16} />,
     appointment: <Calendar size={16} />,
     entry: <ClipboardCheck size={16} />,
+    birthday: <Cake size={16} />,
   };
 
   const menuSections = [

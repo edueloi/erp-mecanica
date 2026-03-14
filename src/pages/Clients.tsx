@@ -48,6 +48,7 @@ export default function Clients() {
     document: '',
     phone: '',
     email: '',
+    birth_date: '',
     cep: '',
     street: '',
     number: '',
@@ -651,13 +652,25 @@ export default function Clients() {
                   </div>
                   <div>
                     <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">E-mail</label>
-                    <input 
-                      type="email" 
-                      className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-1 focus:ring-slate-900 outline-none" 
+                    <input
+                      type="email"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-1 focus:ring-slate-900 outline-none"
                       value={newClient.email}
                       onChange={e => setNewClient({ ...newClient, email: e.target.value })}
                     />
                   </div>
+
+                  {newClient.type === 'PF' && (
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Data de Aniversário</label>
+                      <input
+                        type="date"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm focus:ring-1 focus:ring-slate-900 outline-none"
+                        value={newClient.birth_date}
+                        onChange={e => setNewClient({ ...newClient, birth_date: e.target.value })}
+                      />
+                    </div>
+                  )}
 
                   <div className="h-px bg-slate-100 my-2" />
                   <h3 className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Endereço</h3>

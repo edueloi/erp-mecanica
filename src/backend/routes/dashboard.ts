@@ -124,6 +124,19 @@ router.get("/stats", async (req: AuthRequest, res) => {
       [tenantId]
     );
 
+    // Clients with birthday this month (by month/day, ignoring year)
+    const birthdaysThisMonth = await db.query(
+      `SELECT id, name, phone, birth_date,
+              MONTH(birth_date) as birth_month,
+              DAY(birth_date) as birth_day
+       FROM clients
+       WHERE tenant_id = ?
+         AND birth_date IS NOT NULL
+         AND MONTH(birth_date) = MONTH(CURDATE())
+       ORDER BY DAY(birth_date) ASC`,
+      [tenantId]
+    );
+
     res.json({
       summary: {
         clients: totalClients?.count || 0,
@@ -140,7 +153,8 @@ router.get("/stats", async (req: AuthRequest, res) => {
       statusDistribution,
       topServices,
       recentWorkOrders,
-      todayAppointments: todayAppointmentsList
+      todayAppointments: todayAppointmentsList,
+      birthdaysThisMonth
     });
   } catch (error: any) {
     res.status(500).json({ error: error.message });

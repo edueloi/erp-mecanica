@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Users, 
-  Car, 
-  ClipboardCheck, 
+import {
+  Users,
+  Car,
+  ClipboardCheck,
   TrendingUp,
   Clock,
   ChevronRight,
@@ -13,7 +13,9 @@ import {
   ArrowUpRight,
   DollarSign,
   PieChart as PieChartIcon,
-  BarChart3
+  BarChart3,
+  Cake,
+  Phone
 } from 'lucide-react';
 import api from '../services/api';
 import { motion } from 'motion/react';
@@ -317,6 +319,60 @@ export default function Dashboard() {
                     </div>
                   </div>
                 ))}
+              </div>
+            </div>
+          )}
+
+          {/* Aniversariantes do mês */}
+          {(stats?.birthdaysThisMonth || []).length > 0 && (
+            <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+              <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-pink-50/40">
+                <h2 className="font-bold text-slate-900 flex items-center gap-2">
+                  <Cake size={20} className="text-pink-500" />
+                  Aniversariantes do Mês
+                  <span className="text-[10px] font-black bg-pink-100 text-pink-600 px-2 py-0.5 rounded-full uppercase tracking-wider">
+                    {new Date().toLocaleString('pt-BR', { month: 'long' })}
+                  </span>
+                </h2>
+                <Link to="/clients" className="text-xs font-bold text-pink-600 hover:text-pink-700 flex items-center gap-1 uppercase tracking-wider">
+                  Ver clientes <ChevronRight size={14} />
+                </Link>
+              </div>
+              <div className="divide-y divide-slate-100">
+                {(stats.birthdaysThisMonth || []).map((client: any) => {
+                  const today = new Date();
+                  const isToday = client.birth_day === today.getDate();
+                  const isPast = client.birth_day < today.getDate();
+                  return (
+                    <div key={client.id} className={`flex items-center justify-between px-6 py-3.5 hover:bg-slate-50 transition-colors ${isToday ? 'bg-pink-50/60' : ''}`}>
+                      <div className="flex items-center gap-4">
+                        <div className={`w-10 h-10 rounded-xl flex flex-col items-center justify-center text-center shrink-0 ${
+                          isToday ? 'bg-pink-500 text-white' : isPast ? 'bg-slate-100 text-slate-400' : 'bg-pink-100 text-pink-600'
+                        }`}>
+                          <span className="text-[10px] font-bold leading-none">{new Date().toLocaleString('pt-BR', { month: 'short' }).replace('.', '').toUpperCase()}</span>
+                          <span className="text-sm font-black leading-tight">{client.birth_day}</span>
+                        </div>
+                        <div>
+                          <p className={`font-bold text-sm ${isToday ? 'text-pink-600' : 'text-slate-900'}`}>
+                            {client.name}
+                            {isToday && <span className="ml-2 text-[10px] bg-pink-500 text-white px-1.5 py-0.5 rounded-full">Hoje!</span>}
+                          </p>
+                          {client.phone && <p className="text-xs text-slate-400 font-medium">{client.phone}</p>}
+                        </div>
+                      </div>
+                      {client.phone && (
+                        <a
+                          href={`https://wa.me/55${client.phone.replace(/\D/g, '')}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 rounded-xl text-xs font-bold transition-colors"
+                        >
+                          <Phone size={12} /> WhatsApp
+                        </a>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}
