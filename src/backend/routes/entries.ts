@@ -57,8 +57,17 @@ router.patch("/public/:token", async (req, res) => {
       return res.json({ success: true });
     }
 
-    const fields = Object.keys(sanitizedData).map(key => `${key} = COALESCE(?, ${key})`).join(', ');
-    const values = Object.values(sanitizedData);
+    // Filter out null values to avoid overwriting existing data
+    const updateData = Object.fromEntries(
+      Object.entries(sanitizedData).filter(([, v]) => v !== null && v !== undefined)
+    );
+
+    if (Object.keys(updateData).length === 0) {
+      return res.json({ success: true });
+    }
+
+    const fields = Object.keys(updateData).map(key => `\`${key}\` = ?`).join(', ');
+    const values = Object.values(updateData);
 
     await db.execute(`
       UPDATE vehicle_entries

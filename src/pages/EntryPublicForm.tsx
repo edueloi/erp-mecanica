@@ -15,6 +15,8 @@ export default function EntryPublicForm() {
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState<string | null>(null);
   const [step, setStep] = useState(1);
+  const [finalizing, setFinalizing] = useState(false);
+  const [finalized, setFinalized] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [activeItemId, setActiveItemId] = useState<string | null>(null);
   
@@ -59,6 +61,20 @@ export default function EntryPublicForm() {
       await api.patch(`/entries/public/${token}`, data);
     } catch (err) {
       console.error(err);
+    }
+  };
+
+  const handleFinalize = async () => {
+    setFinalizing(true);
+    try {
+      await api.patch(`/entries/public/${token}`, { status: 'COMPLETED' });
+      setEntry((prev: any) => ({ ...prev, status: 'COMPLETED' }));
+      setFinalized(true);
+    } catch (err) {
+      console.error(err);
+      alert('Erro ao finalizar. Tente novamente.');
+    } finally {
+      setFinalizing(false);
     }
   };
 
@@ -475,14 +491,36 @@ export default function EntryPublicForm() {
         </AnimatePresence>
       </div>
 
-      <div className="fixed bottom-0 left-0 right-0 bg-slate-50/80 backdrop-blur-xl p-6 border-t border-slate-200 flex items-center gap-4 z-50">
-         {step > 1 && <button onClick={() => setStep(s => s - 1)} className="w-16 h-16 bg-white border border-slate-200 rounded-[24px] flex items-center justify-center text-slate-600"><ChevronLeft size={24} /></button>}
-         {step < totalSteps ? (
-           <button onClick={() => setStep(s => s + 1)} className="flex-1 h-16 bg-indigo-600 text-white rounded-[24px] font-black text-sm uppercase tracking-[0.2em] flex items-center justify-center gap-2">Continuar <ChevronRight size={20} /></button>
-         ) : (
-           <button onClick={() => { handleUpdate({ status: 'COMPLETED' }); alert('Finalizado!'); }} className="flex-1 h-16 bg-emerald-600 text-white rounded-[24px] font-black text-sm uppercase tracking-[0.2em] flex items-center justify-center gap-2 shadow-xl shadow-emerald-200">Finalizar <Send size={20} /></button>
-         )}
-      </div>
+      {finalized ? (
+        <div className="fixed inset-0 bg-emerald-600 flex flex-col items-center justify-center p-10 text-center z-50">
+          <div className="w-24 h-24 bg-white/20 rounded-full flex items-center justify-center mb-6">
+            <CheckCircle2 size={48} className="text-white" />
+          </div>
+          <h2 className="text-3xl font-black text-white tracking-tight italic mb-2">ENTRADA<br />FINALIZADA!</h2>
+          <p className="text-emerald-100 text-sm font-medium mb-10">Checklist concluído com sucesso.</p>
+          <button
+            onClick={() => setFinalized(false)}
+            className="h-14 px-8 bg-white text-emerald-700 rounded-[24px] font-black text-sm uppercase tracking-[0.2em] shadow-xl"
+          >
+            Editar Informações
+          </button>
+        </div>
+      ) : (
+        <div className="fixed bottom-0 left-0 right-0 bg-slate-50/80 backdrop-blur-xl p-6 border-t border-slate-200 flex items-center gap-4 z-50">
+          {step > 1 && <button onClick={() => setStep(s => s - 1)} className="w-16 h-16 bg-white border border-slate-200 rounded-[24px] flex items-center justify-center text-slate-600"><ChevronLeft size={24} /></button>}
+          {step < totalSteps ? (
+            <button onClick={() => setStep(s => s + 1)} className="flex-1 h-16 bg-indigo-600 text-white rounded-[24px] font-black text-sm uppercase tracking-[0.2em] flex items-center justify-center gap-2">Continuar <ChevronRight size={20} /></button>
+          ) : (
+            <button
+              onClick={handleFinalize}
+              disabled={finalizing}
+              className="flex-1 h-16 bg-emerald-600 text-white rounded-[24px] font-black text-sm uppercase tracking-[0.2em] flex items-center justify-center gap-2 shadow-xl shadow-emerald-200 disabled:opacity-60"
+            >
+              {finalizing ? <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <><Send size={20} /> Finalizar</>}
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }
