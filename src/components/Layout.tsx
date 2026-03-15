@@ -466,7 +466,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
           <div className="flex items-center gap-2">
             <div className="relative" ref={bellRef}>
               <button
-                onClick={() => { setShowNotifications(v => !v); if (!showNotifications) fetchNotifications(); }}
+                onClick={() => setShowNotifications(v => !v)}
                 className="relative p-2.5 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-all cursor-pointer"
               >
                 <Bell size={20} />
