@@ -324,58 +324,132 @@ export default function Dashboard() {
           )}
 
           {/* Aniversariantes do mês */}
-          {(stats?.birthdaysThisMonth || []).length > 0 && (
-            <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
-              <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-pink-50/40">
-                <h2 className="font-bold text-slate-900 flex items-center gap-2">
-                  <Cake size={20} className="text-pink-500" />
-                  Aniversariantes do Mês
-                  <span className="text-[10px] font-black bg-pink-100 text-pink-600 px-2 py-0.5 rounded-full uppercase tracking-wider">
-                    {new Date().toLocaleString('pt-BR', { month: 'long' })}
-                  </span>
-                </h2>
-                <Link to="/clients" className="text-xs font-bold text-pink-600 hover:text-pink-700 flex items-center gap-1 uppercase tracking-wider">
-                  Ver clientes <ChevronRight size={14} />
-                </Link>
-              </div>
-              <div className="divide-y divide-slate-100">
-                {(stats.birthdaysThisMonth || []).map((client: any) => {
-                  const today = new Date();
-                  const isToday = client.birth_day === today.getDate();
-                  const isPast = client.birth_day < today.getDate();
-                  return (
-                    <div key={client.id} className={`flex items-center justify-between px-6 py-3.5 hover:bg-slate-50 transition-colors ${isToday ? 'bg-pink-50/60' : ''}`}>
-                      <div className="flex items-center gap-4">
-                        <div className={`w-10 h-10 rounded-xl flex flex-col items-center justify-center text-center shrink-0 ${
-                          isToday ? 'bg-pink-500 text-white' : isPast ? 'bg-slate-100 text-slate-400' : 'bg-pink-100 text-pink-600'
-                        }`}>
-                          <span className="text-[10px] font-bold leading-none">{new Date().toLocaleString('pt-BR', { month: 'short' }).replace('.', '').toUpperCase()}</span>
-                          <span className="text-sm font-black leading-tight">{client.birth_day}</span>
+          {(stats?.birthdaysThisMonth || []).length > 0 && (() => {
+            const todayNum = new Date().getDate();
+            const monthName = new Date().toLocaleString('pt-BR', { month: 'long' });
+            const todayBirthdays = (stats.birthdaysThisMonth || []).filter((c: any) => c.birth_day === todayNum);
+            const upcomingBirthdays = (stats.birthdaysThisMonth || []).filter((c: any) => c.birth_day > todayNum);
+            const pastBirthdays = (stats.birthdaysThisMonth || []).filter((c: any) => c.birth_day < todayNum);
+            return (
+              <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+                <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-gradient-to-r from-pink-50/60 to-white">
+                  <h2 className="font-bold text-slate-900 flex items-center gap-2">
+                    <Cake size={20} className="text-pink-500" />
+                    Aniversariantes
+                    <span className="text-[10px] font-black bg-pink-100 text-pink-600 px-2 py-0.5 rounded-full uppercase tracking-wider capitalize">
+                      {monthName}
+                    </span>
+                    <span className="text-[10px] font-black bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full">
+                      {(stats.birthdaysThisMonth || []).length}
+                    </span>
+                  </h2>
+                  <Link to="/clients" className="text-xs font-bold text-pink-600 hover:text-pink-700 flex items-center gap-1 uppercase tracking-wider">
+                    Ver clientes <ChevronRight size={14} />
+                  </Link>
+                </div>
+
+                {/* Today's birthdays — highlighted */}
+                {todayBirthdays.length > 0 && (
+                  <div className="bg-gradient-to-r from-pink-500 to-rose-500 px-6 py-4">
+                    <p className="text-[10px] font-black text-white/70 uppercase tracking-widest mb-3">🎂 Hoje</p>
+                    <div className="space-y-2">
+                      {todayBirthdays.map((client: any) => (
+                        <div key={client.id} className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center text-white font-black text-sm">
+                              {client.name.charAt(0).toUpperCase()}
+                            </div>
+                            <div>
+                              <p className="font-black text-white text-sm">{client.name}</p>
+                              {client.phone && <p className="text-[11px] text-white/70">{client.phone}</p>}
+                            </div>
+                          </div>
+                          {client.phone && (
+                            <a
+                              href={`https://wa.me/55${client.phone.replace(/\D/g, '')}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center gap-1.5 px-3 py-1.5 bg-white/20 hover:bg-white/30 text-white rounded-xl text-xs font-bold transition-colors"
+                            >
+                              <Phone size={12} /> Parabéns
+                            </a>
+                          )}
                         </div>
-                        <div>
-                          <p className={`font-bold text-sm ${isToday ? 'text-pink-600' : 'text-slate-900'}`}>
-                            {client.name}
-                            {isToday && <span className="ml-2 text-[10px] bg-pink-500 text-white px-1.5 py-0.5 rounded-full">Hoje!</span>}
-                          </p>
-                          {client.phone && <p className="text-xs text-slate-400 font-medium">{client.phone}</p>}
-                        </div>
-                      </div>
-                      {client.phone && (
-                        <a
-                          href={`https://wa.me/55${client.phone.replace(/\D/g, '')}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 rounded-xl text-xs font-bold transition-colors"
-                        >
-                          <Phone size={12} /> WhatsApp
-                        </a>
-                      )}
+                      ))}
                     </div>
-                  );
-                })}
+                  </div>
+                )}
+
+                {/* Upcoming */}
+                {upcomingBirthdays.length > 0 && (
+                  <div className="divide-y divide-slate-50">
+                    {upcomingBirthdays.length > 0 && (
+                      <div className="px-6 pt-3 pb-1">
+                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Próximos</p>
+                      </div>
+                    )}
+                    {upcomingBirthdays.map((client: any) => (
+                      <div key={client.id} className="flex items-center justify-between px-6 py-3 hover:bg-slate-50 transition-colors">
+                        <div className="flex items-center gap-3">
+                          <div className="w-9 h-9 rounded-xl bg-pink-50 flex flex-col items-center justify-center shrink-0">
+                            <span className="text-[9px] font-bold text-pink-400 leading-none">{new Date().toLocaleString('pt-BR', { month: 'short' }).replace('.','').toUpperCase()}</span>
+                            <span className="text-sm font-black text-pink-600 leading-tight">{client.birth_day}</span>
+                          </div>
+                          <div>
+                            <p className="font-bold text-sm text-slate-900">{client.name}</p>
+                            {client.phone && <p className="text-xs text-slate-400">{client.phone}</p>}
+                          </div>
+                        </div>
+                        {client.phone && (
+                          <a
+                            href={`https://wa.me/55${client.phone.replace(/\D/g, '')}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 rounded-xl text-xs font-bold transition-colors"
+                          >
+                            <Phone size={12} /> WhatsApp
+                          </a>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Past */}
+                {pastBirthdays.length > 0 && (
+                  <div className="divide-y divide-slate-50 opacity-50">
+                    <div className="px-6 pt-3 pb-1">
+                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Anteriores</p>
+                    </div>
+                    {pastBirthdays.map((client: any) => (
+                      <div key={client.id} className="flex items-center justify-between px-6 py-3 hover:bg-slate-50 transition-colors">
+                        <div className="flex items-center gap-3">
+                          <div className="w-9 h-9 rounded-xl bg-slate-100 flex flex-col items-center justify-center shrink-0">
+                            <span className="text-[9px] font-bold text-slate-400 leading-none">{new Date().toLocaleString('pt-BR', { month: 'short' }).replace('.','').toUpperCase()}</span>
+                            <span className="text-sm font-black text-slate-500 leading-tight">{client.birth_day}</span>
+                          </div>
+                          <div>
+                            <p className="font-bold text-sm text-slate-600">{client.name}</p>
+                            {client.phone && <p className="text-xs text-slate-400">{client.phone}</p>}
+                          </div>
+                        </div>
+                        {client.phone && (
+                          <a
+                            href={`https://wa.me/55${client.phone.replace(/\D/g, '')}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 text-slate-500 hover:bg-slate-100 rounded-xl text-xs font-bold transition-colors"
+                          >
+                            <Phone size={12} /> WhatsApp
+                          </a>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
-            </div>
-          )}
+            );
+          })()}
 
           <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
           <div className="p-6 border-b border-slate-100 flex items-center justify-between">
@@ -436,25 +510,66 @@ export default function Dashboard() {
       </div>
 
         <div className="space-y-6">
-          <div className="bg-slate-900 rounded-3xl p-8 text-white relative overflow-hidden shadow-xl">
+          <div className="bg-slate-900 rounded-3xl p-6 text-white relative overflow-hidden shadow-xl">
             <div className="relative z-10">
-              <div className="bg-white/10 w-12 h-12 rounded-2xl flex items-center justify-center mb-6">
-                <AlertCircle size={24} className="text-emerald-400" />
-              </div>
-              <h3 className="text-xl font-bold mb-2">Resumo de Hoje</h3>
-              <div className="space-y-4 mt-6">
-                <div className="flex items-center justify-between p-3 bg-white/5 rounded-2xl">
-                  <span className="text-sm text-slate-400">Agendamentos</span>
-                  <span className="font-bold">{summary.todayAppointments}</span>
+              <div className="flex items-center gap-3 mb-5">
+                <div className="bg-white/10 w-10 h-10 rounded-xl flex items-center justify-center">
+                  <AlertCircle size={20} className="text-emerald-400" />
                 </div>
-                <div className="flex items-center justify-between p-3 bg-white/5 rounded-2xl">
-                  <span className="text-sm text-slate-400">Veículos para entrega</span>
-                  <span className="font-bold">{summary.vehiclesToDeliver}</span>
+                <div>
+                  <h3 className="text-base font-black">Resumo de Hoje</h3>
+                  <p className="text-[11px] text-slate-400 uppercase tracking-wider">
+                    {new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'short' })}
+                  </p>
+                </div>
+              </div>
+              <div className="space-y-2.5">
+                <div className="flex items-center justify-between p-3 bg-white/5 rounded-xl">
+                  <div className="flex items-center gap-2">
+                    <Calendar size={14} className="text-blue-400" />
+                    <span className="text-sm text-slate-400">Agendamentos</span>
+                  </div>
+                  <span className={`font-black text-base ${summary.todayAppointments > 0 ? 'text-blue-400' : 'text-white'}`}>{summary.todayAppointments}</span>
+                </div>
+                <div className="flex items-center justify-between p-3 bg-white/5 rounded-xl">
+                  <div className="flex items-center gap-2">
+                    <Car size={14} className="text-purple-400" />
+                    <span className="text-sm text-slate-400">Para entrega</span>
+                  </div>
+                  <span className={`font-black text-base ${summary.vehiclesToDeliver > 0 ? 'text-purple-400' : 'text-white'}`}>{summary.vehiclesToDeliver}</span>
+                </div>
+                <div className="flex items-center justify-between p-3 bg-white/5 rounded-xl">
+                  <div className="flex items-center gap-2">
+                    <ClipboardCheck size={14} className="text-orange-400" />
+                    <span className="text-sm text-slate-400">OS Abertas</span>
+                  </div>
+                  <span className={`font-black text-base ${summary.openWorkOrders > 0 ? 'text-orange-400' : 'text-white'}`}>{summary.openWorkOrders}</span>
+                </div>
+                <div className="flex items-center justify-between p-3 bg-white/5 rounded-xl">
+                  <div className="flex items-center gap-2">
+                    <Users size={14} className="text-emerald-400" />
+                    <span className="text-sm text-slate-400">Novos clientes</span>
+                  </div>
+                  <span className={`font-black text-base ${(summary.newClientsThisMonth || 0) > 0 ? 'text-emerald-400' : 'text-white'}`}>{summary.newClientsThisMonth || 0}</span>
                 </div>
                 {(summary.lowStockParts || 0) > 0 && (
-                  <div className="flex items-center justify-between p-3 bg-red-500/20 rounded-2xl border border-red-500/30">
-                    <span className="text-sm text-red-200">Alertas de estoque</span>
-                    <span className="font-bold text-red-200">{summary.lowStockParts}</span>
+                  <div className="flex items-center justify-between p-3 bg-red-500/20 rounded-xl border border-red-500/30">
+                    <div className="flex items-center gap-2">
+                      <AlertCircle size={14} className="text-red-400" />
+                      <span className="text-sm text-red-300">Alertas de estoque</span>
+                    </div>
+                    <span className="font-black text-base text-red-300">{summary.lowStockParts}</span>
+                  </div>
+                )}
+                {(stats?.birthdaysThisMonth || []).filter((c: any) => c.birth_day === new Date().getDate()).length > 0 && (
+                  <div className="flex items-center justify-between p-3 bg-pink-500/20 rounded-xl border border-pink-500/30">
+                    <div className="flex items-center gap-2">
+                      <Cake size={14} className="text-pink-400" />
+                      <span className="text-sm text-pink-300">Aniversários hoje</span>
+                    </div>
+                    <span className="font-black text-base text-pink-300">
+                      {(stats?.birthdaysThisMonth || []).filter((c: any) => c.birth_day === new Date().getDate()).length}
+                    </span>
                   </div>
                 )}
               </div>

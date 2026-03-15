@@ -77,12 +77,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   // Notification state
   const [showNotifications, setShowNotifications] = useState(false);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
-  const [dismissed, setDismissed] = useState<Set<string>>(new Set());
   const [loadingNotifs, setLoadingNotifs] = useState(false);
   const bellRef = useRef<HTMLDivElement>(null);
 
-  const visibleNotifications = notifications.filter(n => !dismissed.has(n.id));
-  const unreadCount = visibleNotifications.length;
+  const unreadCount = notifications.length;
 
   // Close bell dropdown when clicking outside
   useEffect(() => {
@@ -200,11 +198,11 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   }, []);
 
   const dismiss = (id: string) => {
-    setDismissed(prev => new Set([...prev, id]));
+    setNotifications(prev => prev.filter(n => n.id !== id));
   };
 
   const dismissAll = () => {
-    setDismissed(prev => new Set([...prev, ...visibleNotifications.map(n => n.id)]));
+    setNotifications([]);
   };
 
   const severityStyles: Record<string, string> = {
@@ -508,7 +506,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                         <div className="w-4 h-4 border-2 border-slate-300 border-t-slate-600 rounded-full animate-spin" />
                         Carregando alertas...
                       </div>
-                    ) : visibleNotifications.length === 0 ? (
+                    ) : notifications.length === 0 ? (
                       <div className="flex flex-col items-center justify-center py-12 gap-3 text-center px-6">
                         <div className="w-12 h-12 bg-emerald-50 rounded-full flex items-center justify-center">
                           <CheckCircle2 size={22} className="text-emerald-500" />
@@ -517,7 +515,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                         <p className="text-xs text-slate-400">Nenhum alerta pendente no momento.</p>
                       </div>
                     ) : (
-                      visibleNotifications.map(n => (
+                      notifications.map(n => (
                         <div key={n.id} className="flex items-start gap-3 px-5 py-3.5 hover:bg-slate-50 group transition-colors">
                           <div className={cn('mt-0.5 shrink-0', severityIconColor[n.severity])}>
                             {typeIcon[n.type]}
@@ -543,7 +541,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                   </div>
 
                   {/* Footer */}
-                  {visibleNotifications.length > 0 && (
+                  {notifications.length > 0 && (
                     <div className="px-5 py-3 border-t border-slate-100 text-[11px] text-slate-400 text-center">
                       Clique em um alerta para ir direto ao item · fechar descarta o alerta
                     </div>
